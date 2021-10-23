@@ -1,6 +1,20 @@
-function isIdentifierChar(charCode) {
+function isIdentifierStart(charCode) {
     if (charCode < 65) {
         return false
+    }
+    if (charCode < 123) {
+        return true
+    }
+
+    return false
+}
+
+function isIdentifierChar(charCode) {
+    if (charCode < 48) {
+        return false
+    }
+    if (charCode < 65) {
+        return true
     }
     if (charCode < 123) {
         return true
@@ -152,7 +166,7 @@ function nextToken(ctx) {
 
     const charCode = ctx.input.charCodeAt(ctx.pos)
 
-    if (isIdentifierChar(charCode)) {
+    if (isIdentifierStart(charCode)) {
         readWord(ctx)
     } else {
         getTokenFromCode(ctx, charCode)
