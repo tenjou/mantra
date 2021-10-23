@@ -163,10 +163,14 @@ function nextToken(ctx) {
 }
 
 function parseIdentifier(ctx) {
+    if (ctx.type !== types.name) {
+        unexpected(ctx)
+    }
+
     const node = {
         type: "Identifier",
         start: ctx.start,
-        end: ctx.pos,
+        end: ctx.end,
         name: ctx.value,
     }
 
@@ -337,8 +341,19 @@ function parseFunction(ctx) {
 function parseFunctionParams(ctx) {
     expect(ctx, types.parenthesisL)
 
+    let first = true
+
     const params = []
-    while (!eat(ctx, types.parenthesisR)) {}
+    while (!eat(ctx, types.parenthesisR)) {
+        if (first) {
+            first = false
+        } else {
+            expect(ctx, types.comma)
+        }
+
+        const left = parseBindingAtom(ctx)
+        params.push(left)
+    }
 
     return params
 }
