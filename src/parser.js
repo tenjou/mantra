@@ -221,6 +221,8 @@ function parseBinaryExpression(ctx, left) {
 function parseStatement(ctx) {
     switch (ctx.type) {
         case types.var:
+        case types.let:
+        case types.const:
             return parseVarStatement(ctx)
     }
 
@@ -240,7 +242,7 @@ function parseVarStatement(ctx) {
     nextToken(ctx)
 
     for (;;) {
-        const decl = parseVar(ctx)
+        const decl = parseVar(ctx, node.kind)
 
         node.declarations.push(decl)
 
@@ -254,19 +256,21 @@ function parseVarStatement(ctx) {
     return node
 }
 
-function parseVar(ctx) {
-    const id = parseBindingAtom(ctx)
-
+function parseVar(ctx, kind) {
     const node = {
         type: "VariableDeclarator",
-        start: ctx.startLast,
+        start: ctx.start,
         end: 0,
-        id,
+        id: null,
         init: null,
     }
 
+    node.id = parseBindingAtom(ctx)
+
     if (eat(ctx, types.equals)) {
         node.init = parseMaybeAssign(ctx)
+    } else if (kind === "const" && ctx.type !== types.name) {
+        raise(ctx, "Missing initializer in const declaration")
     }
 
     node.end = ctx.end
