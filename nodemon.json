@@ -1,0 +1,6 @@
+{
+    "events": {
+        "start": "cls"
+    },
+    "delay": "100"
+}
