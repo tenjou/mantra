@@ -298,13 +298,12 @@ function parseStatement(ctx) {
         case types.let:
         case types.const:
             return parseVarStatement(ctx)
-
         case types.if:
             return parseIfStatement(ctx)
-
+        case types.return:
+            return parseReturnStatement(ctx)
         case types.function:
             return parseFunctionStatement(ctx)
-
         case types.braceL:
             return parseBlock(ctx)
     }
@@ -356,6 +355,25 @@ function parseIfStatement(ctx) {
     }
 }
 
+function parseReturnStatement(ctx) {
+    if (!ctx.inFunction) {
+        raise(ctx, "Illegal return statement")
+    }
+
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    const argument = null
+
+    return {
+        type: "ReturnStatement",
+        start,
+        end: ctx.endLast,
+        argument,
+    }
+}
+
 function parseParenthesisExpression(ctx) {
     expect(ctx, types.parenthesisL)
     const expression = parseExpression(ctx)
@@ -395,7 +413,13 @@ function parseFunction(ctx) {
     const start = ctx.startLast
     const id = ctx.type === types.name ? parseIdentifier(ctx) : null
     const params = parseFunctionParams(ctx)
+
+    ctx.inFunction = true
+
     const body = parseFunctionBody(ctx)
+
+    ctx.inFunction = false
+
     const expression = false
     const generator = false
     const async = false
@@ -443,6 +467,10 @@ function parseBlock(ctx) {
     expect(ctx, types.braceL)
 
     const body = []
+    while (ctx.type !== types.braceR) {
+        const statement = parseStatement(ctx)
+        body.push(statement)
+    }
 
     expect(ctx, types.braceR)
 
@@ -480,6 +508,8 @@ export function parser(fileName, input) {
         end: 0,
         startLast: 0,
         endLast: 0,
+
+        inFunction: false,
 
         value: undefined,
         type: null,
@@ -528,4 +558,5 @@ const types = {
     if: keyword("if"),
     true: keyword("true"),
     false: keyword("false"),
+    return: keyword("return"),
 }
