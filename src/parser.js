@@ -13,6 +13,23 @@ function raise(ctx, error) {
     throw new SyntaxError(`${error}. ${ctx.fileName}:${0}:${ctx.start}`)
 }
 
+function unexpected(ctx) {
+    raise(ctx, "Unexpected token")
+}
+
+function eat(ctx, type) {
+    if (ctx.type === type) {
+        nextToken(ctx)
+        return true
+    }
+
+    return false
+}
+
+function expect(ctx, type) {
+    eat(ctx, type) || unexpected(ctx)
+}
+
 function skipSpace(ctx) {
     while (ctx.pos < ctx.input.length) {
         const charCode = ctx.input.charCodeAt(ctx.pos)
@@ -75,6 +92,15 @@ function readEquality(ctx) {
 
 function getTokenFromCode(ctx, charCode) {
     switch (charCode) {
+        case 40:
+            ctx.pos++
+            ctx.type = types.parenthesisL
+            return
+        case 41:
+            ctx.pos++
+            ctx.type = types.parenthesisR
+            return
+
         case 43:
         case 45: // '+-'
             return readPlusMinus(ctx)
@@ -98,6 +124,15 @@ function getTokenFromCode(ctx, charCode) {
 
         case 61:
             readEquality(ctx)
+            return
+
+        case 123:
+            ctx.pos++
+            ctx.type = types.braceL
+            return
+        case 125:
+            ctx.pos++
+            ctx.type = types.braceR
             return
     }
 
@@ -125,15 +160,6 @@ function nextToken(ctx) {
 
     ctx.endLast = ctx.end
     ctx.end = ctx.pos
-}
-
-function eat(ctx, type) {
-    if (ctx.type === type) {
-        nextToken(ctx)
-        return true
-    }
-
-    return false
 }
 
 function parseIdentifier(ctx) {
@@ -170,7 +196,7 @@ function parseExpressionAtom(ctx) {
             return parseNumericLiteral(ctx)
 
         default:
-            raise(ctx, "Unexpected token")
+            unexpected(ctx)
     }
 }
 
@@ -224,6 +250,9 @@ function parseStatement(ctx) {
         case types.let:
         case types.const:
             return parseVarStatement(ctx)
+
+        case types.function:
+            return parseFunctionStatement(ctx)
     }
 
     const expression = parseExpression(ctx)
@@ -256,6 +285,11 @@ function parseVarStatement(ctx) {
     return node
 }
 
+function parseFunctionStatement(ctx) {
+    nextToken(ctx)
+    return parseFunction(ctx)
+}
+
 function parseVar(ctx, kind) {
     const node = {
         type: "VariableDeclarator",
@@ -276,6 +310,54 @@ function parseVar(ctx, kind) {
     node.end = ctx.end
 
     return node
+}
+
+function parseFunction(ctx) {
+    const start = ctx.startLast
+    const id = ctx.type === types.name ? parseIdentifier(ctx) : null
+    const params = parseFunctionParams(ctx)
+    const body = parseFunctionBody(ctx)
+    const expression = false
+    const generator = false
+    const async = false
+
+    return {
+        type: "FunctionDeclaration",
+        start,
+        end: ctx.end,
+        id,
+        expression,
+        generator,
+        async,
+        params,
+        body,
+    }
+}
+
+function parseFunctionParams(ctx) {
+    expect(ctx, types.parenthesisL)
+
+    const params = []
+    while (!eat(ctx, types.parenthesisR)) {}
+
+    return params
+}
+
+function parseFunctionBody(ctx) {
+    const start = ctx.start
+
+    expect(ctx, types.braceL)
+
+    const body = []
+
+    expect(ctx, types.braceR)
+
+    return {
+        type: "BlockStatement",
+        start,
+        end: ctx.end,
+        body,
+    }
 }
 
 function parseTopLevel(ctx) {
@@ -337,6 +419,10 @@ const keywords = {}
 const types = {
     equals: token("="),
     comma: token(","),
+    parenthesisL: token("("),
+    parenthesisR: token(")"),
+    braceL: token("{"),
+    braceR: token("}"),
     eof: token("eof"),
     name: token("name"),
     num: token("num"),
@@ -344,4 +430,5 @@ const types = {
     var: keyword("var"),
     let: keyword("let"),
     const: keyword("const"),
+    function: keyword("function"),
 }
