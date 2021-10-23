@@ -193,12 +193,36 @@ function parseIdentifier(ctx) {
     return node
 }
 
-function parseNumericLiteral(ctx) {
+function parseLiteral(ctx, type = "Literal") {
     const node = {
-        type: "NumericLiteral",
+        type,
         start: ctx.start,
         end: ctx.end,
         value: ctx.value,
+    }
+
+    nextToken(ctx)
+
+    return node
+}
+
+function parseTrue(ctx) {
+    const node = {
+        type: "True",
+        start: ctx.start,
+        end: ctx.end,
+    }
+
+    nextToken(ctx)
+
+    return node
+}
+
+function parseFalse(ctx) {
+    const node = {
+        type: "False",
+        start: ctx.start,
+        end: ctx.end,
     }
 
     nextToken(ctx)
@@ -211,7 +235,11 @@ function parseExpressionAtom(ctx) {
         case types.name:
             return parseIdentifier(ctx)
         case types.num:
-            return parseNumericLiteral(ctx)
+            return parseLiteral(ctx, "NumericLiteral")
+        case types.true:
+            return parseTrue(ctx)
+        case types.false:
+            return parseFalse(ctx)
 
         default:
             unexpected(ctx)
@@ -233,15 +261,17 @@ function parseMaybeAssign(ctx) {
 }
 
 function parseExpression(ctx) {
-    const start = ctx.pos
     const expression = parseMaybeAssign(ctx)
+    return expression
+    // const start = ctx.pos
+    // const expression = parseMaybeAssign(ctx)
 
-    return {
-        type: "ExpressionStatement",
-        expression,
-        start,
-        end: ctx.pos,
-    }
+    // return {
+    //     type: "ExpressionStatement",
+    //     start,
+    //     end: ctx.pos,
+    //     expression,
+    // }
 }
 
 function parseBinaryExpression(ctx, left) {
@@ -269,8 +299,14 @@ function parseStatement(ctx) {
         case types.const:
             return parseVarStatement(ctx)
 
+        case types.if:
+            return parseIfStatement(ctx)
+
         case types.function:
             return parseFunctionStatement(ctx)
+
+        case types.braceL:
+            return parseBlock(ctx)
     }
 
     const expression = parseExpression(ctx)
@@ -301,6 +337,31 @@ function parseVarStatement(ctx) {
     node.end = ctx.end
 
     return node
+}
+
+function parseIfStatement(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    const test = parseParenthesisExpression(ctx)
+    const consequent = parseBlock(ctx)
+
+    return {
+        type: "IfStatement",
+        start,
+        end: ctx.end,
+        test,
+        consequent,
+    }
+}
+
+function parseParenthesisExpression(ctx) {
+    expect(ctx, types.parenthesisL)
+    const expression = parseExpression(ctx)
+    expect(ctx, types.parenthesisR)
+
+    return expression
 }
 
 function parseFunctionStatement(ctx) {
@@ -373,6 +434,10 @@ function parseFunctionParams(ctx) {
 }
 
 function parseFunctionBody(ctx) {
+    return parseBlock(ctx)
+}
+
+function parseBlock(ctx) {
     const start = ctx.start
 
     expect(ctx, types.braceL)
@@ -460,4 +525,7 @@ const types = {
     let: keyword("let"),
     const: keyword("const"),
     function: keyword("function"),
+    if: keyword("if"),
+    true: keyword("true"),
+    false: keyword("false"),
 }
