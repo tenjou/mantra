@@ -408,28 +408,6 @@ function parseFunctionStatement(ctx) {
     return parseFunction(ctx)
 }
 
-function parseVar(ctx, kind) {
-    const node = {
-        type: "VariableDeclarator",
-        start: ctx.start,
-        end: 0,
-        id: null,
-        init: null,
-    }
-
-    node.id = parseBindingAtom(ctx)
-
-    if (eat(ctx, types.equals)) {
-        node.init = parseMaybeAssign(ctx)
-    } else if (kind === "const" && ctx.type !== types.name) {
-        raise(ctx, "Missing initializer in const declaration")
-    }
-
-    node.end = ctx.end
-
-    return node
-}
-
 function parseFunction(ctx) {
     const start = ctx.startLast
     const id = ctx.type === types.name ? parseIdentifier(ctx) : null
@@ -487,10 +465,10 @@ function parseBlock(ctx) {
 
     expect(ctx, types.braceL)
 
-    const body = []
+    const statements = []
     while (ctx.type !== types.braceR) {
         const statement = parseStatement(ctx)
-        body.push(statement)
+        statements.push(statement)
     }
 
     expect(ctx, types.braceR)
@@ -499,8 +477,30 @@ function parseBlock(ctx) {
         type: "BlockStatement",
         start,
         end: ctx.end,
-        body,
+        statements,
     }
+}
+
+function parseVar(ctx, kind) {
+    const node = {
+        type: "VariableDeclarator",
+        start: ctx.start,
+        end: 0,
+        id: null,
+        init: null,
+    }
+
+    node.id = parseBindingAtom(ctx)
+
+    if (eat(ctx, types.equals)) {
+        node.init = parseMaybeAssign(ctx)
+    } else if (kind === "const" && ctx.type !== types.name) {
+        raise(ctx, "Missing initializer in const declaration")
+    }
+
+    node.end = ctx.end
+
+    return node
 }
 
 function parseTopLevel(ctx) {
@@ -537,10 +537,8 @@ export function parser(fileName, input) {
     }
 
     nextToken(ctx)
+
     const result = parseTopLevel(ctx)
-
-    console.log("-\n", JSON.stringify(result, null, "  "))
-
     return result
 }
 
