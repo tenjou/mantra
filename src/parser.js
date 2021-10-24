@@ -104,6 +104,18 @@ function readEquality(ctx) {
     ctx.pos++
 }
 
+function readGreaterThan(ctx) {
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
+    ctx.type = types.greaterThan
+    ctx.pos++
+}
+
+function readLowerThan(ctx) {
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
+    ctx.type = types.lowerThan
+    ctx.pos++
+}
+
 function getTokenFromCode(ctx, charCode) {
     switch (charCode) {
         case 40:
@@ -138,6 +150,13 @@ function getTokenFromCode(ctx, charCode) {
 
         case 61:
             readEquality(ctx)
+            return
+
+        case 60:
+            readLowerThan(ctx)
+            return
+        case 62:
+            readGreaterThan(ctx)
             return
 
         case 123:
@@ -253,7 +272,7 @@ function parseBindingAtom(ctx) {
 function parseMaybeAssign(ctx) {
     const left = parseExpressionAtom(ctx)
 
-    if (ctx.type.binop) {
+    if (ctx.type.op) {
         return parseBinaryExpression(ctx, left)
     }
 
@@ -287,8 +306,8 @@ function parseBinaryExpression(ctx, left) {
         start,
         end: ctx.end,
         left,
-        right,
         op,
+        right,
     }
 }
 
@@ -345,6 +364,7 @@ function parseIfStatement(ctx) {
 
     const test = parseParenthesisExpression(ctx)
     const consequent = parseBlock(ctx)
+    const alternate = null
 
     return {
         type: "IfStatement",
@@ -352,6 +372,7 @@ function parseIfStatement(ctx) {
         end: ctx.end,
         test,
         consequent,
+        alternate,
     }
 }
 
@@ -527,7 +548,7 @@ function token(label, options = {}) {
     return {
         label,
         keyword: options.keyword || false,
-        binop: options.binop || false,
+        op: options.op || false,
     }
 }
 
@@ -542,6 +563,8 @@ const keywords = {}
 
 const types = {
     equals: token("="),
+    greaterThan: token(">", { op: true }),
+    lessThan: token("<", { op: true }),
     comma: token(","),
     parenthesisL: token("("),
     parenthesisR: token(")"),
@@ -550,7 +573,7 @@ const types = {
     eof: token("eof"),
     name: token("name"),
     num: token("num"),
-    plusMinus: token("+/-", { binop: true }),
+    plusMinus: token("+/-", { op: true }),
     var: keyword("var"),
     let: keyword("let"),
     const: keyword("const"),
