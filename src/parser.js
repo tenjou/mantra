@@ -118,9 +118,24 @@ function readPlusMinus(ctx) {
 }
 
 function readEquality(ctx) {
-    ctx.type = types.equals
-    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
-    ctx.pos++
+    let size = 1
+
+    let nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
+    if (nextCharCode === 61) {
+        size++
+    }
+    nextCharCode = ctx.input.charCodeAt(ctx.pos + 2)
+    if (nextCharCode === 61) {
+        size++
+    }
+
+    if (size === 1 && nextCharCode === 33) {
+        unexpected(ctx)
+    }
+
+    ctx.type = size === 1 ? types.equals : types.equality
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + size)
+    ctx.pos += size
 }
 
 function readGreaterThan(ctx) {
@@ -138,7 +153,7 @@ function readLessThan(ctx) {
 function getTokenFromCode(ctx, charCode) {
     switch (charCode) {
         case 34:
-        case 39: // " or '
+        case 39: // " '
             return readString(ctx, charCode)
 
         case 40:
@@ -151,7 +166,7 @@ function getTokenFromCode(ctx, charCode) {
             return
 
         case 43:
-        case 45: // '+-'
+        case 45: // '+ -'
             return readPlusMinus(ctx)
 
         case 44:
@@ -171,7 +186,8 @@ function getTokenFromCode(ctx, charCode) {
             readNumber(ctx)
             return
 
-        case 61:
+        case 33:
+        case 61: // ! =
             readEquality(ctx)
             return
 
@@ -332,7 +348,7 @@ function parseSubscript(ctx) {
 function parseMaybeAssign(ctx) {
     const left = parseSubscript(ctx)
 
-    if (ctx.type.op) {
+    if (ctx.type.binop) {
         return parseBinaryExpression(ctx, left)
     }
 
@@ -624,7 +640,7 @@ function token(label, options = {}) {
     return {
         label,
         keyword: options.keyword || false,
-        op: options.op || false,
+        binop: options.binop || 0,
     }
 }
 
@@ -639,8 +655,9 @@ const keywords = {}
 
 const types = {
     equals: token("="),
-    greaterThan: token(">", { op: true }),
-    lessThan: token("<", { op: true }),
+    equality: token("== ===", { binop: 1 }),
+    greaterThan: token(">", { binop: 2 }),
+    lessThan: token("<", { binop: 2 }),
     comma: token(","),
     parenthesisL: token("("),
     parenthesisR: token(")"),
@@ -650,7 +667,7 @@ const types = {
     name: token("name"),
     num: token("num"),
     string: token("string"),
-    plusMinus: token("+/-", { op: true }),
+    plusMinus: token("+/-", { binop: 2 }),
     var: keyword("var"),
     let: keyword("let"),
     const: keyword("const"),
