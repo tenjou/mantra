@@ -277,30 +277,6 @@ function parseLiteral(ctx) {
     return node
 }
 
-function parseTrue(ctx) {
-    const node = {
-        type: "True",
-        start: ctx.start,
-        end: ctx.end,
-    }
-
-    nextToken(ctx)
-
-    return node
-}
-
-function parseFalse(ctx) {
-    const node = {
-        type: "False",
-        start: ctx.start,
-        end: ctx.end,
-    }
-
-    nextToken(ctx)
-
-    return node
-}
-
 function parseExpressionAtom(ctx) {
     switch (ctx.type) {
         case types.name:
@@ -308,11 +284,9 @@ function parseExpressionAtom(ctx) {
         case types.num:
             return parseNumericLiteral(ctx)
         case types.string:
-            return parseLiteral(ctx)
         case types.true:
-            return parseTrue(ctx)
         case types.false:
-            return parseFalse(ctx)
+            return parseLiteral(ctx)
 
         default:
             unexpected(ctx)

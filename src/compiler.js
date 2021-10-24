@@ -70,24 +70,12 @@ function parseArgs(ctx, args) {
     return result
 }
 
-function parseNumericLiteral(_ctx, node) {
-    return node.value
-}
-
-function parseLiteral(_ctx, node) {
-    return node.value
-}
-
 function parseIdentifier(_ctx, node) {
     return node.name
 }
 
-function parseTrue(_ctx, _node) {
-    return "true"
-}
-
-function parseFalse(_ctx, _node) {
-    return "false"
+function parseLiteral(_ctx, node) {
+    return node.value
 }
 
 function parseBlockStatement(ctx, body) {
@@ -138,9 +126,7 @@ const parse = {
     ReturnStatement: parseReturnStatement,
     BinaryExpression: parseBinaryExpression,
     CallExpression: parseCallExpression,
-    NumericLiteral: parseNumericLiteral,
+    NumericLiteral: parseLiteral,
     Literal: parseLiteral,
     Identifier: parseIdentifier,
-    False: parseFalse,
-    True: parseTrue,
 }
