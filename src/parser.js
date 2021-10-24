@@ -307,8 +307,30 @@ function parseBindingAtom(ctx) {
     return parseIdentifier(ctx)
 }
 
+function parseSubscript(ctx) {
+    const start = ctx.start
+
+    const base = parseExpressionAtom(ctx)
+
+    if (!eat(ctx, types.parenthesisL)) {
+        return base
+    }
+
+    const callee = base
+    const args = parseExpressionList(ctx, types.parenthesisR)
+
+    return {
+        type: "CallExpression",
+        start,
+        end: ctx.end,
+        callee,
+        arguments: args,
+        optional: false,
+    }
+}
+
 function parseMaybeAssign(ctx) {
-    const left = parseExpressionAtom(ctx)
+    const left = parseSubscript(ctx)
 
     if (ctx.type.op) {
         return parseBinaryExpression(ctx, left)
@@ -329,6 +351,24 @@ function parseExpression(ctx) {
     //     end: ctx.pos,
     //     expression,
     // }
+}
+
+function parseExpressionList(ctx, closeToken) {
+    let first = true
+
+    const expressions = []
+    while (!eat(ctx, closeToken)) {
+        if (first) {
+            first = false
+        } else {
+            expect(ctx, types.comma)
+        }
+
+        const expression = parseMaybeAssign(ctx)
+        expressions.push(expression)
+    }
+
+    return expressions
 }
 
 function parseBinaryExpression(ctx, left) {

@@ -46,6 +46,30 @@ function parseBinaryExpression(ctx, node) {
     return result
 }
 
+function parseCallExpression(ctx, node) {
+    const callee = parse[node.callee.type](ctx, node.callee)
+    const args = parseArgs(ctx, node.arguments)
+    const result = `${callee}(${args})`
+
+    return result
+}
+
+function parseArgs(ctx, args) {
+    let result = ""
+    let first = true
+
+    for (const arg of args) {
+        if (first) {
+            first = false
+            result = parse[arg.type](ctx, arg)
+        } else {
+            result += `, ${parse[arg.type](ctx, arg)}`
+        }
+    }
+
+    return result
+}
+
 function parseNumericLiteral(_ctx, node) {
     return node.value
 }
@@ -113,6 +137,7 @@ const parse = {
     IfStatement: parseIfStatement,
     ReturnStatement: parseReturnStatement,
     BinaryExpression: parseBinaryExpression,
+    CallExpression: parseCallExpression,
     NumericLiteral: parseNumericLiteral,
     Literal: parseLiteral,
     Identifier: parseIdentifier,
