@@ -23,10 +23,43 @@ function parseFunctionParams(_ctx, params) {
     return result
 }
 
+function parseVariableDeclaration(ctx, node) {
+    const decls = parseDeclarations(ctx, node.declarations)
+    const result = `${node.kind} ${decls}`
+
+    return result
+}
+
+function parseDeclarations(ctx, decls) {
+    let first = true
+
+    let result = ""
+    for (const decl of decls) {
+        const init = parse[decl.init.type](ctx, decl.init)
+
+        if (first) {
+            first = false
+            result = `${decl.id.name} = ${init}`
+        } else {
+            result += `, ${decl.id.name} = ${init}`
+        }
+    }
+
+    return result
+}
+
 function parseIfStatement(ctx, node) {
     const test = parse[node.test.type](ctx, node.test)
     const consequent = parseBlockStatement(ctx, node.consequent.statements)
     const result = `if(${test}) {\n${consequent}${ctx.spaces}}`
+
+    return result
+}
+
+function parseWhileStatement(ctx, node) {
+    const test = parse[node.test.type](ctx, node.test)
+    const body = parseBlockStatement(ctx, node.body.statements)
+    const result = `while(${test}) {\n${body}${ctx.spaces}}`
 
     return result
 }
@@ -121,8 +154,10 @@ function exitBlock(ctx) {
 }
 
 const parse = {
+    VariableDeclaration: parseVariableDeclaration,
     FunctionDeclaration: parseFunctionDeclaration,
     IfStatement: parseIfStatement,
+    WhileStatement: parseWhileStatement,
     ReturnStatement: parseReturnStatement,
     BinaryExpression: parseBinaryExpression,
     CallExpression: parseCallExpression,

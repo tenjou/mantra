@@ -187,7 +187,7 @@ function getTokenFromCode(ctx, charCode) {
             return
 
         case 33:
-        case 61: // ! =
+        case 61: // '! ='
             readEquality(ctx)
             return
 
@@ -387,6 +387,8 @@ function parseStatement(ctx) {
             return parseVarStatement(ctx)
         case types.if:
             return parseIfStatement(ctx)
+        case types.while:
+            return parseWhileStatement(ctx)
         case types.return:
             return parseReturnStatement(ctx)
         case types.function:
@@ -441,6 +443,23 @@ function parseIfStatement(ctx) {
         test,
         consequent,
         alternate,
+    }
+}
+
+function parseWhileStatement(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    const test = parseParenthesisExpression(ctx)
+    const body = parseBlock(ctx)
+
+    return {
+        type: "WhileStatement",
+        start,
+        end: ctx.end,
+        test,
+        body,
     }
 }
 
@@ -650,4 +669,5 @@ const types = {
     true: keyword("true"),
     false: keyword("false"),
     return: keyword("return"),
+    while: keyword("while"),
 }
