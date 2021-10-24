@@ -24,7 +24,7 @@ function isIdentifierChar(charCode) {
 }
 
 function raise(ctx, error) {
-    throw new SyntaxError(`${error}. ${ctx.fileName}:${0}:${ctx.start}`)
+    throw new SyntaxError(`${error}. ${ctx.fileName}:${1}:${ctx.start + 1}`)
 }
 
 function unexpected(ctx) {
@@ -79,9 +79,27 @@ function readWord(ctx) {
     }
 }
 
-function readNumber(ctx) {
-    ctx.type = types.num
+function readString(ctx, quote) {
+    const start = ctx.pos++
 
+    for (;;) {
+        if (ctx.pos >= ctx.input.length) {
+            raise(ctx, "Unterminated string constant")
+        }
+
+        const charCode = ctx.input.charCodeAt(ctx.pos)
+        ctx.pos++
+
+        if (charCode === quote) {
+            break
+        }
+    }
+
+    ctx.type = types.string
+    ctx.value = ctx.input.slice(start, ctx.pos)
+}
+
+function readNumber(ctx) {
     for (; ctx.pos < Infinity; ctx.pos++) {
         const charCode = ctx.input.charCodeAt(ctx.pos)
         if (charCode < 48 || charCode > 57) {
@@ -89,35 +107,40 @@ function readNumber(ctx) {
         }
     }
 
-    ctx.value = Number(ctx.input.slice(ctx.start, ctx.pos))
+    ctx.type = types.num
+    ctx.value = ctx.input.slice(ctx.start, ctx.pos)
 }
 
 function readPlusMinus(ctx) {
-    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.type = types.plusMinus
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
 }
 
 function readEquality(ctx) {
-    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.type = types.equals
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
 }
 
 function readGreaterThan(ctx) {
-    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.type = types.greaterThan
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
 }
 
 function readLessThan(ctx) {
-    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.type = types.lessThan
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
 }
 
 function getTokenFromCode(ctx, charCode) {
     switch (charCode) {
+        case 34:
+        case 39: // " or '
+            return readString(ctx, charCode)
+
         case 40:
             ctx.pos++
             ctx.type = types.parenthesisL
@@ -212,9 +235,22 @@ function parseIdentifier(ctx) {
     return node
 }
 
-function parseLiteral(ctx, type = "Literal") {
+function parseNumericLiteral(ctx) {
     const node = {
-        type,
+        type: "NumericLiteral",
+        start: ctx.start,
+        end: ctx.end,
+        value: ctx.value,
+    }
+
+    nextToken(ctx)
+
+    return node
+}
+
+function parseLiteral(ctx) {
+    const node = {
+        type: "Literal",
         start: ctx.start,
         end: ctx.end,
         value: ctx.value,
@@ -254,7 +290,9 @@ function parseExpressionAtom(ctx) {
         case types.name:
             return parseIdentifier(ctx)
         case types.num:
-            return parseLiteral(ctx, "NumericLiteral")
+            return parseNumericLiteral(ctx)
+        case types.string:
+            return parseLiteral(ctx)
         case types.true:
             return parseTrue(ctx)
         case types.false:
@@ -514,9 +552,9 @@ function parseTopLevel(ctx) {
 
     return {
         type: "Program",
-        body,
         start,
         end: ctx.pos,
+        body,
     }
 }
 
@@ -571,6 +609,7 @@ const types = {
     eof: token("eof"),
     name: token("name"),
     num: token("num"),
+    string: token("string"),
     plusMinus: token("+/-", { op: true }),
     var: keyword("var"),
     let: keyword("let"),

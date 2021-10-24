@@ -50,6 +50,10 @@ function parseNumericLiteral(_ctx, node) {
     return node.value
 }
 
+function parseLiteral(_ctx, node) {
+    return node.value
+}
+
 function parseIdentifier(_ctx, node) {
     return node.name
 }
@@ -110,6 +114,7 @@ const parse = {
     ReturnStatement: parseReturnStatement,
     BinaryExpression: parseBinaryExpression,
     NumericLiteral: parseNumericLiteral,
+    Literal: parseLiteral,
     Identifier: parseIdentifier,
     False: parseFalse,
     True: parseTrue,
