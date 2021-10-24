@@ -385,7 +385,7 @@ function parseReturnStatement(ctx) {
 
     nextToken(ctx)
 
-    const argument = null
+    const argument = parseExpression(ctx)
 
     return {
         type: "ReturnStatement",
