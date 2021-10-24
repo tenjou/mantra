@@ -110,9 +110,9 @@ function readGreaterThan(ctx) {
     ctx.pos++
 }
 
-function readLowerThan(ctx) {
+function readLessThan(ctx) {
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
-    ctx.type = types.lowerThan
+    ctx.type = types.lessThan
     ctx.pos++
 }
 
@@ -153,7 +153,7 @@ function getTokenFromCode(ctx, charCode) {
             return
 
         case 60:
-            readLowerThan(ctx)
+            readLessThan(ctx)
             return
         case 62:
             readGreaterThan(ctx)
