@@ -360,13 +360,16 @@ function parseMaybeUnary(ctx) {
     const expr = parseExpressionSubscripts(ctx)
 
     if (ctx.type.postfix) {
+        const operator = ctx.value
+        const end = ctx.end
+
         nextToken(ctx)
 
         return {
             type: "UpdateExpression",
             start,
-            end: ctx.end,
-            operator: ctx.value,
+            end,
+            operator,
             prefix: false,
             argument: expr,
         }
@@ -547,7 +550,7 @@ function parseForStatement(ctx) {
     expect(ctx, types.semicolon)
     const test = null
     expect(ctx, types.semicolon)
-    const update = null
+    const update = ctx.type === types.parenthesisR ? null : parseExpression(ctx)
     expect(ctx, types.parenthesisR)
 
     const body = parseStatement(ctx)
