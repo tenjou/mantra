@@ -395,14 +395,17 @@ function parseMaybeAssign(ctx) {
     // return left
 }
 
-function parseExpressionStatement(ctx) {
-    const start = ctx.start
+function parseExpression(ctx) {
     const expression = parseMaybeAssign(ctx)
 
+    return expression
+}
+
+function parseExpressionStatement(ctx, expression) {
     return {
         type: "ExpressionStatement",
-        start,
-        end: ctx.pos,
+        start: ctx.startLast,
+        end: ctx.end,
         expression,
     }
 }
@@ -463,8 +466,8 @@ function parseStatement(ctx) {
             return parseEmptyStatement(ctx)
     }
 
-    const expression = parseExpressionStatement(ctx)
-    return expression
+    const expression = parseExpression(ctx)
+    return parseExpressionStatement(ctx, expression)
 }
 
 function parseVarStatement(ctx) {
