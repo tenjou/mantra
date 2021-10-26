@@ -1,6 +1,6 @@
 function parseFunctionDeclaration(ctx, node) {
     const params = parseFunctionParams(ctx, node.params)
-    const body = parseBlockStatement(ctx, node.body.statements)
+    const body = parse[node.body.type](node.body)
     const result = `function ${node.id.name}(${params}) {\n${body}${ctx.spaces}}`
 
     return result
@@ -51,7 +51,7 @@ function parseDeclarations(ctx, decls) {
 function parseIfStatement(ctx, node) {
     const test = parse[node.test.type](ctx, node.test)
     const consequent = parseBlockStatement(ctx, node.consequent.statements)
-    const result = `if(${test}) {\n${consequent}${ctx.spaces}}`
+    const result = `if(${test}) ${consequent}`
 
     return result
 }
@@ -59,7 +59,17 @@ function parseIfStatement(ctx, node) {
 function parseWhileStatement(ctx, node) {
     const test = parse[node.test.type](ctx, node.test)
     const body = parseBlockStatement(ctx, node.body.statements)
-    const result = `while(${test}) {\n${body}${ctx.spaces}}`
+    const result = `while(${test}) ${body}${ctx.spaces}`
+
+    return result
+}
+
+function parseForStatement(ctx, node) {
+    const init = node.init ? parse[node.init.type](ctx, node.init) : ""
+    const test = node.test ? parse[node.test.type](ctx, node.test) : ""
+    const update = node.update ? parse[node.update.type](ctx, node.update) : ""
+    const body = parse[node.body.type](ctx, node.body)
+    const result = `for(${init};${test};${update}) ${body}`
 
     return result
 }
@@ -136,16 +146,18 @@ function parseLiteral(_ctx, node) {
 }
 
 function parseBlockStatement(ctx, body) {
+    let result = `${ctx.spaces}{`
+
     enterBlock(ctx)
 
-    let result = ""
-
-    for (const node of body) {
+    for (const node of body.body) {
         const nodeResult = parse[node.type](ctx, node)
-        result += `${ctx.spaces}${nodeResult}\n`
+        result += `\n${ctx.spaces}${nodeResult}`
     }
 
     exitBlock(ctx)
+
+    result += `${ctx.spaces}}`
 
     return result
 }
@@ -182,8 +194,10 @@ const parse = {
     FunctionDeclaration: parseFunctionDeclaration,
     IfStatement: parseIfStatement,
     WhileStatement: parseWhileStatement,
+    ForStatement: parseForStatement,
     ReturnStatement: parseReturnStatement,
     ExpressionStatement: parseExpressionStatement,
+    BlockStatement: parseBlockStatement,
     EmptyStatement: parseEmptyStatement,
     BinaryExpression: parseBinaryExpression,
     UnaryExpression: parseUnaryExpression,

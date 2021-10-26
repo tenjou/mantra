@@ -158,28 +158,34 @@ function readLessThan(ctx) {
     ctx.pos++
 }
 
+function finishToken(ctx, type) {
+    ctx.pos++
+    ctx.type = type
+    ctx.value = null
+}
+
 function getTokenFromCode(ctx, charCode) {
     switch (charCode) {
         case 34:
         case 39: // " '
-            return readString(ctx, charCode)
+            readString(ctx, charCode)
+            return
 
         case 40:
-            ctx.pos++
-            ctx.type = types.parenthesisL
+            finishToken(ctx, types.parenthesisL)
             return
+
         case 41:
-            ctx.pos++
-            ctx.type = types.parenthesisR
+            finishToken(ctx, types.parenthesisR)
             return
 
         case 43:
         case 45: // '+ -'
-            return readPlusMinus(ctx, charCode)
+            readPlusMinus(ctx, charCode)
+            return
 
         case 44:
-            ctx.pos++
-            ctx.type = types.comma
+            finishToken(ctx, types.comma)
             return
 
         case 49:
@@ -207,17 +213,14 @@ function getTokenFromCode(ctx, charCode) {
             return
 
         case 123:
-            ctx.pos++
-            ctx.type = types.braceL
+            finishToken(ctx, types.braceL)
             return
         case 125:
-            ctx.pos++
-            ctx.type = types.braceR
+            finishToken(ctx, types.braceR)
             return
 
         case 59:
-            ctx.pos++
-            ctx.type = types.semicolon
+            finishToken(ctx, types.semicolon)
             return
     }
 
@@ -456,6 +459,8 @@ function parseStatement(ctx) {
             return parseIfStatement(ctx)
         case types.while:
             return parseWhileStatement(ctx)
+        case types.for:
+            return parseForStatement(ctx)
         case types.return:
             return parseReturnStatement(ctx)
         case types.function:
@@ -532,6 +537,32 @@ function parseWhileStatement(ctx) {
     }
 }
 
+function parseForStatement(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    expect(ctx, types.parenthesisL)
+    const init = null
+    expect(ctx, types.semicolon)
+    const test = null
+    expect(ctx, types.semicolon)
+    const update = null
+    expect(ctx, types.parenthesisR)
+
+    const body = parseStatement(ctx)
+
+    return {
+        type: "ForStatement",
+        start,
+        end: ctx.end,
+        init,
+        test,
+        update,
+        body,
+    }
+}
+
 function parseReturnStatement(ctx) {
     if (!ctx.inFunction) {
         raise(ctx, "Illegal return statement")
@@ -573,6 +604,7 @@ function parseEmptyStatement(ctx) {
 
 function parseFunctionStatement(ctx) {
     nextToken(ctx)
+
     return parseFunction(ctx)
 }
 
@@ -633,10 +665,10 @@ function parseBlock(ctx) {
 
     expect(ctx, types.braceL)
 
-    const statements = []
+    const body = []
     while (ctx.type !== types.braceR) {
         const statement = parseStatement(ctx)
-        statements.push(statement)
+        body.push(statement)
     }
 
     expect(ctx, types.braceR)
@@ -645,7 +677,7 @@ function parseBlock(ctx) {
         type: "BlockStatement",
         start,
         end: ctx.end,
-        statements,
+        body,
     }
 }
 
@@ -755,4 +787,5 @@ const types = {
     false: keyword("false"),
     return: keyword("return"),
     while: keyword("while"),
+    for: keyword("for"),
 }
