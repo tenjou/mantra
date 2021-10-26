@@ -402,7 +402,23 @@ function parseMaybeAssign(ctx) {
 }
 
 function parseExpression(ctx) {
+    const start = ctx.start
+
     const expression = parseMaybeAssign(ctx)
+    if (ctx.type === types.comma) {
+        const expressions = [expression]
+        while (eat(ctx, types.comma)) {
+            const sequenceExpression = parseMaybeAssign(ctx)
+            expressions.push(sequenceExpression)
+        }
+
+        return {
+            type: "SequenceExpression",
+            start,
+            end: ctx.end,
+            expressions,
+        }
+    }
 
     return expression
 }

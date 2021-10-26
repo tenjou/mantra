@@ -91,6 +91,24 @@ function parseEmptyStatement(ctx, node) {
     return ""
 }
 
+function parseSequenceExpression(ctx, node) {
+    let result = ""
+    let first = true
+
+    for (const expression of node.expressions) {
+        const parsedExpression = parse[expression.type](ctx, expression)
+
+        if (first) {
+            first = false
+            result = parsedExpression
+        } else {
+            result += `, ${parsedExpression}`
+        }
+    }
+
+    return result
+}
+
 function parseBinaryExpression(ctx, node) {
     const left = parse[node.left.type](ctx, node.left)
     const right = parse[node.right.type](ctx, node.right)
@@ -199,6 +217,7 @@ const parse = {
     ExpressionStatement: parseExpressionStatement,
     BlockStatement: parseBlockStatement,
     EmptyStatement: parseEmptyStatement,
+    SequenceExpression: parseSequenceExpression,
     BinaryExpression: parseBinaryExpression,
     UnaryExpression: parseUnaryExpression,
     UpdateExpression: parseUpdateExpression,
