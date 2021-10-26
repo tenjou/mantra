@@ -71,10 +71,34 @@ function parseReturnStatement(ctx, node) {
     return result
 }
 
+function parseExpressionStatement(ctx, node) {
+    const result = parse[node.expression.type](ctx, node.expression)
+
+    return result
+}
+
+function parseEmptyStatement(ctx, node) {
+    return ""
+}
+
 function parseBinaryExpression(ctx, node) {
     const left = parse[node.left.type](ctx, node.left)
     const right = parse[node.right.type](ctx, node.right)
     const result = `${left} ${node.op} ${right}`
+
+    return result
+}
+
+function parseUnaryExpression(ctx, node) {
+    const argument = parse[node.argument.type](ctx, node.argument)
+    const result = node.prefix ? `${node.operator}${argument}` : `${argument}${node.operator}`
+
+    return result
+}
+
+function parseUpdateExpression(ctx, node) {
+    const argument = parse[node.argument.type](ctx, node.argument)
+    const result = node.prefix ? `${node.operator}${argument}` : `${argument}${node.operator}`
 
     return result
 }
@@ -159,7 +183,11 @@ const parse = {
     IfStatement: parseIfStatement,
     WhileStatement: parseWhileStatement,
     ReturnStatement: parseReturnStatement,
+    ExpressionStatement: parseExpressionStatement,
+    EmptyStatement: parseEmptyStatement,
     BinaryExpression: parseBinaryExpression,
+    UnaryExpression: parseUnaryExpression,
+    UpdateExpression: parseUpdateExpression,
     CallExpression: parseCallExpression,
     NumericLiteral: parseLiteral,
     Literal: parseLiteral,

@@ -111,7 +111,15 @@ function readNumber(ctx) {
     ctx.value = ctx.input.slice(ctx.start, ctx.pos)
 }
 
-function readPlusMinus(ctx) {
+function readPlusMinus(ctx, charCode) {
+    let nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
+    if (nextCharCode === charCode) {
+        ctx.type = types.incrementDecrement
+        ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
+        ctx.pos += 2
+        return
+    }
+
     ctx.type = types.plusMinus
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
@@ -167,7 +175,7 @@ function getTokenFromCode(ctx, charCode) {
 
         case 43:
         case 45: // '+ -'
-            return readPlusMinus(ctx)
+            return readPlusMinus(ctx, charCode)
 
         case 44:
             ctx.pos++
@@ -205,6 +213,11 @@ function getTokenFromCode(ctx, charCode) {
         case 125:
             ctx.pos++
             ctx.type = types.braceR
+            return
+
+        case 59:
+            ctx.pos++
+            ctx.type = types.semicolon
             return
     }
 
@@ -319,28 +332,79 @@ function parseSubscript(ctx) {
     }
 }
 
-function parseMaybeAssign(ctx) {
-    const left = parseSubscript(ctx)
+function parseMaybeUnary(ctx) {
+    const start = ctx.start
 
-    if (ctx.type.binop) {
-        return parseBinaryExpression(ctx, left)
+    if (ctx.type.prefix) {
+        const start = ctx.start
+        const operator = ctx.value
+        const isUpdate = ctx.type === types.incrementDecrement
+
+        nextToken(ctx)
+
+        const argument = parseMaybeUnary(ctx)
+
+        return {
+            type: isUpdate ? "UpdateExpression" : "UnaryExpression",
+            start,
+            end: ctx.end,
+            operator,
+            prefix: true,
+            argument,
+        }
     }
 
-    return left
+    const expr = parseExpressionSubscripts(ctx)
+
+    if (ctx.type.postfix) {
+        nextToken(ctx)
+
+        return {
+            type: "UpdateExpression",
+            start,
+            end: ctx.end,
+            operator: ctx.value,
+            prefix: false,
+            argument: expr,
+        }
+    }
+
+    return expr
 }
 
-function parseExpression(ctx) {
-    const expression = parseMaybeAssign(ctx)
-    return expression
-    // const start = ctx.pos
-    // const expression = parseMaybeAssign(ctx)
+function parseExpressionSubscripts(ctx) {
+    return parseExpressionAtom(ctx)
+}
 
-    // return {
-    //     type: "ExpressionStatement",
-    //     start,
-    //     end: ctx.pos,
-    //     expression,
+function parseExpressionOps(ctx) {
+    return parseMaybeUnary(ctx)
+}
+
+function parseMaybeConditional(ctx) {
+    return parseExpressionOps(ctx)
+    // return parseSubscript(ctx)
+}
+
+function parseMaybeAssign(ctx) {
+    return parseMaybeConditional(ctx)
+
+    // if (ctx.type.binop) {
+    //     return parseBinaryExpression(ctx, left)
     // }
+
+    // return left
+}
+
+function parseExpressionStatement(ctx) {
+    const start = ctx.start
+    const expression = parseMaybeAssign(ctx)
+
+    return {
+        type: "ExpressionStatement",
+        start,
+        end: ctx.pos,
+        expression,
+    }
 }
 
 function parseExpressionList(ctx, closeToken) {
@@ -395,9 +459,11 @@ function parseStatement(ctx) {
             return parseFunctionStatement(ctx)
         case types.braceL:
             return parseBlock(ctx)
+        case types.semicolon:
+            return parseEmptyStatement(ctx)
     }
 
-    const expression = parseExpression(ctx)
+    const expression = parseExpressionStatement(ctx)
     return expression
 }
 
@@ -488,6 +554,18 @@ function parseParenthesisExpression(ctx) {
     expect(ctx, types.parenthesisR)
 
     return expression
+}
+
+function parseEmptyStatement(ctx) {
+    const node = {
+        type: "EmptyStatement",
+        start: ctx.start,
+        end: ctx.end,
+    }
+
+    nextToken(ctx)
+
+    return node
 }
 
 function parseFunctionStatement(ctx) {
@@ -634,6 +712,8 @@ function token(label, options = {}) {
         label,
         keyword: options.keyword || false,
         binop: options.binop || 0,
+        prefix: options.prefix || false,
+        postfix: options.postfix || false,
     }
 }
 
@@ -648,10 +728,12 @@ const keywords = {}
 
 const types = {
     equals: token("="),
-    equality: token("== ===", { binop: 1 }),
+    equality: token("==/===", { binop: 1 }),
+    incrementDecrement: token("++/--", { prefix: true, postfix: true }),
     greaterThan: token(">", { binop: 2 }),
     lessThan: token("<", { binop: 2 }),
     comma: token(","),
+    semicolon: token(";"),
     parenthesisL: token("("),
     parenthesisR: token(")"),
     braceL: token("{"),
@@ -660,7 +742,7 @@ const types = {
     name: token("name"),
     num: token("num"),
     string: token("string"),
-    plusMinus: token("+/-", { binop: 2 }),
+    plusMinus: token("+/-", { binop: 2, prefix: true, postfix: true }),
     var: keyword("var"),
     let: keyword("let"),
     const: keyword("const"),
