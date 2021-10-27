@@ -303,6 +303,7 @@ function parseExpressionAtom(ctx) {
         case types.string:
         case types.true:
         case types.false:
+        case types.null:
             return parseLiteral(ctx)
 
         default:
@@ -563,7 +564,6 @@ function parseForStatement(ctx) {
     nextToken(ctx)
 
     expect(ctx, types.parenthesisL)
-
     const init = ctx.type === types.semicolon ? null : parseVarStatement(ctx)
     expect(ctx, types.semicolon)
     const test = null
@@ -806,6 +806,7 @@ const types = {
     if: keyword("if"),
     true: keyword("true"),
     false: keyword("false"),
+    null: keyword("null"),
     return: keyword("return"),
     while: keyword("while"),
     for: keyword("for"),
