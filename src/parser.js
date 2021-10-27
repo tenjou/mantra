@@ -188,6 +188,7 @@ function getTokenFromCode(ctx, charCode) {
             finishToken(ctx, types.comma)
             return
 
+        case 48:
         case 49:
         case 50:
         case 51:
@@ -196,7 +197,7 @@ function getTokenFromCode(ctx, charCode) {
         case 54:
         case 55:
         case 56:
-        case 57: // 1-9
+        case 57: // 0-9
             readNumber(ctx)
             return
 
@@ -403,8 +404,8 @@ function parseMaybeAssign(ctx) {
 
 function parseExpression(ctx) {
     const start = ctx.start
-
     const expression = parseMaybeAssign(ctx)
+
     if (ctx.type === types.comma) {
         const expressions = [expression]
         while (eat(ctx, types.comma)) {
@@ -562,7 +563,8 @@ function parseForStatement(ctx) {
     nextToken(ctx)
 
     expect(ctx, types.parenthesisL)
-    const init = null
+
+    const init = ctx.type === types.semicolon ? null : parseVarStatement(ctx)
     expect(ctx, types.semicolon)
     const test = null
     expect(ctx, types.semicolon)
