@@ -409,17 +409,18 @@ function parseExpressionSubscripts(ctx) {
 function parseExpressionOps(ctx) {
     const expression = parseMaybeUnary(ctx)
 
-    return parseExpressionOp(ctx, expression)
+    return parseExpressionOp(ctx, expression, -1)
 }
 
-function parseExpressionOp(ctx, left) {
+function parseExpressionOp(ctx, left, minPrecedence) {
     const precendence = ctx.type.binop
-    if (precendence > 0) {
+    if (precendence !== 0 && precendence > minPrecedence) {
         const operator = ctx.value
 
         nextToken(ctx)
 
-        const right = parseMaybeUnary(ctx)
+        const expression = parseMaybeUnary(ctx)
+        const right = parseExpressionOp(ctx, expression, precendence)
         const node = {
             type: "BinaryExpression",
             start: left.start,
@@ -429,7 +430,7 @@ function parseExpressionOp(ctx, left) {
             right,
         }
 
-        return parseExpressionOp(ctx, node)
+        return parseExpressionOp(ctx, node, minPrecedence)
     }
 
     return left
@@ -490,24 +491,6 @@ function parseExpressionList(ctx, closeToken) {
     }
 
     return expressions
-}
-
-function parseBinaryExpression(ctx, left) {
-    const start = ctx.startLast
-
-    const op = ctx.value
-    nextToken(ctx)
-
-    const right = parseExpressionAtom(ctx)
-
-    return {
-        type: "BinaryExpression",
-        start,
-        end: ctx.end,
-        left,
-        op,
-        right,
-    }
 }
 
 function parseStatement(ctx) {
@@ -840,7 +823,7 @@ const types = {
     name: token("name"),
     num: token("num"),
     string: token("string"),
-    plusMinus: token("+/-", { binop: 2, prefix: true, postfix: true }),
+    plusMinus: token("+/-", { binop: 9, prefix: true }),
     var: keyword("var"),
     let: keyword("let"),
     const: keyword("const"),
