@@ -111,20 +111,6 @@ function readNumber(ctx) {
     ctx.value = ctx.input.slice(ctx.start, ctx.pos)
 }
 
-function readMultiply(ctx) {
-    const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
-    if (nextCharCode === 61) {
-        ctx.type = types.equals
-        ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
-        ctx.pos += 2
-        return
-    }
-
-    ctx.type = types.star
-    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
-    ctx.pos++
-}
-
 function readPlusMinus(ctx, charCode) {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === charCode) {
@@ -139,7 +125,7 @@ function readPlusMinus(ctx, charCode) {
     ctx.pos++
 }
 
-function readSlash(ctx) {
+function finishTokenEquals(ctx, type) {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
         ctx.type = types.equals
@@ -148,7 +134,7 @@ function readSlash(ctx) {
         return
     }
 
-    ctx.type = types.slash
+    ctx.type = type
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
 }
@@ -215,6 +201,10 @@ function getTokenFromCode(ctx, charCode) {
             readString(ctx, charCode)
             return
 
+        case 37:
+            finishTokenEquals(ctx, types.modulo)
+            return
+
         case 40:
             finishToken(ctx, types.parenthesisL)
             return
@@ -224,7 +214,7 @@ function getTokenFromCode(ctx, charCode) {
             return
 
         case 42:
-            readMultiply(ctx)
+            finishTokenEquals(ctx, types.star)
             return
 
         case 43:
@@ -237,7 +227,7 @@ function getTokenFromCode(ctx, charCode) {
             return
 
         case 47:
-            readSlash(ctx)
+            finishTokenEquals(ctx, types.slash)
             return
 
         case 48:
@@ -874,6 +864,7 @@ const types = {
     lessThanEquals: binop("<=", 7),
     star: binop("*", 10),
     slash: binop("/", 10),
+    modulo: binop("%", 10),
     comma: token(","),
     semicolon: token(";"),
     parenthesisL: token("("),
