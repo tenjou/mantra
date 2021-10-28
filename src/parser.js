@@ -147,14 +147,30 @@ function readEquality(ctx) {
 }
 
 function readGreaterThan(ctx) {
-    ctx.type = types.greaterThan
+    const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
+    if (nextCharCode === 61) {
+        ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
+        ctx.type = types.greaterThanEquals
+        ctx.pos += 2
+        return
+    }
+
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
+    ctx.type = types.greaterThan
     ctx.pos++
 }
 
 function readLessThan(ctx) {
-    ctx.type = types.lessThan
+    const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
+    if (nextCharCode === 61) {
+        ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
+        ctx.type = types.lessThanEquals
+        ctx.pos += 2
+        return
+    }
+
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
+    ctx.type = types.lessThan
     ctx.pos++
 }
 
@@ -315,28 +331,6 @@ function parseBindingAtom(ctx) {
     return parseIdentifier(ctx)
 }
 
-function parseSubscript(ctx) {
-    const start = ctx.start
-
-    const base = parseExpressionAtom(ctx)
-
-    if (!eat(ctx, types.parenthesisL)) {
-        return base
-    }
-
-    const callee = base
-    const args = parseExpressionList(ctx, types.parenthesisR)
-
-    return {
-        type: "CallExpression",
-        start,
-        end: ctx.end,
-        callee,
-        arguments: args,
-        optional: false,
-    }
-}
-
 function parseMaybeUnary(ctx) {
     const start = ctx.start
 
@@ -380,27 +374,73 @@ function parseMaybeUnary(ctx) {
     return expr
 }
 
+function parseSubscript(ctx, base) {
+    const start = ctx.start
+
+    if (!eat(ctx, types.parenthesisL)) {
+        return base
+    }
+
+    const callee = base
+    const args = parseExpressionList(ctx, types.parenthesisR)
+
+    return {
+        type: "CallExpression",
+        start,
+        end: ctx.end,
+        callee,
+        arguments: args,
+        optional: false,
+    }
+}
+
+function parseSubscripts(ctx, base) {
+    const subscript = parseSubscript(ctx, base)
+
+    return subscript
+}
+
 function parseExpressionSubscripts(ctx) {
-    return parseExpressionAtom(ctx)
+    const expression = parseExpressionAtom(ctx)
+
+    return parseSubscripts(ctx, expression)
 }
 
 function parseExpressionOps(ctx) {
-    return parseMaybeUnary(ctx)
+    const expression = parseMaybeUnary(ctx)
+
+    return parseExpressionOp(ctx, expression)
+}
+
+function parseExpressionOp(ctx, left) {
+    const precendence = ctx.type.binop
+    if (precendence > 0) {
+        const operator = ctx.value
+
+        nextToken(ctx)
+
+        const right = parseMaybeUnary(ctx)
+        const node = {
+            type: "BinaryExpression",
+            start: left.start,
+            end: ctx.end,
+            left,
+            operator,
+            right,
+        }
+
+        return parseExpressionOp(ctx, node)
+    }
+
+    return left
 }
 
 function parseMaybeConditional(ctx) {
     return parseExpressionOps(ctx)
-    // return parseSubscript(ctx)
 }
 
 function parseMaybeAssign(ctx) {
     return parseMaybeConditional(ctx)
-
-    // if (ctx.type.binop) {
-    //     return parseBinaryExpression(ctx, left)
-    // }
-
-    // return left
 }
 
 function parseExpression(ctx) {
@@ -428,7 +468,7 @@ function parseExpression(ctx) {
 function parseExpressionStatement(ctx, expression) {
     return {
         type: "ExpressionStatement",
-        start: ctx.startLast,
+        start: expression.start,
         end: ctx.end,
         expression,
     }
@@ -566,7 +606,7 @@ function parseForStatement(ctx) {
     expect(ctx, types.parenthesisL)
     const init = ctx.type === types.semicolon ? null : parseVarStatement(ctx)
     expect(ctx, types.semicolon)
-    const test = null
+    const test = ctx.type === types.semicolon ? null : parseExpression(ctx)
     expect(ctx, types.semicolon)
     const update = ctx.type === types.parenthesisR ? null : parseExpression(ctx)
     expect(ctx, types.parenthesisR)
@@ -786,8 +826,10 @@ const types = {
     equals: token("="),
     equality: token("==/===", { binop: 1 }),
     incrementDecrement: token("++/--", { prefix: true, postfix: true }),
-    greaterThan: token(">", { binop: 2 }),
-    lessThan: token("<", { binop: 2 }),
+    greaterThan: token(">", { binop: 7 }),
+    lessThan: token("<", { binop: 7 }),
+    greaterThanEquals: token(">=", { binop: 7 }),
+    lessThanEquals: token("<=", { binop: 7 }),
     comma: token(","),
     semicolon: token(";"),
     parenthesisL: token("("),
