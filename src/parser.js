@@ -111,8 +111,22 @@ function readNumber(ctx) {
     ctx.value = ctx.input.slice(ctx.start, ctx.pos)
 }
 
+function readMultiply(ctx) {
+    const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
+    if (nextCharCode === 61) {
+        ctx.type = types.equals
+        ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
+        ctx.pos += 2
+        return
+    }
+
+    ctx.type = types.star
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
+    ctx.pos++
+}
+
 function readPlusMinus(ctx, charCode) {
-    let nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
+    const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === charCode) {
         ctx.type = types.incrementDecrement
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
@@ -193,6 +207,10 @@ function getTokenFromCode(ctx, charCode) {
 
         case 41:
             finishToken(ctx, types.parenthesisR)
+            return
+
+        case 42:
+            readMultiply(ctx)
             return
 
         case 43:
@@ -441,7 +459,25 @@ function parseMaybeConditional(ctx) {
 }
 
 function parseMaybeAssign(ctx) {
-    return parseMaybeConditional(ctx)
+    const left = parseMaybeConditional(ctx)
+    if (ctx.type.isAssign) {
+        const operator = ctx.value
+
+        nextToken(ctx)
+
+        const right = parseMaybeAssign(ctx)
+
+        return {
+            type: "AssignmentExpression",
+            start: left.start,
+            end: ctx.end,
+            left,
+            operator,
+            right,
+        }
+    }
+
+    return left
 }
 
 function parseExpression(ctx) {
@@ -793,6 +829,7 @@ function token(label, options = {}) {
         binop: options.binop || 0,
         prefix: options.prefix || false,
         postfix: options.postfix || false,
+        isAssign: options.isAssign || false,
     }
 }
 
@@ -803,16 +840,21 @@ function keyword(name) {
     return keywordToken
 }
 
+function binop(name, binop) {
+    return token(name, { binop })
+}
+
 const keywords = {}
 
 const types = {
-    equals: token("="),
+    equals: token("=", { isAssign: true }),
     equality: token("==/===", { binop: 1 }),
     incrementDecrement: token("++/--", { prefix: true, postfix: true }),
-    greaterThan: token(">", { binop: 7 }),
-    lessThan: token("<", { binop: 7 }),
-    greaterThanEquals: token(">=", { binop: 7 }),
-    lessThanEquals: token("<=", { binop: 7 }),
+    greaterThan: binop(">", 7),
+    lessThan: binop("<", 7),
+    greaterThanEquals: binop(">=", 7),
+    lessThanEquals: binop("<=", 7),
+    star: binop("*", 10),
     comma: token(","),
     semicolon: token(";"),
     parenthesisL: token("("),

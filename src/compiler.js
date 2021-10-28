@@ -117,13 +117,6 @@ function parseBinaryExpression(ctx, node) {
     return result
 }
 
-function parseUnaryExpression(ctx, node) {
-    const argument = parse[node.argument.type](ctx, node.argument)
-    const result = node.prefix ? `${node.operator}${argument}` : `${argument}${node.operator}`
-
-    return result
-}
-
 function parseUpdateExpression(ctx, node) {
     const argument = parse[node.argument.type](ctx, node.argument)
     const result = node.prefix ? `${node.operator}${argument}` : `${argument}${node.operator}`
@@ -219,8 +212,9 @@ const parse = {
     EmptyStatement: parseEmptyStatement,
     SequenceExpression: parseSequenceExpression,
     BinaryExpression: parseBinaryExpression,
-    UnaryExpression: parseUnaryExpression,
+    AssignmentExpression: parseBinaryExpression,
     UpdateExpression: parseUpdateExpression,
+    UnaryExpression: parseUpdateExpression,
     CallExpression: parseCallExpression,
     NumericLiteral: parseLiteral,
     Literal: parseLiteral,
