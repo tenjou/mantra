@@ -139,6 +139,20 @@ function readPlusMinus(ctx, charCode) {
     ctx.pos++
 }
 
+function readSlash(ctx) {
+    const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
+    if (nextCharCode === 61) {
+        ctx.type = types.equals
+        ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
+        ctx.pos += 2
+        return
+    }
+
+    ctx.type = types.slash
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
+    ctx.pos++
+}
+
 function readEquality(ctx) {
     let size = 1
 
@@ -189,9 +203,9 @@ function readLessThan(ctx) {
 }
 
 function finishToken(ctx, type) {
-    ctx.pos++
     ctx.type = type
-    ctx.value = null
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
+    ctx.pos++
 }
 
 function getTokenFromCode(ctx, charCode) {
@@ -220,6 +234,10 @@ function getTokenFromCode(ctx, charCode) {
 
         case 44:
             finishToken(ctx, types.comma)
+            return
+
+        case 47:
+            readSlash(ctx)
             return
 
         case 48:
@@ -855,6 +873,7 @@ const types = {
     greaterThanEquals: binop(">=", 7),
     lessThanEquals: binop("<=", 7),
     star: binop("*", 10),
+    slash: binop("/", 10),
     comma: token(","),
     semicolon: token(";"),
     parenthesisL: token("("),
