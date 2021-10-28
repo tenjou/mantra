@@ -120,6 +120,13 @@ function readPlusMinus(ctx, charCode) {
         return
     }
 
+    if (nextCharCode === 61) {
+        ctx.type = types.assign
+        ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
+        ctx.pos += 2
+        return
+    }
+
     ctx.type = types.plusMinus
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
@@ -128,7 +135,7 @@ function readPlusMinus(ctx, charCode) {
 function finishTokenEquals(ctx, type) {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
-        ctx.type = types.equals
+        ctx.type = types.assign
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
         ctx.pos += 2
         return
@@ -155,7 +162,7 @@ function readEquality(ctx) {
         unexpected(ctx)
     }
 
-    ctx.type = size === 1 ? types.equals : types.equality
+    ctx.type = size === 1 ? types.assign : types.equality
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + size)
     ctx.pos += size
 }
@@ -469,6 +476,8 @@ function parseMaybeConditional(ctx) {
 function parseMaybeAssign(ctx) {
     const left = parseMaybeConditional(ctx)
     if (ctx.type.isAssign) {
+        checkLValue(ctx, left)
+
         const operator = ctx.value
 
         nextToken(ctx)
@@ -780,7 +789,7 @@ function parseVar(ctx, kind) {
 
     node.id = parseBindingAtom(ctx)
 
-    if (eat(ctx, types.equals)) {
+    if (eat(ctx, types.assign)) {
         node.init = parseMaybeAssign(ctx)
     } else if (kind === "const" && ctx.type !== types.name) {
         raise(ctx, "Missing initializer in const declaration")
@@ -805,6 +814,16 @@ function parseTopLevel(ctx) {
         start,
         end: ctx.pos,
         body,
+    }
+}
+
+function checkLValue(ctx, node) {
+    switch (node.type) {
+        case "Identifier":
+            break
+
+        default:
+            raise(ctx, `Invalid left-hand side in assignment expression.`)
     }
 }
 
@@ -855,7 +874,7 @@ function binop(name, binop) {
 const keywords = {}
 
 const types = {
-    equals: token("=", { isAssign: true }),
+    assign: token("=", { isAssign: true }),
     equality: token("==/===", { binop: 1 }),
     incrementDecrement: token("++/--", { prefix: true, postfix: true }),
     greaterThan: binop(">", 7),
