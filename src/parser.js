@@ -355,6 +355,10 @@ function parseExpressionAtom(ctx) {
         case types.null:
             return parseLiteral(ctx)
 
+        case types.parenthesisL:
+        case types.parenthesisR:
+            return parseParenthesisExpression(ctx)
+
         default:
             unexpected(ctx)
     }
@@ -792,7 +796,7 @@ function parseVar(ctx, kind) {
     if (eat(ctx, types.assign)) {
         node.init = parseMaybeAssign(ctx)
     } else if (kind === "const" && ctx.type !== types.name) {
-        raise(ctx, "Missing initializer in const declaration")
+        raise(ctx, "Missing initializer in const declaration.")
     }
 
     node.end = ctx.end

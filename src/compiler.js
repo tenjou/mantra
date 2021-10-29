@@ -112,7 +112,7 @@ function parseSequenceExpression(ctx, node) {
 function parseBinaryExpression(ctx, node) {
     const left = parse[node.left.type](ctx, node.left)
     const right = parse[node.right.type](ctx, node.right)
-    const result = `${left} ${node.operator} ${right}`
+    const result = `(${left} ${node.operator} ${right})`
 
     return result
 }
