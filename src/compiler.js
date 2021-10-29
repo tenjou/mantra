@@ -1,7 +1,7 @@
 function parseFunctionDeclaration(ctx, node) {
     const params = parseFunctionParams(ctx, node.params)
-    const body = parse[node.body.type](node.body)
-    const result = `function ${node.id.name}(${params}) {\n${body}${ctx.spaces}}`
+    const body = parse[node.body.type](ctx, node.body)
+    const result = `function ${node.id.name}(${params}) ${body}`
 
     return result
 }
@@ -50,8 +50,8 @@ function parseDeclarations(ctx, decls) {
 
 function parseIfStatement(ctx, node) {
     const test = parse[node.test.type](ctx, node.test)
-    const consequent = parseBlockStatement(ctx, node.consequent.statements)
-    const result = `if(${test}) ${consequent}`
+    const consequent = parseBlockStatement(ctx, node.consequent)
+    const result = `if${test} ${consequent}`
 
     return result
 }
@@ -59,7 +59,7 @@ function parseIfStatement(ctx, node) {
 function parseWhileStatement(ctx, node) {
     const test = parse[node.test.type](ctx, node.test)
     const body = parseBlockStatement(ctx, node.body.statements)
-    const result = `while(${test}) ${body}${ctx.spaces}`
+    const result = `while${test} ${body}${ctx.spaces}`
 
     return result
 }
@@ -156,19 +156,19 @@ function parseLiteral(_ctx, node) {
     return node.value
 }
 
-function parseBlockStatement(ctx, body) {
-    let result = `${ctx.spaces}{`
+function parseBlockStatement(ctx, node) {
+    let result = `{`
 
     enterBlock(ctx)
 
-    for (const node of body.body) {
-        const nodeResult = parse[node.type](ctx, node)
+    for (const statement of node.body) {
+        const nodeResult = parse[statement.type](ctx, statement)
         result += `\n${ctx.spaces}${nodeResult}`
     }
 
     exitBlock(ctx)
 
-    result += `${ctx.spaces}}`
+    result += `\n${ctx.spaces}}`
 
     return result
 }
