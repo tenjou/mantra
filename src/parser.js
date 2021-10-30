@@ -634,6 +634,8 @@ function parseStatement(ctx) {
             return parseVarStatement(ctx)
         case types.if:
             return parseIfStatement(ctx)
+        case types.switch:
+            return parseSwitchStatement(ctx)
         case types.while:
             return parseWhileStatement(ctx)
         case types.for:
@@ -696,6 +698,27 @@ function parseIfStatement(ctx) {
         test,
         consequent,
         alternate,
+    }
+}
+
+function parseSwitchStatement(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    const discriminant = parseParenthesisExpression(ctx)
+    const cases = []
+
+    expect(ctx, types.braceL)
+
+    expect(ctx, types.braceR)
+
+    return {
+        type: "SwitchStatement",
+        start,
+        end: ctx.end,
+        discriminant,
+        cases,
     }
 }
 
@@ -1021,6 +1044,7 @@ const types = {
     new: keyword("new"),
     function: keyword("function"),
     if: keyword("if"),
+    switch: keyword("switch"),
     true: keyword("true"),
     false: keyword("false"),
     null: keyword("null"),

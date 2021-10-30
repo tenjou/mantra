@@ -56,6 +56,14 @@ function parseIfStatement(ctx, node) {
     return result
 }
 
+function parseSwitchStatement(ctx, node) {
+    const discriminant = parse[node.discriminant.type](ctx, node.discriminant)
+    const cases = parseBlock(ctx, node.cases)
+    const result = `switch(${discriminant}) ${cases}`
+
+    return result
+}
+
 function parseWhileStatement(ctx, node) {
     const test = parse[node.test.type](ctx, node.test)
     const body = parseBlockStatement(ctx, node.body.statements)
@@ -164,11 +172,15 @@ function parseLiteral(_ctx, node) {
 }
 
 function parseBlockStatement(ctx, node) {
+    return parseBlock(ctx, node.body)
+}
+
+function parseBlock(ctx, body) {
     let result = `{`
 
     enterBlock(ctx)
 
-    for (const statement of node.body) {
+    for (const statement of body) {
         const nodeResult = parse[statement.type](ctx, statement)
         result += `\n${ctx.spaces}${nodeResult}`
     }
@@ -211,6 +223,7 @@ const parse = {
     VariableDeclaration: parseVariableDeclaration,
     FunctionDeclaration: parseFunctionDeclaration,
     IfStatement: parseIfStatement,
+    SwitchStatement: parseSwitchStatement,
     WhileStatement: parseWhileStatement,
     ForStatement: parseForStatement,
     ReturnStatement: parseReturnStatement,
