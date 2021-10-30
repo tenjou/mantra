@@ -38,6 +38,10 @@ function isIdentifierChar(charCode) {
     return false
 }
 
+function isNewLine(charCode) {
+    return charCode === 10 || charCode === 13
+}
+
 function raise(ctx, error) {
     throw new SyntaxError(`${error}. ${ctx.fileName}:${1}:${ctx.start + 1}`)
 }
@@ -68,9 +72,23 @@ function skipSpace(ctx) {
                 ctx.pos++
                 break
 
+            case 47: // '/'
+                skipLineComment(ctx)
+                break
+
             default:
                 return
         }
+    }
+}
+
+function skipLineComment(ctx) {
+    ctx.pos += 2
+
+    let charCode = ctx.input.charCodeAt(ctx.pos)
+    while (ctx.pos < ctx.input.length && !isNewLine(charCode)) {
+        ctx.pos++
+        charCode = ctx.input.charCodeAt(ctx.pos)
     }
 }
 
