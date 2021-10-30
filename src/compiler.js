@@ -87,6 +87,13 @@ function parseExpressionStatement(ctx, node) {
     return result
 }
 
+function parseThrowStatement(ctx, node) {
+    const argument = parse[node.argument.type](ctx, node.argument)
+    const result = `throw ${argument}`
+
+    return result
+}
+
 function parseEmptyStatement(ctx, node) {
     return ""
 }
@@ -216,6 +223,7 @@ const parse = {
     ForStatement: parseForStatement,
     ReturnStatement: parseReturnStatement,
     ExpressionStatement: parseExpressionStatement,
+    ThrowStatement: parseThrowStatement,
     BlockStatement: parseBlockStatement,
     EmptyStatement: parseEmptyStatement,
     SequenceExpression: parseSequenceExpression,

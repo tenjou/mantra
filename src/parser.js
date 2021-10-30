@@ -570,6 +570,8 @@ function parseStatement(ctx) {
             return parseReturnStatement(ctx)
         case types.function:
             return parseFunctionStatement(ctx)
+        case types.throw:
+            return parseThrowStatement(ctx)
         case types.braceL:
             return parseBlock(ctx)
         case types.semicolon:
@@ -723,6 +725,21 @@ function parseEmptyStatement(ctx) {
     nextToken(ctx)
 
     return node
+}
+
+function parseThrowStatement(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    const argument = parseExpression(ctx)
+
+    return {
+        type: "ThrowStatement",
+        start,
+        end: ctx.end,
+        argument,
+    }
 }
 
 function parseFunctionStatement(ctx) {
@@ -933,4 +950,5 @@ const types = {
     return: keyword("return"),
     while: keyword("while"),
     for: keyword("for"),
+    throw: keyword("throw"),
 }
