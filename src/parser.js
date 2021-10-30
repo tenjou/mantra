@@ -347,8 +347,10 @@ function parseExpressionAtom(ctx) {
     switch (ctx.type) {
         case types.name:
             return parseIdentifier(ctx)
+
         case types.num:
             return parseNumericLiteral(ctx)
+
         case types.string:
         case types.true:
         case types.false:
@@ -356,8 +358,10 @@ function parseExpressionAtom(ctx) {
             return parseLiteral(ctx)
 
         case types.parenthesisL:
-        case types.parenthesisR:
             return parseParenthesisExpression(ctx)
+
+        case types.new:
+            return parseNew(ctx)
 
         default:
             unexpected(ctx)
@@ -691,6 +695,24 @@ function parseParenthesisExpression(ctx) {
     return expression
 }
 
+function parseNew(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    const callee = parseExpressionAtom(ctx)
+    expect(ctx, types.parenthesisL)
+    const args = parseExpressionList(ctx, types.parenthesisR)
+
+    return {
+        type: "NewExpression",
+        start,
+        end: ctx.end,
+        callee,
+        arguments: args,
+    }
+}
+
 function parseEmptyStatement(ctx) {
     const node = {
         type: "EmptyStatement",
@@ -902,6 +924,7 @@ const types = {
     var: keyword("var"),
     let: keyword("let"),
     const: keyword("const"),
+    new: keyword("new"),
     function: keyword("function"),
     if: keyword("if"),
     true: keyword("true"),

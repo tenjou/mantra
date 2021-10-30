@@ -1,7 +1,7 @@
 function parseFunctionDeclaration(ctx, node) {
     const params = parseFunctionParams(ctx, node.params)
     const body = parse[node.body.type](ctx, node.body)
-    const result = `function ${node.id.name}(${params}) ${body}`
+    const result = `function ${node.id.name}(${params}) ${body}\n`
 
     return result
 }
@@ -132,6 +132,14 @@ function parseCallExpression(ctx, node) {
     return result
 }
 
+function parseNewExpression(ctx, node) {
+    const callee = parse[node.callee.type](ctx, node.callee)
+    const args = parseArgs(ctx, node.arguments)
+    const result = `new ${callee}(${args})`
+
+    return result
+}
+
 function parseArgs(ctx, args) {
     let result = ""
     let first = true
@@ -216,6 +224,7 @@ const parse = {
     UpdateExpression: parseUpdateExpression,
     UnaryExpression: parseUpdateExpression,
     CallExpression: parseCallExpression,
+    NewExpression: parseNewExpression,
     NumericLiteral: parseLiteral,
     Literal: parseLiteral,
     Identifier: parseIdentifier,
