@@ -1,6 +1,12 @@
 function isIdentifierStart(charCode) {
     if (charCode < 65) {
-        return false
+        return charCode === 36 // $
+    }
+    if (charCode < 91) {
+        return true
+    }
+    if (charCode < 97) {
+        return charCode === 95 // _
     }
     if (charCode < 123) {
         return true
@@ -11,10 +17,19 @@ function isIdentifierStart(charCode) {
 
 function isIdentifierChar(charCode) {
     if (charCode < 48) {
-        return false
+        return charCode == 36 // $
+    }
+    if (charCode < 58) {
+        return true
     }
     if (charCode < 65) {
+        return false
+    }
+    if (charCode < 91) {
         return true
+    }
+    if (charCode < 97) {
+        return charCode === 95 // _
     }
     if (charCode < 123) {
         return true
@@ -132,7 +147,7 @@ function readPlusMinus(ctx, charCode) {
     ctx.pos++
 }
 
-function finishTokenEquals(ctx, type) {
+function finishTokenAssign(ctx, type) {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
         ctx.type = types.assign
@@ -237,7 +252,7 @@ function getTokenFromCode(ctx, charCode) {
             return
 
         case 37:
-            finishTokenEquals(ctx, types.modulo)
+            finishTokenAssign(ctx, types.modulo)
             return
 
         case 40:
@@ -249,7 +264,7 @@ function getTokenFromCode(ctx, charCode) {
             return
 
         case 42:
-            finishTokenEquals(ctx, types.star)
+            finishTokenAssign(ctx, types.star)
             return
 
         case 43:
@@ -262,7 +277,7 @@ function getTokenFromCode(ctx, charCode) {
             return
 
         case 47:
-            finishTokenEquals(ctx, types.slash)
+            finishTokenAssign(ctx, types.slash)
             return
 
         case 48:
@@ -301,11 +316,14 @@ function getTokenFromCode(ctx, charCode) {
             finishToken(ctx, types.semicolon)
             return
 
-        case 124: // |
-            readLogicalOr(ctx)
-            return
         case 38: // &
             readLogicalAnd(ctx)
+            return
+        case 94: // ^
+            finishTokenAssign(ctx, types.bitwiseXor)
+            return
+        case 124: // |
+            readLogicalOr(ctx)
             return
     }
 
@@ -958,7 +976,8 @@ const types = {
     logicalOr: binop("||", 1),
     logicalAnd: binop("&&", 2),
     bitwiseOr: binop("|", 3),
-    bitwiseAnd: binop("&", 4),
+    bitwiseXor: binop("^", 4),
+    bitwiseAnd: binop("&", 5),
     equality: binop("==/===", 6),
     greaterThan: binop(">", 7),
     lessThan: binop("<", 7),
