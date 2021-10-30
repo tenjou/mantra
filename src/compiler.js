@@ -139,14 +139,6 @@ function parseCallExpression(ctx, node) {
     return result
 }
 
-function parseNewExpression(ctx, node) {
-    const callee = parse[node.callee.type](ctx, node.callee)
-    const args = parseArgs(ctx, node.arguments)
-    const result = `new ${callee}(${args})`
-
-    return result
-}
-
 function parseArgs(ctx, args) {
     let result = ""
     let first = true
@@ -228,11 +220,12 @@ const parse = {
     EmptyStatement: parseEmptyStatement,
     SequenceExpression: parseSequenceExpression,
     BinaryExpression: parseBinaryExpression,
+    LogicalExpression: parseBinaryExpression,
     AssignmentExpression: parseBinaryExpression,
     UpdateExpression: parseUpdateExpression,
     UnaryExpression: parseUpdateExpression,
     CallExpression: parseCallExpression,
-    NewExpression: parseNewExpression,
+    NewExpression: parseCallExpression,
     NumericLiteral: parseLiteral,
     Literal: parseLiteral,
     Identifier: parseIdentifier,

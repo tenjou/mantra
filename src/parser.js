@@ -195,6 +195,34 @@ function readLessThan(ctx) {
     ctx.pos++
 }
 
+function readLogicalOr(ctx) {
+    const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
+    if (nextCharCode === 124) {
+        ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
+        ctx.type = types.logicalOr
+        ctx.pos += 2
+        return
+    }
+
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
+    ctx.type = types.bitwiseOr
+    ctx.pos += 1
+}
+
+function readLogicalAnd(ctx) {
+    const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
+    if (nextCharCode === 38) {
+        ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
+        ctx.type = types.logicalAnd
+        ctx.pos += 2
+        return
+    }
+
+    ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
+    ctx.type = types.bitwiseAnd
+    ctx.pos += 1
+}
+
 function finishToken(ctx, type) {
     ctx.type = type
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
@@ -255,22 +283,29 @@ function getTokenFromCode(ctx, charCode) {
             readEquality(ctx)
             return
 
-        case 60:
+        case 60: // <
             readLessThan(ctx)
             return
-        case 62:
+        case 62: // >
             readGreaterThan(ctx)
             return
 
-        case 123:
+        case 123: // {
             finishToken(ctx, types.braceL)
             return
-        case 125:
+        case 125: // }
             finishToken(ctx, types.braceR)
             return
 
-        case 59:
+        case 59: // ;
             finishToken(ctx, types.semicolon)
+            return
+
+        case 124: // |
+            readLogicalOr(ctx)
+            return
+        case 38: // &
+            readLogicalAnd(ctx)
             return
     }
 
@@ -457,13 +492,14 @@ function parseExpressionOp(ctx, left, minPrecedence) {
     const precendence = ctx.type.binop
     if (precendence !== 0 && precendence > minPrecedence) {
         const operator = ctx.value
+        const isLogical = ctx.type === types.logicalOr || ctx.type === types.logicalAnd
 
         nextToken(ctx)
 
         const expression = parseMaybeUnary(ctx)
         const right = parseExpressionOp(ctx, expression, precendence)
         const node = {
-            type: "BinaryExpression",
+            type: isLogical ? "LogicalExpression" : "BinaryExpression",
             start: left.start,
             end: ctx.end,
             left,
@@ -918,8 +954,12 @@ const keywords = {}
 
 const types = {
     assign: token("=", { isAssign: true }),
-    equality: token("==/===", { binop: 1 }),
     incrementDecrement: token("++/--", { prefix: true, postfix: true }),
+    logicalOr: binop("||", 1),
+    logicalAnd: binop("&&", 2),
+    bitwiseOr: binop("|", 3),
+    bitwiseAnd: binop("&", 4),
+    equality: binop("==/===", 6),
     greaterThan: binop(">", 7),
     lessThan: binop("<", 7),
     greaterThanEquals: binop(">=", 7),
