@@ -64,6 +64,14 @@ function parseSwitchStatement(ctx, node) {
     return result
 }
 
+function parseSwitchCase(ctx, node) {
+    const test = node.test ? parse[node.test.type](ctx, node.test) : null
+    const consequent = parseStatements(ctx, node.consequent)
+    const result = test ? `case ${test}:${consequent}` : `default:${consequent}`
+
+    return result
+}
+
 function parseWhileStatement(ctx, node) {
     const test = parse[node.test.type](ctx, node.test)
     const body = parseBlockStatement(ctx, node.body.statements)
@@ -85,6 +93,12 @@ function parseForStatement(ctx, node) {
 function parseReturnStatement(ctx, node) {
     const argument = parse[node.argument.type](ctx, node.argument)
     const result = `return ${argument}`
+
+    return result
+}
+
+function parseBreakStatement(ctx, node) {
+    const result = `break`
 
     return result
 }
@@ -132,6 +146,14 @@ function parseBinaryExpression(ctx, node) {
     return result
 }
 
+function parseAssignmentExpression(ctx, node) {
+    const left = parse[node.left.type](ctx, node.left)
+    const right = parse[node.right.type](ctx, node.right)
+    const result = `${left} ${node.operator} ${right}`
+
+    return result
+}
+
 function parseUpdateExpression(ctx, node) {
     const argument = parse[node.argument.type](ctx, node.argument)
     const result = node.prefix ? `${node.operator}${argument}` : `${argument}${node.operator}`
@@ -159,6 +181,20 @@ function parseArgs(ctx, args) {
             result += `, ${parse[arg.type](ctx, arg)}`
         }
     }
+
+    return result
+}
+
+function parseStatements(ctx, statements) {
+    enterBlock(ctx)
+
+    let result = "\n"
+
+    for (const statement of statements) {
+        result += `${ctx.spaces}${parse[statement.type](ctx, statement)}`
+    }
+
+    exitBlock(ctx)
 
     return result
 }
@@ -224,9 +260,11 @@ const parse = {
     FunctionDeclaration: parseFunctionDeclaration,
     IfStatement: parseIfStatement,
     SwitchStatement: parseSwitchStatement,
+    SwitchCase: parseSwitchCase,
     WhileStatement: parseWhileStatement,
     ForStatement: parseForStatement,
     ReturnStatement: parseReturnStatement,
+    BreakStatement: parseBreakStatement,
     ExpressionStatement: parseExpressionStatement,
     ThrowStatement: parseThrowStatement,
     BlockStatement: parseBlockStatement,
@@ -234,7 +272,7 @@ const parse = {
     SequenceExpression: parseSequenceExpression,
     BinaryExpression: parseBinaryExpression,
     LogicalExpression: parseBinaryExpression,
-    AssignmentExpression: parseBinaryExpression,
+    AssignmentExpression: parseAssignmentExpression,
     UpdateExpression: parseUpdateExpression,
     UnaryExpression: parseUpdateExpression,
     CallExpression: parseCallExpression,

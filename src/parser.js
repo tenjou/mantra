@@ -311,6 +311,10 @@ function getTokenFromCode(ctx, charCode) {
             readNumber(ctx)
             return
 
+        case 58: // ':'
+            finishToken(ctx, types.colon)
+            return
+
         case 33:
         case 61: // '! ='
             readEquality(ctx)
@@ -426,6 +430,7 @@ function parseExpressionAtom(ctx) {
         case types.true:
         case types.false:
         case types.null:
+        case types.break:
             return parseLiteral(ctx)
 
         case types.parenthesisL:
@@ -632,6 +637,8 @@ function parseStatement(ctx) {
         case types.let:
         case types.const:
             return parseVarStatement(ctx)
+        case types.break:
+            return parseBreak(ctx)
         case types.if:
             return parseIfStatement(ctx)
         case types.switch:
@@ -682,6 +689,19 @@ function parseVarStatement(ctx) {
     return node
 }
 
+function parseBreak(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    return {
+        type: "BreakStatement",
+        start,
+        end: ctx.endLast,
+        label: null,
+    }
+}
+
 function parseIfStatement(ctx) {
     const start = ctx.start
 
@@ -711,7 +731,38 @@ function parseSwitchStatement(ctx) {
 
     expect(ctx, types.braceL)
 
-    expect(ctx, types.braceR)
+    let currCase = null
+    while (ctx.type !== types.braceR) {
+        if (ctx.type === types.case || ctx.type === types.default) {
+            const nodeStart = ctx.start
+            const isCase = ctx.type === types.case
+
+            nextToken(ctx)
+
+            const test = isCase ? parseExpression(ctx) : null
+
+            expect(ctx, types.colon)
+
+            currCase = {
+                type: "SwitchCase",
+                start: nodeStart,
+                end: ctx.end,
+                consequent: [],
+                test,
+            }
+            cases.push(currCase)
+            continue
+        }
+
+        if (!currCase) {
+            unexpected(ctx)
+        }
+
+        const expression = parseStatement(ctx)
+        currCase.consequent.push(expression)
+    }
+
+    eat(ctx, types.braceR)
 
     return {
         type: "SwitchStatement",
@@ -1028,6 +1079,7 @@ const types = {
     slash: binop("/", 10),
     modulo: binop("%", 10),
     comma: token(","),
+    colon: token(":"),
     semicolon: token(";"),
     parenthesisL: token("("),
     parenthesisR: token(")"),
@@ -1045,6 +1097,9 @@ const types = {
     function: keyword("function"),
     if: keyword("if"),
     switch: keyword("switch"),
+    case: keyword("case"),
+    default: keyword("default"),
+    break: keyword("break"),
     true: keyword("true"),
     false: keyword("false"),
     null: keyword("null"),
