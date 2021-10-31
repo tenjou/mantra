@@ -326,6 +326,9 @@ function getTokenFromCode(ctx, charCode) {
         case 62: // >
             readGreaterThan(ctx)
             return
+        case 63:
+            finishToken(ctx, types.question)
+            return
 
         case 123: // {
             finishToken(ctx, types.braceL)
@@ -555,7 +558,27 @@ function parseExpressionOp(ctx, left, minPrecedence) {
 }
 
 function parseMaybeConditional(ctx) {
-    return parseExpressionOps(ctx)
+    const start = ctx.start
+    const expression = parseExpressionOps(ctx)
+
+    if (eat(ctx, types.question)) {
+        const consequent = parseMaybeAssign(ctx)
+
+        expect(ctx, types.colon)
+
+        const alternate = parseMaybeAssign(ctx)
+
+        return {
+            type: "ConditionExpression",
+            start,
+            end: ctx.end,
+            test: expression,
+            consequent,
+            alternate,
+        }
+    }
+
+    return expression
 }
 
 function parseMaybeAssign(ctx) {
@@ -1080,6 +1103,7 @@ const types = {
     modulo: binop("%", 10),
     comma: token(","),
     colon: token(":"),
+    question: token("?"),
     semicolon: token(";"),
     parenthesisL: token("("),
     parenthesisR: token(")"),

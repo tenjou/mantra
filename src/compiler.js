@@ -169,6 +169,15 @@ function parseCallExpression(ctx, node) {
     return result
 }
 
+function parseConditionExpression(ctx, node) {
+    const test = parse[node.test.type](ctx, node.test)
+    const consequent = parse[node.consequent.type](ctx, node.consequent)
+    const alternate = parse[node.alternate.type](ctx, node.alternate)
+    const result = `${test} ? ${consequent} : ${alternate}`
+
+    return result
+}
+
 function parseArgs(ctx, args) {
     let result = ""
     let first = true
@@ -277,6 +286,7 @@ const parse = {
     UnaryExpression: parseUpdateExpression,
     CallExpression: parseCallExpression,
     NewExpression: parseCallExpression,
+    ConditionExpression: parseConditionExpression,
     NumericLiteral: parseLiteral,
     Literal: parseLiteral,
     Identifier: parseIdentifier,
