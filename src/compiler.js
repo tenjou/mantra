@@ -74,8 +74,8 @@ function parseSwitchCase(ctx, node) {
 
 function parseWhileStatement(ctx, node) {
     const test = parse[node.test.type](ctx, node.test)
-    const body = parseBlockStatement(ctx, node.body.statements)
-    const result = `while${test} ${body}${ctx.spaces}`
+    const body = parseBlockStatement(ctx, node.body)
+    const result = `while(${test}) ${body}${ctx.spaces}`
 
     return result
 }
