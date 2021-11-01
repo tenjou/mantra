@@ -368,6 +368,17 @@ export function expect(ctx, type) {
     eat(ctx, type) || unexpected(ctx)
 }
 
+export function canInsertSemicolon(ctx) {
+    for (let n = ctx.start; n <= ctx.pos; n++) {
+        const charCode = ctx.input.charCodeAt(n)
+        if (charCode === 10) {
+            return true
+        }
+    }
+
+    return false
+}
+
 function token(label, options = {}) {
     return {
         label,
