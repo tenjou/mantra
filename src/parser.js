@@ -675,6 +675,7 @@ function parseTopLevel(ctx) {
 function checkLValue(ctx, node) {
     switch (node.type) {
         case "Identifier":
+        case "MemberExpression":
             break
 
         default:
