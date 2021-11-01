@@ -633,12 +633,14 @@ function parseBlock(ctx) {
         body.push(statement)
     }
 
+    const end = ctx.end
+
     expect(ctx, types.braceR)
 
     return {
         type: "BlockStatement",
         start,
-        end: ctx.end,
+        end,
         body,
     }
 }
