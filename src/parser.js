@@ -118,12 +118,22 @@ function parseMaybeUnary(ctx) {
 }
 
 function parseSubscript(ctx, base) {
-    const start = ctx.start
+    if (eat(ctx, types.dot)) {
+        const object = parseSubscript(ctx, base)
+        const property = parseIdentifier(ctx)
 
-    if (!eat(ctx, types.parenthesisL)) {
+        return {
+            type: "MemberExpression",
+            start: base.start,
+            end: ctx.end,
+            object,
+            property,
+        }
+    } else if (!eat(ctx, types.parenthesisL)) {
         return base
     }
 
+    const start = ctx.start
     const callee = base
     const args = parseExpressionList(ctx, types.parenthesisR)
 
@@ -138,9 +148,16 @@ function parseSubscript(ctx, base) {
 }
 
 function parseSubscripts(ctx, base) {
-    const subscript = parseSubscript(ctx, base)
+    while (true) {
+        const subscript = parseSubscript(ctx, base)
+        if (base === subscript) {
+            break
+        }
 
-    return subscript
+        base = subscript
+    }
+
+    return base
 }
 
 function parseExpressionSubscripts(ctx) {

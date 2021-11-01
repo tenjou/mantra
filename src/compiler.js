@@ -161,6 +161,14 @@ function parseUpdateExpression(ctx, node) {
     return result
 }
 
+function parseMemberExpression(ctx, node) {
+    const object = parse[node.object.type](ctx, node.object)
+    const property = parse[node.property.type](ctx, node.property)
+    const result = `${object}.${property}`
+
+    return result
+}
+
 function parseCallExpression(ctx, node) {
     const callee = parse[node.callee.type](ctx, node.callee)
     const args = parseArgs(ctx, node.arguments)
@@ -284,6 +292,7 @@ const parse = {
     AssignmentExpression: parseAssignmentExpression,
     UpdateExpression: parseUpdateExpression,
     UnaryExpression: parseUpdateExpression,
+    MemberExpression: parseMemberExpression,
     CallExpression: parseCallExpression,
     NewExpression: parseCallExpression,
     ConditionExpression: parseConditionExpression,
