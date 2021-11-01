@@ -62,6 +62,9 @@ function parseExpressionAtom(ctx) {
         case types.parenthesisL:
             return parseParenthesisExpression(ctx)
 
+        case types.braceL:
+            return parseObject(ctx)
+
         case types.new:
             return parseNew(ctx)
 
@@ -517,6 +520,45 @@ function parseParenthesisExpression(ctx) {
     expect(ctx, types.parenthesisR)
 
     return expression
+}
+
+function parseProperty(ctx) {
+    const start = ctx.start
+    const key = parseLiteral(ctx)
+
+    expect(ctx, types.colon)
+
+    const value = parseMaybeAssign(ctx)
+
+    return {
+        type: "Property",
+        start,
+        end: ctx.end,
+        key,
+        value,
+        kind: "init",
+    }
+}
+
+function parseObject(ctx) {
+    const start = ctx.start
+    const properties = []
+
+    nextToken(ctx)
+
+    while (!eat(ctx, types.braceR)) {
+        const prop = parseProperty(ctx)
+        properties.push(prop)
+
+        expect(ctx, types.comma)
+    }
+
+    return {
+        type: "ObjectExpression",
+        start,
+        end: ctx.end,
+        properties,
+    }
 }
 
 function parseNew(ctx) {

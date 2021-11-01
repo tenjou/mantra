@@ -196,6 +196,31 @@ function parseConditionExpression(ctx, node) {
     return result
 }
 
+function parseObjectExpression(ctx, node) {
+    let result = `{`
+
+    enterBlock(ctx)
+
+    for (const property of node.properties) {
+        const nodeResult = parseProperty(ctx, property)
+        result += `\n${ctx.spaces}${nodeResult}`
+    }
+
+    exitBlock(ctx)
+
+    result += `\n${ctx.spaces}}`
+
+    return result
+}
+
+function parseProperty(ctx, node) {
+    const key = parseLiteral(ctx, node.key)
+    const value = parse[node.value.type](ctx, node.value)
+    const result = `${key}: ${value},`
+
+    return result
+}
+
 function parseArgs(ctx, args) {
     let result = ""
     let first = true
@@ -306,6 +331,7 @@ const parse = {
     CallExpression: parseCallExpression,
     NewExpression: parseCallExpression,
     ConditionExpression: parseConditionExpression,
+    ObjectExpression: parseObjectExpression,
     NumericLiteral: parseLiteral,
     Literal: parseLiteral,
     Identifier: parseIdentifier,
