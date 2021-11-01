@@ -91,7 +91,7 @@ function parseForStatement(ctx, node) {
 }
 
 function parseReturnStatement(ctx, node) {
-    const argument = parse[node.argument.type](ctx, node.argument)
+    const argument = node.argument ? parse[node.argument.type](ctx, node.argument) : ""
     const result = `return ${argument}`
 
     return result

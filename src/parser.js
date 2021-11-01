@@ -1,5 +1,5 @@
 import { raise, unexpected } from "./error.js"
-import { eat, expect, nextToken, types } from "./tokenizer.js"
+import { canInsertSemicolon, eat, expect, nextToken, types } from "./tokenizer.js"
 
 function parseIdentifier(ctx) {
     if (ctx.type !== types.name) {
@@ -488,7 +488,10 @@ function parseReturnStatement(ctx) {
 
     nextToken(ctx)
 
-    const argument = parseExpression(ctx)
+    let argument = null
+    if (!canInsertSemicolon(ctx)) {
+        argument = parseExpression(ctx)
+    }
 
     return {
         type: "ReturnStatement",
