@@ -443,6 +443,7 @@ export const types = {
     new: keyword("new"),
     function: keyword("function"),
     if: keyword("if"),
+    else: keyword("else"),
     switch: keyword("switch"),
     case: keyword("case"),
     default: keyword("default"),

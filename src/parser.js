@@ -371,8 +371,8 @@ function parseIfStatement(ctx) {
     nextToken(ctx)
 
     const test = parseParenthesisExpression(ctx)
-    const consequent = parseBlock(ctx)
-    const alternate = null
+    const consequent = parseStatement(ctx)
+    const alternate = eat(ctx, types.else) ? parseStatement(ctx) : null
 
     return {
         type: "IfStatement",
