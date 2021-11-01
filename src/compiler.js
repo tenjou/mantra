@@ -169,8 +169,13 @@ function parseUpdateExpression(ctx, node) {
 function parseMemberExpression(ctx, node) {
     const object = parse[node.object.type](ctx, node.object)
     const property = parse[node.property.type](ctx, node.property)
-    const result = `${object}.${property}`
 
+    if (node.computed) {
+        const result = `${object}[${property}]`
+        return result
+    }
+
+    const result = `${object}.${property}`
     return result
 }
 

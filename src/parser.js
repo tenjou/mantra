@@ -118,9 +118,18 @@ function parseMaybeUnary(ctx) {
 }
 
 function parseSubscript(ctx, base) {
-    if (eat(ctx, types.dot)) {
+    const computed = eat(ctx, types.bracketL)
+
+    if (computed || eat(ctx, types.dot)) {
         const object = parseSubscript(ctx, base)
-        const property = parseIdentifier(ctx)
+
+        let property
+        if (computed) {
+            property = parseExpression(ctx)
+            expect(ctx, types.bracketR)
+        } else {
+            property = parseIdentifier(ctx)
+        }
 
         return {
             type: "MemberExpression",
@@ -128,6 +137,7 @@ function parseSubscript(ctx, base) {
             end: ctx.end,
             object,
             property,
+            computed,
         }
     } else if (!eat(ctx, types.parenthesisL)) {
         return base
