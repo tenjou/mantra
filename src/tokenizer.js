@@ -245,6 +245,9 @@ function finishToken(ctx, type) {
 
 function getTokenFromCode(ctx, charCode) {
     switch (charCode) {
+        case 33:
+            finishToken(ctx, types.exclamation)
+            return
         case 34:
         case 39: // " '
             readString(ctx, charCode)
@@ -406,6 +409,7 @@ const keywords = {}
 export const types = {
     assign: token("=", { isAssign: true }),
     incrementDecrement: token("++/--", { prefix: true, postfix: true }),
+    exclamation: token("!", { prefix: true }),
     logicalOr: binop("||", 1),
     logicalAnd: binop("&&", 2),
     bitwiseOr: binop("|", 3),
