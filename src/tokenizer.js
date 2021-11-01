@@ -249,32 +249,28 @@ function getTokenFromCode(ctx, charCode) {
         case 39: // " '
             readString(ctx, charCode)
             return
-
         case 37:
             finishTokenAssign(ctx, types.modulo)
             return
-
         case 40:
             finishToken(ctx, types.parenthesisL)
             return
-
         case 41:
             finishToken(ctx, types.parenthesisR)
             return
-
         case 42:
             finishTokenAssign(ctx, types.star)
             return
-
         case 43:
         case 45: // '+ -'
             readPlusMinus(ctx, charCode)
             return
-
         case 44:
             finishToken(ctx, types.comma)
             return
-
+        case 46: // '.'
+            finishToken(ctx, types.dot)
+            return
         case 47:
             finishTokenAssign(ctx, types.slash)
             return
@@ -413,6 +409,7 @@ export const types = {
     slash: binop("/", 10),
     modulo: binop("%", 10),
     comma: token(","),
+    dot: token("."),
     colon: token(":"),
     question: token("?"),
     semicolon: token(";"),
