@@ -321,10 +321,16 @@ function getTokenFromCode(ctx, charCode) {
             finishToken(ctx, types.semicolon)
             return
 
-        case 38: // &
+        case 38: // '&'
             readLogicalAnd(ctx)
             return
-        case 94: // ^
+        case 91: // '['
+            finishToken(ctx, types.bracketL)
+            return
+        case 93: // '['
+            finishToken(ctx, types.bracketR)
+            return
+        case 94: // '^'
             finishTokenAssign(ctx, types.bitwiseXor)
             return
         case 124: // |
@@ -432,6 +438,8 @@ export const types = {
     parenthesisR: token(")"),
     braceL: token("{"),
     braceR: token("}"),
+    bracketL: token("["),
+    bracketR: token("]"),
     eof: token("eof"),
     name: token("name"),
     num: token("num"),
