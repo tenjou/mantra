@@ -66,7 +66,7 @@ function parseSwitchStatement(ctx, node) {
 
 function parseSwitchCase(ctx, node) {
     const test = node.test ? parse[node.test.type](ctx, node.test) : null
-    const consequent = parseStatements(ctx, node.consequent)
+    const consequent = node.consequent.length > 0 ? parseStatements(ctx, node.consequent) : ""
     const result = test ? `case ${test}:${consequent}` : `default:${consequent}`
 
     return result
@@ -205,10 +205,10 @@ function parseArgs(ctx, args) {
 function parseStatements(ctx, statements) {
     enterBlock(ctx)
 
-    let result = "\n"
+    let result = ""
 
     for (const statement of statements) {
-        result += `${ctx.spaces}${parse[statement.type](ctx, statement)}`
+        result += `\n${ctx.spaces}${parse[statement.type](ctx, statement)}`
     }
 
     exitBlock(ctx)
