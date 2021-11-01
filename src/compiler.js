@@ -51,7 +51,7 @@ function parseDeclarations(ctx, decls) {
 function parseIfStatement(ctx, node) {
     const test = parse[node.test.type](ctx, node.test)
     const consequent = parseBlockStatement(ctx, node.consequent)
-    const alternate = node.alternate ? parseBlockStatement(ctx, node.alternate) : null
+    const alternate = node.alternate ? parse[node.alternate.type](ctx, node.alternate) : null
     let result = `if(${test}) ${consequent}`
 
     if (alternate) {
