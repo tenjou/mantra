@@ -48,6 +48,13 @@ function parseDeclarations(ctx, decls) {
     return result
 }
 
+function parseExportNamedDeclaration(ctx, node) {
+    const declaration = parse[node.declaration.type](ctx, node.declaration)
+    const result = `export ${declaration}`
+
+    return result
+}
+
 function parseImportSpecifiers(ctx, specifiers) {
     let result = ""
 
@@ -338,6 +345,7 @@ function exitBlock(ctx) {
 const parse = {
     VariableDeclaration: parseVariableDeclaration,
     FunctionDeclaration: parseFunctionDeclaration,
+    ExportNamedDeclaration: parseExportNamedDeclaration,
     ImportDeclaration: parseImportDeclaration,
     IfStatement: parseIfStatement,
     SwitchStatement: parseSwitchStatement,

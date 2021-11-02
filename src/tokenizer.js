@@ -477,4 +477,5 @@ export const types = {
     for: keyword("for"),
     throw: keyword("throw"),
     import: keyword("import"),
+    export: keyword("export"),
 }

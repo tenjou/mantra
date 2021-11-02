@@ -333,8 +333,10 @@ function parseStatement(ctx) {
             return parseBlock(ctx)
         case types.semicolon:
             return parseEmptyStatement(ctx)
+        case types.export:
+            return parseExport(ctx)
         case types.import:
-            return parseImportDeclaration(ctx)
+            return parseImport(ctx)
     }
 
     const expression = parseExpression(ctx)
@@ -622,7 +624,30 @@ function parseImportSpecifiers(ctx) {
     return nodes
 }
 
-function parseImportDeclaration(ctx) {
+function parseExport(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    if (!canExportStatement(ctx)) {
+        unexpected(ctx)
+    }
+
+    const declaration = parseStatement(ctx)
+    const specifiers = []
+    const source = null
+
+    return {
+        type: "ExportNamedDeclaration",
+        start,
+        end: ctx.end,
+        declaration,
+        specifiers,
+        source,
+    }
+}
+
+function parseImport(ctx) {
     const start = ctx.start
 
     nextToken(ctx)
@@ -786,6 +811,10 @@ function checkLValue(ctx, node) {
         default:
             raise(ctx, `Invalid left-hand side in assignment expression.`)
     }
+}
+
+function canExportStatement(ctx) {
+    return ctx.type === types.function
 }
 
 export function parser(fileName, input) {
