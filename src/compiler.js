@@ -215,9 +215,13 @@ function parseObjectExpression(ctx, node) {
 
 function parseProperty(ctx, node) {
     const key = parseLiteral(ctx, node.key)
-    const value = parse[node.value.type](ctx, node.value)
-    const result = `${key}: ${value},`
+    if (node.value) {
+        const value = parse[node.value.type](ctx, node.value)
+        const result = `${key}: ${value},`
+        return result
+    }
 
+    const result = `${key},`
     return result
 }
 

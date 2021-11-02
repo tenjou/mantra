@@ -526,9 +526,10 @@ function parseProperty(ctx) {
     const start = ctx.start
     const key = parseLiteral(ctx)
 
-    expect(ctx, types.colon)
-
-    const value = parseMaybeAssign(ctx)
+    let value = null
+    if (eat(ctx, types.colon)) {
+        value = parseMaybeAssign(ctx)
+    }
 
     return {
         type: "Property",
