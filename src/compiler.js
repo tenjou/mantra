@@ -48,6 +48,30 @@ function parseDeclarations(ctx, decls) {
     return result
 }
 
+function parseImportSpecifiers(ctx, specifiers) {
+    let result = ""
+
+    for (const specifier of specifiers) {
+        const specifierResult = specifier.local ? `${specifier.imported.name} as ${specifier.local.name}` : specifier.imported.name
+
+        if (result) {
+            result += `, ${specifierResult}`
+        } else {
+            result = specifierResult
+        }
+    }
+
+    return result
+}
+
+function parseImportDeclaration(ctx, node) {
+    const specifiers = parseImportSpecifiers(ctx, node.specifiers)
+    const source = parse[node.source.type](ctx, node.source)
+    const result = `import { ${specifiers} } from ${source}`
+
+    return result
+}
+
 function parseIfStatement(ctx, node) {
     const test = parse[node.test.type](ctx, node.test)
     const consequent = parseBlockStatement(ctx, node.consequent)
@@ -314,6 +338,7 @@ function exitBlock(ctx) {
 const parse = {
     VariableDeclaration: parseVariableDeclaration,
     FunctionDeclaration: parseFunctionDeclaration,
+    ImportDeclaration: parseImportDeclaration,
     IfStatement: parseIfStatement,
     SwitchStatement: parseSwitchStatement,
     SwitchCase: parseSwitchCase,

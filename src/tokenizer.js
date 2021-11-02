@@ -1,4 +1,4 @@
-import { raise } from "./error.js"
+import { raise, unexpected } from "./error.js"
 
 function isIdentifierStart(charCode) {
     if (charCode < 65) {
@@ -377,6 +377,19 @@ export function expect(ctx, type) {
     eat(ctx, type) || unexpected(ctx)
 }
 
+function eatContextual(ctx, str) {
+    if (ctx.type === types.name && ctx.value === str) {
+        nextToken(ctx)
+        return true
+    }
+
+    return false
+}
+
+export function expectContextual(ctx, str) {
+    eatContextual(ctx, str) || unexpected(ctx)
+}
+
 export function canInsertSemicolon(ctx) {
     for (let n = ctx.endLast; n < ctx.pos; n++) {
         const charCode = ctx.input.charCodeAt(n)
@@ -463,4 +476,5 @@ export const types = {
     while: keyword("while"),
     for: keyword("for"),
     throw: keyword("throw"),
+    import: keyword("import"),
 }

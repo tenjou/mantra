@@ -1,5 +1,5 @@
 import { raise, unexpected } from "./error.js"
-import { canInsertSemicolon, eat, expect, nextToken, types } from "./tokenizer.js"
+import { canInsertSemicolon, eat, expect, expectContextual, nextToken, types } from "./tokenizer.js"
 
 function parseIdentifier(ctx) {
     if (ctx.type !== types.name) {
@@ -333,6 +333,8 @@ function parseStatement(ctx) {
             return parseBlock(ctx)
         case types.semicolon:
             return parseEmptyStatement(ctx)
+        case types.import:
+            return parseImportDeclaration(ctx)
     }
 
     const expression = parseExpression(ctx)
@@ -590,6 +592,54 @@ function parseEmptyStatement(ctx) {
     nextToken(ctx)
 
     return node
+}
+
+function parseImportSpecifiers(ctx) {
+    const nodes = []
+    let first = true
+
+    expect(ctx, types.braceL)
+
+    while (!eat(ctx, types.braceR)) {
+        if (first) {
+            first = false
+        } else {
+            expect(ctx, types.comma)
+        }
+
+        const start = ctx.start
+        const imported = parseIdentifier(ctx)
+
+        nodes.push({
+            type: "ImportSpecifier",
+            start,
+            end: ctx.end,
+            imported,
+            local: null,
+        })
+    }
+
+    return nodes
+}
+
+function parseImportDeclaration(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    const specifiers = parseImportSpecifiers(ctx)
+
+    expectContextual(ctx, "from")
+
+    const source = parseExpressionAtom(ctx)
+
+    return {
+        type: "ImportDeclaration",
+        start,
+        end: ctx.end,
+        specifiers,
+        source,
+    }
 }
 
 function parseThrowStatement(ctx) {
