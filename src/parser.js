@@ -1,5 +1,5 @@
 import { raise, unexpected } from "./error.js"
-import { canInsertSemicolon, eat, expect, expectContextual, nextToken, types } from "./tokenizer.js"
+import { canInsertSemicolon, eat, expect, expectContextual, nextTemplateToken, nextToken, types } from "./tokenizer.js"
 
 function parseIdentifier(ctx) {
     if (ctx.type !== types.name) {
@@ -68,6 +68,9 @@ function parseExpressionAtom(ctx) {
         case types.new:
             return parseNew(ctx)
 
+        case types.backQuote:
+            return parseTemplate(ctx)
+
         default:
             unexpected(ctx)
     }
@@ -75,6 +78,25 @@ function parseExpressionAtom(ctx) {
 
 function parseBindingAtom(ctx) {
     return parseIdentifier(ctx)
+}
+
+function parseMaybeDefault(ctx) {
+    const start = ctx.start
+    const left = parseBindingAtom(ctx)
+
+    if (!eat(ctx, types.assign)) {
+        return left
+    }
+
+    const right = parseMaybeAssign(ctx)
+
+    return {
+        type: "AssignPattern",
+        start,
+        end: ctx.end,
+        left,
+        right,
+    }
 }
 
 function parseMaybeUnary(ctx) {
@@ -584,6 +606,36 @@ function parseNew(ctx) {
     }
 }
 
+function parseTemplateElement(ctx) {
+    return {
+        type: "TemplateElement",
+        start: ctx.start,
+        end: ctx.end,
+        value: ctx.value,
+    }
+}
+
+function parseTemplate(ctx) {
+    const start = ctx.start
+
+    nextTemplateToken(ctx)
+
+    const element = parseTemplateElement(ctx)
+
+    const expressions = []
+    const quasis = [element]
+
+    nextToken(ctx)
+
+    return {
+        type: "TemplateLiteral",
+        start,
+        end: ctx.end,
+        expressions,
+        quasis,
+    }
+}
+
 function parseEmptyStatement(ctx) {
     const node = {
         type: "EmptyStatement",
@@ -729,7 +781,7 @@ function parseFunctionParams(ctx) {
             expect(ctx, types.comma)
         }
 
-        const left = parseBindingAtom(ctx)
+        const left = parseMaybeDefault(ctx)
         params.push(left)
     }
 

@@ -6,18 +6,20 @@ function parseFunctionDeclaration(ctx, node) {
     return result
 }
 
-function parseFunctionParams(_ctx, params) {
+function parseFunctionParams(ctx, params) {
     let result = ""
     let first = true
 
     for (const param of params) {
+        const paramResult = parse[param.type](ctx, param)
+
         if (first) {
             first = false
-            result = param.name
+            result = paramResult
             continue
         }
 
-        result += `, ${param.name}`
+        paramResult += `, ${param.name}`
     }
 
     return result
@@ -294,6 +296,24 @@ function parseLiteral(_ctx, node) {
     return node.value
 }
 
+function parseTemplateLiteral(ctx, node) {
+    let result = ""
+
+    for (const entry of node.quasis) {
+        result += entry.value
+    }
+
+    return `\`${result}\``
+}
+
+function parseAssignParam(ctx, node) {
+    const left = parse[node.left.type](ctx, node.left)
+    const right = parse[node.right.type](ctx, node.right)
+    const result = `${left} = ${right}`
+
+    return result
+}
+
 function parseBlockStatement(ctx, node) {
     return parseBlock(ctx, node.body)
 }
@@ -369,7 +389,9 @@ const parse = {
     NewExpression: parseCallExpression,
     ConditionExpression: parseConditionExpression,
     ObjectExpression: parseObjectExpression,
+    TemplateLiteral: parseTemplateLiteral,
     NumericLiteral: parseLiteral,
     Literal: parseLiteral,
     Identifier: parseIdentifier,
+    AssignPattern: parseAssignParam,
 }

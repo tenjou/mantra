@@ -333,12 +333,41 @@ function getTokenFromCode(ctx, charCode) {
         case 94: // '^'
             finishTokenAssign(ctx, types.bitwiseXor)
             return
+        case 96: // '`'
+            finishToken(ctx, types.backQuote)
+            return
         case 124: // |
             readLogicalOr(ctx)
             return
     }
 
     raise(ctx, "Unsupported feature")
+}
+
+function readTemplateToken(ctx) {
+    let output = ""
+    let chunkStart = ctx.pos
+
+    for (;;) {
+        if (ctx.pos >= ctx.input.length) {
+            raise(ctx, "Unterminated template")
+        }
+
+        const charCode = ctx.input.charCodeAt(ctx.pos)
+        if (charCode === 96) {
+            output += ctx.input.slice(chunkStart, ctx.pos)
+
+            ctx.type = types.template
+            ctx.value = output
+            ctx.pos++
+            return
+        } else if (isNewLine(charCode)) {
+            output += ctx.input.slice(chunkStart, ctx.pos)
+            ctx.pos++
+        } else {
+            ctx.pos++
+        }
+    }
 }
 
 export function nextToken(ctx) {
@@ -362,6 +391,16 @@ export function nextToken(ctx) {
 
     ctx.endLast = ctx.end
     ctx.end = ctx.pos
+}
+
+export function nextTemplateToken(ctx) {
+    ctx.startLast = ctx.start
+    ctx.start = ctx.pos
+
+    readTemplateToken(ctx)
+
+    ctx.endLast = ctx.end
+    ctx.end = ctx.pos - 1
 }
 
 export function eat(ctx, type) {
@@ -444,6 +483,7 @@ export const types = {
     modulo: binop("%", 10),
     comma: token(","),
     dot: token("."),
+    backQuote: token("`"),
     colon: token(":"),
     question: token("?"),
     semicolon: token(";"),
@@ -457,6 +497,7 @@ export const types = {
     name: token("name"),
     num: token("num"),
     string: token("string"),
+    template: token("template"),
     plusMinus: token("+/-", { binop: 9, prefix: true }),
     var: keyword("var"),
     let: keyword("let"),
