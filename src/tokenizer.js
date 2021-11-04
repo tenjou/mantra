@@ -354,10 +354,26 @@ function readTemplateToken(ctx) {
         }
 
         const charCode = ctx.input.charCodeAt(ctx.pos)
+        if (charCode === 36) {
+            if (ctx.pos === ctx.start && ctx.type === types.template) {
+                ctx.type = types.dollarBraceL
+                ctx.value = ctx.type.value
+                ctx.pos += 2
+                return
+            }
+
+            const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
+            if (nextCharCode === 123) {
+                output += ctx.input.slice(chunkStart, ctx.pos)
+                ctx.type = types.template
+                ctx.value = output
+                return
+            }
+        }
+
         if (charCode === 96) {
             output += ctx.input.slice(chunkStart, ctx.pos)
-
-            ctx.type = types.template
+            ctx.type = types.backQuote
             ctx.value = output
             ctx.pos++
             return
@@ -400,7 +416,7 @@ export function nextTemplateToken(ctx) {
     readTemplateToken(ctx)
 
     ctx.endLast = ctx.end
-    ctx.end = ctx.pos - 1
+    ctx.end = ctx.pos
 }
 
 export function eat(ctx, type) {
@@ -493,6 +509,7 @@ export const types = {
     braceR: token("}"),
     bracketL: token("["),
     bracketR: token("]"),
+    dollarBraceL: token("${"),
     eof: token("eof"),
     name: token("name"),
     num: token("num"),

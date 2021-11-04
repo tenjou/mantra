@@ -607,23 +607,38 @@ function parseNew(ctx) {
 }
 
 function parseTemplateElement(ctx) {
+    nextTemplateToken(ctx)
+
     return {
         type: "TemplateElement",
         start: ctx.start,
-        end: ctx.end,
+        end: ctx.end - 1,
         value: ctx.value,
+        tail: ctx.type === types.backQuote,
     }
 }
 
 function parseTemplate(ctx) {
     const start = ctx.start
-
-    nextTemplateToken(ctx)
-
     const element = parseTemplateElement(ctx)
-
     const expressions = []
     const quasis = [element]
+
+    while (!element.tail) {
+        if (ctx.type === types.eof) {
+            raise(ctx, "Unterminated template literal")
+        }
+
+        expect(ctx, types.dollarBraceL)
+
+        const expression = parseExpression(ctx)
+        expressions.push(expression)
+
+        expect(ctx, types.braceR)
+
+        const span = parseTemplateElement(ctx)
+        quasis.push(span)
+    }
 
     nextToken(ctx)
 
