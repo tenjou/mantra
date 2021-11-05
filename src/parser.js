@@ -883,7 +883,7 @@ function checkLValue(ctx, node) {
 }
 
 function canExportStatement(ctx) {
-    return ctx.type === types.function
+    return ctx.type === types.function || ctx.type === types.const || ctx.type === types.let
 }
 
 export function parser(fileName, input) {
