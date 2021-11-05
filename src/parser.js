@@ -614,7 +614,6 @@ function parseTemplateElement(ctx) {
         start: ctx.start,
         end: ctx.end,
         value: ctx.value,
-        tail: ctx.type === types.backQuote,
     }
 }
 
