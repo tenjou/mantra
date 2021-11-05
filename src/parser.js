@@ -638,7 +638,7 @@ function parseTemplate(ctx) {
         const span = parseTemplateElement(ctx)
         quasis.push(span)
 
-        if (span.tail) {
+        if (ctx.type === types.backQuote) {
             break
         }
     }
