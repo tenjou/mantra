@@ -19,7 +19,7 @@ function parseFunctionParams(ctx, params) {
             continue
         }
 
-        paramResult += `, ${param.name}`
+        result += `, ${param.name}`
     }
 
     return result
