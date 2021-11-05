@@ -299,8 +299,15 @@ function parseLiteral(_ctx, node) {
 function parseTemplateLiteral(ctx, node) {
     let result = ""
 
-    for (const entry of node.quasis) {
-        result += entry.value
+    for (let n = 0; n < node.quasis.length; n++) {
+        const quasisNode = node.quasis[n]
+        if (n >= 1) {
+            const expressionNode = node.expressions[n - 1]
+            const expression = parse[expressionNode.type](ctx, expressionNode)
+            result += `\${${expression}}${quasisNode.value}`
+        } else {
+            result = quasisNode.value
+        }
     }
 
     return `\`${result}\``

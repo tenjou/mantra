@@ -357,7 +357,7 @@ function readTemplateToken(ctx) {
         if (charCode === 36) {
             if (ctx.pos === ctx.start && ctx.type === types.template) {
                 ctx.type = types.dollarBraceL
-                ctx.value = ctx.type.value
+                ctx.value = ctx.type.label
                 ctx.pos += 2
                 return
             }

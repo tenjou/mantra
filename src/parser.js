@@ -612,7 +612,7 @@ function parseTemplateElement(ctx) {
     return {
         type: "TemplateElement",
         start: ctx.start,
-        end: ctx.end - 1,
+        end: ctx.end,
         value: ctx.value,
         tail: ctx.type === types.backQuote,
     }
@@ -624,20 +624,23 @@ function parseTemplate(ctx) {
     const expressions = []
     const quasis = [element]
 
-    while (!element.tail) {
-        if (ctx.type === types.eof) {
-            raise(ctx, "Unterminated template literal")
-        }
-
+    for (;;) {
+        nextTemplateToken(ctx)
         expect(ctx, types.dollarBraceL)
 
         const expression = parseExpression(ctx)
         expressions.push(expression)
 
-        expect(ctx, types.braceR)
+        if (ctx.type !== types.braceR) {
+            unexpected(ctx)
+        }
 
         const span = parseTemplateElement(ctx)
         quasis.push(span)
+
+        if (span.tail) {
+            break
+        }
     }
 
     nextToken(ctx)
