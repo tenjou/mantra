@@ -570,14 +570,24 @@ function parseProperty(ctx) {
 function parseObject(ctx) {
     const start = ctx.start
     const properties = []
+    let first = true
 
     nextToken(ctx)
 
     while (!eat(ctx, types.braceR)) {
+        if (first) {
+            first = false
+        } else {
+            expect(ctx, types.comma)
+
+            if (ctx.type === types.braceR) {
+                nextToken(ctx)
+                break
+            }
+        }
+
         const prop = parseProperty(ctx)
         properties.push(prop)
-
-        expect(ctx, types.comma)
     }
 
     return {
