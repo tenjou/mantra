@@ -623,25 +623,19 @@ function parseTemplate(ctx) {
     const expressions = []
     const quasis = [element]
 
-    if (ctx.type !== types.backQuote) {
-        for (;;) {
-            nextTemplateToken(ctx)
-            expect(ctx, types.dollarBraceL)
+    while (ctx.type !== types.backQuote) {
+        nextTemplateToken(ctx)
+        expect(ctx, types.dollarBraceL)
 
-            const expression = parseExpression(ctx)
-            expressions.push(expression)
+        const expression = parseExpression(ctx)
+        expressions.push(expression)
 
-            if (ctx.type !== types.braceR) {
-                unexpected(ctx)
-            }
-
-            const span = parseTemplateElement(ctx)
-            quasis.push(span)
-
-            if (ctx.type === types.backQuote) {
-                break
-            }
+        if (ctx.type !== types.braceR) {
+            unexpected(ctx)
         }
+
+        const span = parseTemplateElement(ctx)
+        quasis.push(span)
     }
 
     nextToken(ctx)
