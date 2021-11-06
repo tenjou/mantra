@@ -35,6 +35,10 @@ function handleImportDeclaration(ctx, node) {
     }
 }
 
+function handleExpressionStatement(ctx, node) {
+    handle[node.expression.kind](ctx, node.expression)
+}
+
 function handleIfStatement(ctx, node) {
     handle[node.test.kind](ctx, node.test)
     if (node.consequent) {
@@ -75,8 +79,18 @@ function handleBinaryExpression(ctx, node) {
 }
 
 function handleMemberExpression(ctx, node) {
-    // TODO: We should check whole depth
+    // TODO: We should check whole depth.
     handle[node.object.kind](ctx, node.object)
+}
+
+function handleCallExpression(ctx, node) {
+    // TODO: Check if is a valid function call.
+    // TODO: Check if number of arguments are correct.
+    handle[node.callee.kind](ctx, node.callee)
+
+    for (const arg of node.arguments) {
+        handle[arg.kind](ctx, arg)
+    }
 }
 
 function handleBody(ctx, body) {
@@ -161,6 +175,7 @@ const handle = {
     VariableDeclaration: handleVariableDeclaration,
     FunctionDeclaration: handleFunctionDeclaration,
     ImportDeclaration: handleImportDeclaration,
+    ExpressionStatement: handleExpressionStatement,
     IfStatement: handleIfStatement,
     SwitchStatement: handleSwitchStatement,
     WhileStatement: handleWhileStatement,
@@ -168,6 +183,7 @@ const handle = {
     BlockStatement: handleBlockStatement,
     BinaryExpression: handleBinaryExpression,
     MemberExpression: handleMemberExpression,
+    CallExpression: handleCallExpression,
     Identifier: handleIdentifier,
     Literal: handleNoop,
     NumericLiteral: handleNoop,
