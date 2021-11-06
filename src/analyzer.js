@@ -14,7 +14,6 @@ function handleVariableDeclaration(ctx, node) {
 
 function handleFunctionDeclaration(ctx, node) {
     const func = declareFunc(ctx, node.id)
-    const scopePrev = ctx.scopeCurr
     ctx.scopeCurr = func.scope
 
     for (const param of node.params) {
@@ -23,7 +22,7 @@ function handleFunctionDeclaration(ctx, node) {
 
     handle[node.body.kind](ctx, node.body)
 
-    ctx.scopeCurr = scopePrev
+    ctx.scopeCurr = ctx.scopeCurr.parent
 }
 
 function handleImportDeclaration(ctx, node) {
@@ -40,6 +39,16 @@ function handleIfStatement(ctx, node) {
     handle[node.test.kind](ctx, node.test)
 }
 
+function handleWhileStatement(ctx, node) {
+    handle[node.test.kind](ctx, node.test)
+
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
+
+    handleBody(ctx, node.body.body)
+
+    ctx.scopeCurr = ctx.scopeCurr.parent
+}
+
 function handleReturnStatement(ctx, node) {
     if (node.argument) {
         handle[node.argument.kind](ctx, node.argument)
@@ -53,6 +62,11 @@ function handleBlockStatement(ctx, node) {
 function handleBinaryExpression(ctx, node) {
     handle[node.left.kind](ctx, node.left)
     handle[node.right.kind](ctx, node.right)
+}
+
+function handleMemberExpression(ctx, node) {
+    // TODO: We should check whole depth
+    handle[node.object.kind](ctx, node.object)
 }
 
 function handleBody(ctx, body) {
@@ -138,9 +152,11 @@ const handle = {
     FunctionDeclaration: handleFunctionDeclaration,
     ImportDeclaration: handleImportDeclaration,
     IfStatement: handleIfStatement,
+    WhileStatement: handleWhileStatement,
     ReturnStatement: handleReturnStatement,
     BlockStatement: handleBlockStatement,
     BinaryExpression: handleBinaryExpression,
+    MemberExpression: handleMemberExpression,
     Identifier: handleIdentifier,
     Literal: handleNoop,
     NumericLiteral: handleNoop,
