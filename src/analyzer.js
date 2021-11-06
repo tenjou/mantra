@@ -18,8 +18,10 @@ function handleFunctionDeclaration(ctx, node) {
     ctx.scopeCurr = func.scope
 
     for (const param of node.params) {
-        declareVar(ctx, func.scope, param)
+        declareVar(ctx, param)
     }
+
+    handle[node.body.kind](ctx, node.body)
 
     ctx.scopeCurr = scopePrev
 }
@@ -36,6 +38,16 @@ function handleImportDeclaration(ctx, node) {
 
 function handleIfStatement(ctx, node) {
     handle[node.test.kind](ctx, node.test)
+}
+
+function handleReturnStatement(ctx, node) {
+    if (node.argument) {
+        handle[node.argument.kind](ctx, node.argument)
+    }
+}
+
+function handleBlockStatement(ctx, node) {
+    handleBody(ctx, node.body)
 }
 
 function handleBinaryExpression(ctx, node) {
@@ -126,6 +138,8 @@ const handle = {
     FunctionDeclaration: handleFunctionDeclaration,
     ImportDeclaration: handleImportDeclaration,
     IfStatement: handleIfStatement,
+    ReturnStatement: handleReturnStatement,
+    BlockStatement: handleBlockStatement,
     BinaryExpression: handleBinaryExpression,
     Identifier: handleIdentifier,
     Literal: handleNoop,
