@@ -377,6 +377,10 @@ function readTemplateToken(ctx) {
             ctx.value = output
             ctx.pos++
             return
+        } else if (charCode === 92) {
+            output += ctx.input.slice(chunkStart, ctx.pos + 2)
+            ctx.pos += 2
+            chunkStart = ctx.pos
         } else if (isNewLine(charCode)) {
             output += ctx.input.slice(chunkStart, ctx.pos)
             ctx.pos++
