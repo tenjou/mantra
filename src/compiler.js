@@ -76,7 +76,7 @@ function parseImportSpecifiers(ctx, specifiers) {
 function parseImportDeclaration(ctx, node) {
     const specifiers = parseImportSpecifiers(ctx, node.specifiers)
     const source = parse[node.source.kind](ctx, node.source)
-    const result = `import { ${specifiers} } from ${source}`
+    const result = `import { ${specifiers} } from "${source}"`
 
     return result
 }
@@ -310,12 +310,8 @@ function parseIdentifier(_ctx, node) {
     return node.name
 }
 
-function parseNumericLiteral(_ctx, node) {
-    return node.value
-}
-
 function parseLiteral(_ctx, node) {
-    return `"${node.value}"`
+    return node.value
 }
 
 function parseTemplateLiteral(ctx, node) {
@@ -421,7 +417,7 @@ const parse = {
     ConditionExpression: parseConditionExpression,
     ObjectExpression: parseObjectExpression,
     TemplateLiteral: parseTemplateLiteral,
-    NumericLiteral: parseNumericLiteral,
+    NumericLiteral: parseLiteral,
     Literal: parseLiteral,
     Identifier: parseIdentifier,
     AssignPattern: parseAssignParam,
