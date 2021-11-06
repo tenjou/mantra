@@ -310,6 +310,10 @@ function parseIdentifier(_ctx, node) {
     return node.name
 }
 
+function parseNumericLiteral(_ctx, node) {
+    return node.value
+}
+
 function parseLiteral(_ctx, node) {
     return `"${node.value}"`
 }
@@ -417,7 +421,7 @@ const parse = {
     ConditionExpression: parseConditionExpression,
     ObjectExpression: parseObjectExpression,
     TemplateLiteral: parseTemplateLiteral,
-    NumericLiteral: parseLiteral,
+    NumericLiteral: parseNumericLiteral,
     Literal: parseLiteral,
     Identifier: parseIdentifier,
     AssignPattern: parseAssignParam,
