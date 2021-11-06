@@ -37,13 +37,13 @@ function parseDeclarations(ctx, decls) {
 
     let result = ""
     for (const decl of decls) {
-        const init = parse[decl.init.type](ctx, decl.init)
+        const init = decl.init ? ` = ${parse[decl.init.type](ctx, decl.init)}` : ""
 
         if (first) {
             first = false
-            result = `${decl.id.name} = ${init}`
+            result = `${decl.id.name}${init}`
         } else {
-            result += `, ${decl.id.name} = ${init}`
+            result += `, ${decl.id.name}${init}`
         }
     }
 
@@ -124,6 +124,24 @@ function parseForStatement(ctx, node) {
     const update = node.update ? parse[node.update.type](ctx, node.update) : ""
     const body = parse[node.body.type](ctx, node.body)
     const result = `for(${init};${test};${update}) ${body}`
+
+    return result
+}
+
+function parseForInStatement(ctx, node) {
+    const left = parse[node.left.type](ctx, node.left)
+    const right = parse[node.right.type](ctx, node.right)
+    const body = parse[node.body.type](ctx, node.body)
+    const result = `for(${left} in ${right}) ${body}`
+
+    return result
+}
+
+function parseForOfStatement(ctx, node) {
+    const left = parse[node.left.type](ctx, node.left)
+    const right = parse[node.right.type](ctx, node.right)
+    const body = parse[node.body.type](ctx, node.body)
+    const result = `for(${left} of ${right}) ${body}`
 
     return result
 }
@@ -379,6 +397,8 @@ const parse = {
     SwitchCase: parseSwitchCase,
     WhileStatement: parseWhileStatement,
     ForStatement: parseForStatement,
+    ForInStatement: parseForInStatement,
+    ForOfStatement: parseForOfStatement,
     ReturnStatement: parseReturnStatement,
     BreakStatement: parseBreakStatement,
     ExpressionStatement: parseExpressionStatement,

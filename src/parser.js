@@ -378,7 +378,6 @@ function parseVarStatement(ctx) {
 
     for (;;) {
         const decl = parseVar(ctx, node.kind)
-
         node.declarations.push(decl)
 
         if (!eat(ctx, types.comma)) {
@@ -492,13 +491,44 @@ function parseWhileStatement(ctx) {
     }
 }
 
+function parseForInOf(ctx, left, start) {
+    const isForIn = ctx.type === types.in
+
+    nextToken(ctx)
+
+    const right = isForIn ? parseExpression(ctx) : parseMaybeAssign(ctx)
+
+    expect(ctx, types.parenthesisR)
+
+    const body = parseStatement(ctx)
+
+    return {
+        type: isForIn ? "ForInStatement" : "ForOfStatement",
+        start,
+        end: ctx.end,
+        left,
+        right,
+        body,
+    }
+}
+
 function parseForStatement(ctx) {
     const start = ctx.start
+    let init
 
     nextToken(ctx)
 
     expect(ctx, types.parenthesisL)
-    const init = ctx.type === types.semicolon ? null : parseVarStatement(ctx)
+
+    if (ctx.type === types.const || ctx.type === types.let) {
+        const kind = ctx.value
+        init = parseVarStatement(ctx, kind)
+
+        if (ctx.type === types.in || ctx.type === types.of) {
+            return parseForInOf(ctx, init, start)
+        }
+    }
+
     expect(ctx, types.semicolon)
     const test = ctx.type === types.semicolon ? null : parseExpression(ctx)
     expect(ctx, types.semicolon)
@@ -851,7 +881,7 @@ function parseVar(ctx, kind) {
 
     if (eat(ctx, types.assign)) {
         node.init = parseMaybeAssign(ctx)
-    } else if (kind === "const" && ctx.type !== types.name) {
+    } else if (kind === "const" && ctx.type !== types.in && ctx.type !== types.of) {
         raise(ctx, "Missing initializer in const declaration.")
     }
 

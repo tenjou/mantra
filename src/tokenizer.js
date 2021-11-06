@@ -533,6 +533,8 @@ export const types = {
     return: keyword("return"),
     while: keyword("while"),
     for: keyword("for"),
+    in: keyword("in"),
+    of: keyword("of"),
     throw: keyword("throw"),
     import: keyword("import"),
     export: keyword("export"),
