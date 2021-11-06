@@ -37,6 +37,16 @@ function handleImportDeclaration(ctx, node) {
 
 function handleIfStatement(ctx, node) {
     handle[node.test.kind](ctx, node.test)
+    if (node.consequent) {
+        handle[node.consequent.kind](ctx, node.consequent)
+    }
+    if (node.alternate) {
+        handle[node.alternate.kind](ctx, node.alternate)
+    }
+}
+
+function handleSwitchStatement(ctx, node) {
+    return
 }
 
 function handleWhileStatement(ctx, node) {
@@ -152,6 +162,7 @@ const handle = {
     FunctionDeclaration: handleFunctionDeclaration,
     ImportDeclaration: handleImportDeclaration,
     IfStatement: handleIfStatement,
+    SwitchStatement: handleSwitchStatement,
     WhileStatement: handleWhileStatement,
     ReturnStatement: handleReturnStatement,
     BlockStatement: handleBlockStatement,
