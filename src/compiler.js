@@ -311,7 +311,7 @@ function parseIdentifier(_ctx, node) {
 }
 
 function parseLiteral(_ctx, node) {
-    return node.value
+    return `"${node.value}"`
 }
 
 function parseTemplateLiteral(ctx, node) {

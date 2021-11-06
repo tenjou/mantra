@@ -110,7 +110,7 @@ function readString(ctx, quote) {
     }
 
     ctx.kind = kinds.string
-    ctx.value = ctx.input.slice(start, ctx.pos)
+    ctx.value = ctx.input.slice(start + 1, ctx.pos - 1)
 }
 
 function readNumber(ctx) {
