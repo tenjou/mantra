@@ -1,6 +1,17 @@
 import fs from "fs"
 import path from "path"
 
+function handleVariableDeclarator(ctx, node) {
+    declareVar(ctx, node.id)
+    handle[node.init.kind](ctx, node.init)
+}
+
+function handleVariableDeclaration(ctx, node) {
+    for (const decl of node.declarations) {
+        handleVariableDeclarator(ctx, decl)
+    }
+}
+
 function handleFunctionDeclaration(ctx, node) {
     const func = declareFunc(ctx, node.id)
     const scopePrev = ctx.scopeCurr
@@ -71,7 +82,7 @@ function declareFunc(ctx, node) {
 }
 
 function declareVar(ctx, node) {
-    if (exists(node.name)) {
+    if (exists(ctx, node.name)) {
         raise(ctx, node, `Duplicate identifier '${node.name}'`)
     }
 
@@ -99,17 +110,19 @@ function raise(ctx, node, error) {
 }
 
 export function analyze({ program, input, fileName }) {
+    const scope = createScope(null)
     const ctx = {
         input,
         fileName,
-        scope: createScope(null),
-        scopeCurr: null,
+        scope,
+        scopeCurr: scope,
     }
 
     handleBody(ctx, program.body)
 }
 
 const handle = {
+    VariableDeclaration: handleVariableDeclaration,
     FunctionDeclaration: handleFunctionDeclaration,
     ImportDeclaration: handleImportDeclaration,
     IfStatement: handleIfStatement,
