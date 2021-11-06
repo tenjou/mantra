@@ -1,6 +1,6 @@
 function parseFunctionDeclaration(ctx, node) {
     const params = parseFunctionParams(ctx, node.params)
-    const body = parse[node.body.type](ctx, node.body)
+    const body = parse[node.body.kind](ctx, node.body)
     const result = `function ${node.id.name}(${params}) ${body}\n`
 
     return result
@@ -11,7 +11,7 @@ function parseFunctionParams(ctx, params) {
     let first = true
 
     for (const param of params) {
-        const paramResult = parse[param.type](ctx, param)
+        const paramResult = parse[param.kind](ctx, param)
 
         if (first) {
             first = false
@@ -27,7 +27,7 @@ function parseFunctionParams(ctx, params) {
 
 function parseVariableDeclaration(ctx, node) {
     const decls = parseDeclarations(ctx, node.declarations)
-    const result = `${node.kind} ${decls}`
+    const result = `${node.keyword} ${decls}`
 
     return result
 }
@@ -37,7 +37,7 @@ function parseDeclarations(ctx, decls) {
 
     let result = ""
     for (const decl of decls) {
-        const init = decl.init ? ` = ${parse[decl.init.type](ctx, decl.init)}` : ""
+        const init = decl.init ? ` = ${parse[decl.init.kind](ctx, decl.init)}` : ""
 
         if (first) {
             first = false
@@ -51,7 +51,7 @@ function parseDeclarations(ctx, decls) {
 }
 
 function parseExportNamedDeclaration(ctx, node) {
-    const declaration = parse[node.declaration.type](ctx, node.declaration)
+    const declaration = parse[node.declaration.kind](ctx, node.declaration)
     const result = `export ${declaration}`
 
     return result
@@ -75,16 +75,16 @@ function parseImportSpecifiers(ctx, specifiers) {
 
 function parseImportDeclaration(ctx, node) {
     const specifiers = parseImportSpecifiers(ctx, node.specifiers)
-    const source = parse[node.source.type](ctx, node.source)
+    const source = parse[node.source.kind](ctx, node.source)
     const result = `import { ${specifiers} } from ${source}`
 
     return result
 }
 
 function parseIfStatement(ctx, node) {
-    const test = parse[node.test.type](ctx, node.test)
+    const test = parse[node.test.kind](ctx, node.test)
     const consequent = parseBlockStatement(ctx, node.consequent)
-    const alternate = node.alternate ? parse[node.alternate.type](ctx, node.alternate) : null
+    const alternate = node.alternate ? parse[node.alternate.kind](ctx, node.alternate) : null
     let result = `if(${test}) ${consequent}`
 
     if (alternate) {
@@ -95,7 +95,7 @@ function parseIfStatement(ctx, node) {
 }
 
 function parseSwitchStatement(ctx, node) {
-    const discriminant = parse[node.discriminant.type](ctx, node.discriminant)
+    const discriminant = parse[node.discriminant.kind](ctx, node.discriminant)
     const cases = parseBlock(ctx, node.cases)
     const result = `switch(${discriminant}) ${cases}`
 
@@ -103,7 +103,7 @@ function parseSwitchStatement(ctx, node) {
 }
 
 function parseSwitchCase(ctx, node) {
-    const test = node.test ? parse[node.test.type](ctx, node.test) : null
+    const test = node.test ? parse[node.test.kind](ctx, node.test) : null
     const consequent = node.consequent.length > 0 ? parseStatements(ctx, node.consequent) : ""
     const result = test ? `case ${test}:${consequent}` : `default:${consequent}`
 
@@ -111,7 +111,7 @@ function parseSwitchCase(ctx, node) {
 }
 
 function parseWhileStatement(ctx, node) {
-    const test = parse[node.test.type](ctx, node.test)
+    const test = parse[node.test.kind](ctx, node.test)
     const body = parseBlockStatement(ctx, node.body)
     const result = `while(${test}) ${body}${ctx.spaces}`
 
@@ -119,35 +119,35 @@ function parseWhileStatement(ctx, node) {
 }
 
 function parseForStatement(ctx, node) {
-    const init = node.init ? parse[node.init.type](ctx, node.init) : ""
-    const test = node.test ? parse[node.test.type](ctx, node.test) : ""
-    const update = node.update ? parse[node.update.type](ctx, node.update) : ""
-    const body = parse[node.body.type](ctx, node.body)
+    const init = node.init ? parse[node.init.kind](ctx, node.init) : ""
+    const test = node.test ? parse[node.test.kind](ctx, node.test) : ""
+    const update = node.update ? parse[node.update.kind](ctx, node.update) : ""
+    const body = parse[node.body.kind](ctx, node.body)
     const result = `for(${init};${test};${update}) ${body}`
 
     return result
 }
 
 function parseForInStatement(ctx, node) {
-    const left = parse[node.left.type](ctx, node.left)
-    const right = parse[node.right.type](ctx, node.right)
-    const body = parse[node.body.type](ctx, node.body)
+    const left = parse[node.left.kind](ctx, node.left)
+    const right = parse[node.right.kind](ctx, node.right)
+    const body = parse[node.body.kind](ctx, node.body)
     const result = `for(${left} in ${right}) ${body}`
 
     return result
 }
 
 function parseForOfStatement(ctx, node) {
-    const left = parse[node.left.type](ctx, node.left)
-    const right = parse[node.right.type](ctx, node.right)
-    const body = parse[node.body.type](ctx, node.body)
+    const left = parse[node.left.kind](ctx, node.left)
+    const right = parse[node.right.kind](ctx, node.right)
+    const body = parse[node.body.kind](ctx, node.body)
     const result = `for(${left} of ${right}) ${body}`
 
     return result
 }
 
 function parseReturnStatement(ctx, node) {
-    const argument = node.argument ? parse[node.argument.type](ctx, node.argument) : ""
+    const argument = node.argument ? parse[node.argument.kind](ctx, node.argument) : ""
     const result = `return ${argument}`
 
     return result
@@ -160,13 +160,13 @@ function parseBreakStatement(ctx, node) {
 }
 
 function parseExpressionStatement(ctx, node) {
-    const result = parse[node.expression.type](ctx, node.expression)
+    const result = parse[node.expression.kind](ctx, node.expression)
 
     return result
 }
 
 function parseThrowStatement(ctx, node) {
-    const argument = parse[node.argument.type](ctx, node.argument)
+    const argument = parse[node.argument.kind](ctx, node.argument)
     const result = `throw ${argument}`
 
     return result
@@ -181,7 +181,7 @@ function parseSequenceExpression(ctx, node) {
     let first = true
 
     for (const expression of node.expressions) {
-        const parsedExpression = parse[expression.type](ctx, expression)
+        const parsedExpression = parse[expression.kind](ctx, expression)
 
         if (first) {
             first = false
@@ -195,31 +195,31 @@ function parseSequenceExpression(ctx, node) {
 }
 
 function parseBinaryExpression(ctx, node) {
-    const left = parse[node.left.type](ctx, node.left)
-    const right = parse[node.right.type](ctx, node.right)
+    const left = parse[node.left.kind](ctx, node.left)
+    const right = parse[node.right.kind](ctx, node.right)
     const result = `(${left} ${node.operator} ${right})`
 
     return result
 }
 
 function parseAssignmentExpression(ctx, node) {
-    const left = parse[node.left.type](ctx, node.left)
-    const right = parse[node.right.type](ctx, node.right)
+    const left = parse[node.left.kind](ctx, node.left)
+    const right = parse[node.right.kind](ctx, node.right)
     const result = `${left} ${node.operator} ${right}`
 
     return result
 }
 
 function parseUpdateExpression(ctx, node) {
-    const argument = parse[node.argument.type](ctx, node.argument)
+    const argument = parse[node.argument.kind](ctx, node.argument)
     const result = node.prefix ? `${node.operator}${argument}` : `${argument}${node.operator}`
 
     return result
 }
 
 function parseMemberExpression(ctx, node) {
-    const object = parse[node.object.type](ctx, node.object)
-    const property = parse[node.property.type](ctx, node.property)
+    const object = parse[node.object.kind](ctx, node.object)
+    const property = parse[node.property.kind](ctx, node.property)
 
     if (node.computed) {
         const result = `${object}[${property}]`
@@ -231,7 +231,7 @@ function parseMemberExpression(ctx, node) {
 }
 
 function parseCallExpression(ctx, node) {
-    const callee = parse[node.callee.type](ctx, node.callee)
+    const callee = parse[node.callee.kind](ctx, node.callee)
     const args = parseArgs(ctx, node.arguments)
     const result = `${callee}(${args})`
 
@@ -239,9 +239,9 @@ function parseCallExpression(ctx, node) {
 }
 
 function parseConditionExpression(ctx, node) {
-    const test = parse[node.test.type](ctx, node.test)
-    const consequent = parse[node.consequent.type](ctx, node.consequent)
-    const alternate = parse[node.alternate.type](ctx, node.alternate)
+    const test = parse[node.test.kind](ctx, node.test)
+    const consequent = parse[node.consequent.kind](ctx, node.consequent)
+    const alternate = parse[node.alternate.kind](ctx, node.alternate)
     const result = `${test} ? ${consequent} : ${alternate}`
 
     return result
@@ -267,7 +267,7 @@ function parseObjectExpression(ctx, node) {
 function parseProperty(ctx, node) {
     const key = parseLiteral(ctx, node.key)
     if (node.value) {
-        const value = parse[node.value.type](ctx, node.value)
+        const value = parse[node.value.kind](ctx, node.value)
         const result = `${key}: ${value},`
         return result
     }
@@ -283,9 +283,9 @@ function parseArgs(ctx, args) {
     for (const arg of args) {
         if (first) {
             first = false
-            result = parse[arg.type](ctx, arg)
+            result = parse[arg.kind](ctx, arg)
         } else {
-            result += `, ${parse[arg.type](ctx, arg)}`
+            result += `, ${parse[arg.kind](ctx, arg)}`
         }
     }
 
@@ -298,7 +298,7 @@ function parseStatements(ctx, statements) {
     let result = ""
 
     for (const statement of statements) {
-        result += `\n${ctx.spaces}${parse[statement.type](ctx, statement)}`
+        result += `\n${ctx.spaces}${parse[statement.kind](ctx, statement)}`
     }
 
     exitBlock(ctx)
@@ -321,7 +321,7 @@ function parseTemplateLiteral(ctx, node) {
         const quasisNode = node.quasis[n]
         if (n >= 1) {
             const expressionNode = node.expressions[n - 1]
-            const expression = parse[expressionNode.type](ctx, expressionNode)
+            const expression = parse[expressionNode.kind](ctx, expressionNode)
             result += `\${${expression}}${quasisNode.value}`
         } else {
             result = quasisNode.value
@@ -332,8 +332,8 @@ function parseTemplateLiteral(ctx, node) {
 }
 
 function parseAssignParam(ctx, node) {
-    const left = parse[node.left.type](ctx, node.left)
-    const right = parse[node.right.type](ctx, node.right)
+    const left = parse[node.left.kind](ctx, node.left)
+    const right = parse[node.right.kind](ctx, node.right)
     const result = `${left} = ${right}`
 
     return result
@@ -349,7 +349,7 @@ function parseBlock(ctx, body) {
     enterBlock(ctx)
 
     for (const statement of body) {
-        const nodeResult = parse[statement.type](ctx, statement)
+        const nodeResult = parse[statement.kind](ctx, statement)
         result += `\n${ctx.spaces}${nodeResult}`
     }
 
@@ -364,7 +364,7 @@ function parseProgram(ctx, program) {
     let result = ""
 
     for (const node of program.body) {
-        const nodeResult = parse[node.type](ctx, node)
+        const nodeResult = parse[node.kind](ctx, node)
         result += `${nodeResult}\n`
     }
 

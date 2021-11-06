@@ -87,9 +87,9 @@ function readWord(ctx) {
 
     const keyword = keywords[ctx.value]
     if (keyword) {
-        ctx.type = keyword
+        ctx.kind = keyword
     } else {
-        ctx.type = types.name
+        ctx.kind = kinds.name
     }
 }
 
@@ -109,7 +109,7 @@ function readString(ctx, quote) {
         }
     }
 
-    ctx.type = types.string
+    ctx.kind = kinds.string
     ctx.value = ctx.input.slice(start, ctx.pos)
 }
 
@@ -121,41 +121,41 @@ function readNumber(ctx) {
         }
     }
 
-    ctx.type = types.num
+    ctx.kind = kinds.num
     ctx.value = ctx.input.slice(ctx.start, ctx.pos)
 }
 
 function readPlusMinus(ctx, charCode) {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === charCode) {
-        ctx.type = types.incrementDecrement
+        ctx.kind = kinds.incrementDecrement
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
         ctx.pos += 2
         return
     }
 
     if (nextCharCode === 61) {
-        ctx.type = types.assign
+        ctx.kind = kinds.assign
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
         ctx.pos += 2
         return
     }
 
-    ctx.type = types.plusMinus
+    ctx.kind = kinds.plusMinus
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
 }
 
-function finishTokenAssign(ctx, type) {
+function finishTokenAssign(ctx, kind) {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
-        ctx.type = types.assign
+        ctx.kind = kinds.assign
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
         ctx.pos += 2
         return
     }
 
-    ctx.type = type
+    ctx.kind = kind
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
 }
@@ -176,7 +176,7 @@ function readEquality(ctx) {
         unexpected(ctx)
     }
 
-    ctx.type = size === 1 ? types.assign : types.equality
+    ctx.kind = size === 1 ? kinds.assign : kinds.equality
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + size)
     ctx.pos += size
 }
@@ -185,13 +185,13 @@ function readGreaterThan(ctx) {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
-        ctx.type = types.greaterThanEquals
+        ctx.kind = kinds.greaterThanEquals
         ctx.pos += 2
         return
     }
 
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
-    ctx.type = types.greaterThan
+    ctx.kind = kinds.greaterThan
     ctx.pos++
 }
 
@@ -199,13 +199,13 @@ function readLessThan(ctx) {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
-        ctx.type = types.lessThanEquals
+        ctx.kind = kinds.lessThanEquals
         ctx.pos += 2
         return
     }
 
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
-    ctx.type = types.lessThan
+    ctx.kind = kinds.lessThan
     ctx.pos++
 }
 
@@ -213,13 +213,13 @@ function readLogicalOr(ctx) {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 124) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
-        ctx.type = types.logicalOr
+        ctx.kind = kinds.logicalOr
         ctx.pos += 2
         return
     }
 
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
-    ctx.type = types.bitwiseOr
+    ctx.kind = kinds.bitwiseOr
     ctx.pos += 1
 }
 
@@ -227,18 +227,18 @@ function readLogicalAnd(ctx) {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 38) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
-        ctx.type = types.logicalAnd
+        ctx.kind = kinds.logicalAnd
         ctx.pos += 2
         return
     }
 
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
-    ctx.type = types.bitwiseAnd
+    ctx.kind = kinds.bitwiseAnd
     ctx.pos += 1
 }
 
-function finishToken(ctx, type) {
-    ctx.type = type
+function finishToken(ctx, kind) {
+    ctx.kind = kind
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
 }
@@ -246,36 +246,36 @@ function finishToken(ctx, type) {
 function getTokenFromCode(ctx, charCode) {
     switch (charCode) {
         case 33:
-            finishToken(ctx, types.exclamation)
+            finishToken(ctx, kinds.exclamation)
             return
         case 34:
         case 39: // " '
             readString(ctx, charCode)
             return
         case 37:
-            finishTokenAssign(ctx, types.modulo)
+            finishTokenAssign(ctx, kinds.modulo)
             return
         case 40:
-            finishToken(ctx, types.parenthesisL)
+            finishToken(ctx, kinds.parenthesisL)
             return
         case 41:
-            finishToken(ctx, types.parenthesisR)
+            finishToken(ctx, kinds.parenthesisR)
             return
         case 42:
-            finishTokenAssign(ctx, types.star)
+            finishTokenAssign(ctx, kinds.star)
             return
         case 43:
         case 45: // '+ -'
             readPlusMinus(ctx, charCode)
             return
         case 44:
-            finishToken(ctx, types.comma)
+            finishToken(ctx, kinds.comma)
             return
         case 46: // '.'
-            finishToken(ctx, types.dot)
+            finishToken(ctx, kinds.dot)
             return
         case 47:
-            finishTokenAssign(ctx, types.slash)
+            finishTokenAssign(ctx, kinds.slash)
             return
 
         case 48:
@@ -292,7 +292,7 @@ function getTokenFromCode(ctx, charCode) {
             return
 
         case 58: // ':'
-            finishToken(ctx, types.colon)
+            finishToken(ctx, kinds.colon)
             return
 
         case 33:
@@ -307,34 +307,34 @@ function getTokenFromCode(ctx, charCode) {
             readGreaterThan(ctx)
             return
         case 63:
-            finishToken(ctx, types.question)
+            finishToken(ctx, kinds.question)
             return
 
         case 123: // {
-            finishToken(ctx, types.braceL)
+            finishToken(ctx, kinds.braceL)
             return
         case 125: // }
-            finishToken(ctx, types.braceR)
+            finishToken(ctx, kinds.braceR)
             return
 
         case 59: // ;
-            finishToken(ctx, types.semicolon)
+            finishToken(ctx, kinds.semicolon)
             return
 
         case 38: // '&'
             readLogicalAnd(ctx)
             return
         case 91: // '['
-            finishToken(ctx, types.bracketL)
+            finishToken(ctx, kinds.bracketL)
             return
         case 93: // '['
-            finishToken(ctx, types.bracketR)
+            finishToken(ctx, kinds.bracketR)
             return
         case 94: // '^'
-            finishTokenAssign(ctx, types.bitwiseXor)
+            finishTokenAssign(ctx, kinds.bitwiseXor)
             return
         case 96: // '`'
-            finishToken(ctx, types.backQuote)
+            finishToken(ctx, kinds.backQuote)
             return
         case 124: // |
             readLogicalOr(ctx)
@@ -355,9 +355,9 @@ function readTemplateToken(ctx) {
 
         const charCode = ctx.input.charCodeAt(ctx.pos)
         if (charCode === 36) {
-            if (ctx.pos === ctx.start && ctx.type === types.template) {
-                ctx.type = types.dollarBraceL
-                ctx.value = ctx.type.label
+            if (ctx.pos === ctx.start && ctx.kind === kinds.template) {
+                ctx.kind = kinds.dollarBraceL
+                ctx.value = ctx.kind.label
                 ctx.pos += 2
                 return
             }
@@ -365,7 +365,7 @@ function readTemplateToken(ctx) {
             const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
             if (nextCharCode === 123) {
                 output += ctx.input.slice(chunkStart, ctx.pos)
-                ctx.type = types.template
+                ctx.kind = kinds.template
                 ctx.value = output
                 return
             }
@@ -373,7 +373,7 @@ function readTemplateToken(ctx) {
 
         if (charCode === 96) {
             output += ctx.input.slice(chunkStart, ctx.pos)
-            ctx.type = types.backQuote
+            ctx.kind = kinds.backQuote
             ctx.value = output
             ctx.pos++
             return
@@ -394,7 +394,7 @@ export function nextToken(ctx) {
     skipSpace(ctx)
 
     if (ctx.pos >= ctx.input.length) {
-        ctx.type = types.eof
+        ctx.kind = kinds.eof
         return
     }
 
@@ -423,8 +423,8 @@ export function nextTemplateToken(ctx) {
     ctx.end = ctx.pos
 }
 
-export function eat(ctx, type) {
-    if (ctx.type === type) {
+export function eat(ctx, kind) {
+    if (ctx.kind === kind) {
         nextToken(ctx)
         return true
     }
@@ -432,12 +432,12 @@ export function eat(ctx, type) {
     return false
 }
 
-export function expect(ctx, type) {
-    eat(ctx, type) || unexpected(ctx)
+export function expect(ctx, kind) {
+    eat(ctx, kind) || unexpected(ctx)
 }
 
 function eatContextual(ctx, str) {
-    if (ctx.type === types.name && ctx.value === str) {
+    if (ctx.kind === kinds.name && ctx.value === str) {
         nextToken(ctx)
         return true
     }
@@ -484,7 +484,7 @@ function binop(name, binop) {
 
 const keywords = {}
 
-export const types = {
+export const kinds = {
     assign: token("=", { isAssign: true }),
     incrementDecrement: token("++/--", { prefix: true, postfix: true }),
     exclamation: token("!", { prefix: true }),
