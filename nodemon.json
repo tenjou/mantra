@@ -2,5 +2,7 @@
     "events": {
         "start": "cls"
     },
+    "watch": ["src", "dist"],
+    "ext": "js,ts,json",
     "delay": "100"
 }

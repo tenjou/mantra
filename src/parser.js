@@ -84,6 +84,12 @@ function parseMaybeDefault(ctx) {
     const start = ctx.start
     const left = parseBindingAtom(ctx)
 
+    if (ctx.kind === kinds.colon) {
+        nextToken(ctx)
+        left.type = ctx.kind
+        nextToken(ctx)
+    }
+
     if (!eat(ctx, kinds.assign)) {
         return left
     }
@@ -96,6 +102,7 @@ function parseMaybeDefault(ctx) {
         end: ctx.end,
         left,
         right,
+        type,
     }
 }
 
@@ -875,9 +882,16 @@ function parseVar(ctx, kind) {
         end: 0,
         id: null,
         init: null,
+        type: null,
     }
 
     node.id = parseBindingAtom(ctx)
+
+    if (ctx.kind === kinds.colon) {
+        nextToken(ctx)
+        node.type = ctx.kind
+        nextToken(ctx)
+    }
 
     if (eat(ctx, kinds.assign)) {
         node.init = parseMaybeAssign(ctx)

@@ -542,4 +542,7 @@ export const kinds = {
     throw: keyword("throw"),
     import: keyword("import"),
     export: keyword("export"),
+    number: keyword("number"),
+    string: keyword("string"),
+    boolean: keyword("boolean"),
 }
