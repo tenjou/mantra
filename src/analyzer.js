@@ -35,6 +35,10 @@ function handleImportDeclaration(ctx, node) {
     }
 }
 
+function handleExportNamedDeclaration(ctx, node) {
+    handle[node.declaration.kind](ctx, node.declaration)
+}
+
 function handleExpressionStatement(ctx, node) {
     handle[node.expression.kind](ctx, node.expression)
 }
@@ -201,6 +205,7 @@ const handle = {
     VariableDeclaration: handleVariableDeclaration,
     FunctionDeclaration: handleFunctionDeclaration,
     ImportDeclaration: handleImportDeclaration,
+    ExportNamedDeclaration: handleExportNamedDeclaration,
     ExpressionStatement: handleExpressionStatement,
     IfStatement: handleIfStatement,
     BreakStatement: handleNoop,
