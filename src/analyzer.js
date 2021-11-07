@@ -54,19 +54,16 @@ function handleSwitchStatement(ctx, node) {
     handle[node.discriminant.kind](ctx, node.discriminant)
 
     for (const entry of node.cases) {
-        handle[entry.test.kind](ctx, entry.test)
+        if (entry.test) {
+            handle[entry.test.kind](ctx, entry.test)
+        }
         handleStatements(ctx, entry.consequent)
     }
 }
 
 function handleWhileStatement(ctx, node) {
     handle[node.test.kind](ctx, node.test)
-
-    ctx.scopeCurr = createScope(ctx.scopeCurr)
-
-    handleStatements(ctx, node.body.body)
-
-    ctx.scopeCurr = ctx.scopeCurr.parent
+    handleBlockStatement(ctx, node.body)
 }
 
 function handleReturnStatement(ctx, node) {
@@ -81,6 +78,11 @@ function handleBlockStatement(ctx, node) {
     handleStatements(ctx, node.body)
 
     ctx.scopeCurr = ctx.scopeCurr.parent
+}
+
+function handleUpdateExpression(ctx, node) {
+    // TODO: Check if argument is a number
+    handle[node.argument.kind](ctx, node.argument)
 }
 
 function handleBinaryExpression(ctx, node) {
@@ -187,10 +189,12 @@ const handle = {
     ImportDeclaration: handleImportDeclaration,
     ExpressionStatement: handleExpressionStatement,
     IfStatement: handleIfStatement,
+    BreakStatement: handleNoop,
     SwitchStatement: handleSwitchStatement,
     WhileStatement: handleWhileStatement,
     ReturnStatement: handleReturnStatement,
     BlockStatement: handleBlockStatement,
+    UpdateExpression: handleUpdateExpression,
     BinaryExpression: handleBinaryExpression,
     MemberExpression: handleMemberExpression,
     CallExpression: handleCallExpression,
