@@ -1,7 +1,7 @@
 function parseFunctionDeclaration(ctx, node) {
     const params = parseFunctionParams(ctx, node.params)
     const body = parse[node.body.kind](ctx, node.body)
-    const result = `function ${node.id.name}(${params}) ${body}\n`
+    const result = `function ${node.id.value}(${params}) ${body}\n`
 
     return result
 }
@@ -19,7 +19,7 @@ function parseFunctionParams(ctx, params) {
             continue
         }
 
-        result += `, ${param.name}`
+        result += `, ${paramResult}`
     }
 
     return result
@@ -41,9 +41,9 @@ function parseDeclarations(ctx, decls) {
 
         if (first) {
             first = false
-            result = `${decl.id.name}${init}`
+            result = `${decl.id.value}${init}`
         } else {
-            result += `, ${decl.id.name}${init}`
+            result += `, ${decl.id.value}${init}`
         }
     }
 
@@ -57,11 +57,11 @@ function parseExportNamedDeclaration(ctx, node) {
     return result
 }
 
-function parseImportSpecifiers(ctx, specifiers) {
+function parseImportSpecifiers(_ctx, specifiers) {
     let result = ""
 
     for (const specifier of specifiers) {
-        const specifierResult = specifier.local ? `${specifier.imported.name} as ${specifier.local.name}` : specifier.imported.name
+        const specifierResult = specifier.local ? `${specifier.imported.value} as ${specifier.local.value}` : specifier.imported.value
 
         if (result) {
             result += `, ${specifierResult}`
@@ -248,6 +248,10 @@ function parseConditionExpression(ctx, node) {
 }
 
 function parseObjectExpression(ctx, node) {
+    if (node.properties.length === 0) {
+        return "{}"
+    }
+
     let result = `{`
 
     enterBlock(ctx)
@@ -307,7 +311,7 @@ function parseStatements(ctx, statements) {
 }
 
 function parseIdentifier(_ctx, node) {
-    return node.name
+    return node.value
 }
 
 function parseLiteral(_ctx, node) {

@@ -17,7 +17,16 @@ function handleFunctionDeclaration(ctx, node) {
     ctx.scopeCurr = func.scope
 
     for (const param of node.params) {
-        declareVar(ctx, param)
+        switch (param.kind) {
+            case "Identifier":
+                declareVar(ctx, param)
+                break
+            case "AssignPattern":
+                declareVar(ctx, param.left)
+                break
+            default:
+                raise(ctx, param, "Unsupported feature")
+        }
     }
 
     handle[node.body.kind](ctx, node.body)
@@ -123,6 +132,24 @@ function handleCallExpression(ctx, node) {
     }
 }
 
+function handleObjectExpression(ctx, node) {
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
+
+    for (const entry of node.properties) {
+        if (entry.op !== "init") {
+            raise(ctx, entry, "Unsupported feature")
+        }
+
+        declareVar(ctx, entry.key, true)
+
+        if (entry.value) {
+            handle[entry.value.kind](ctx, entry.value)
+        }
+    }
+
+    ctx.scopeCurr = ctx.scopeCurr.parent
+}
+
 function handleStatements(ctx, body) {
     for (const node of body) {
         handle[node.kind](ctx, node)
@@ -130,20 +157,27 @@ function handleStatements(ctx, body) {
 }
 
 function handleIdentifier(ctx, node) {
-    if (!exists(ctx, node.name)) {
-        raise(ctx, node, `Cannot find name '${node.name}'`)
+    if (!exists(ctx, node.value)) {
+        raise(ctx, node, `Cannot find name '${node.value}'`)
     }
 }
 
 function handleNoop(_ctx, _node) {}
 
-function exists(ctx, name) {
-    let scope = ctx.scopeCurr
-    while (scope) {
-        if (scope.vars[name]) {
+function exists(ctx, value, isObject) {
+    if (isObject) {
+        if (ctx.scopeCurr.vars[value]) {
             return true
         }
-        scope = scope.parent
+    } else {
+        let scope = ctx.scopeCurr
+
+        while (scope) {
+            if (scope.vars[value]) {
+                return true
+            }
+            scope = scope.parent
+        }
     }
 
     return false
@@ -161,13 +195,13 @@ function declareFunc(ctx, node) {
     return newVar
 }
 
-function declareVar(ctx, node) {
-    if (exists(ctx, node.name)) {
-        raise(ctx, node, `Duplicate identifier '${node.name}'`)
+function declareVar(ctx, node, isObject) {
+    if (exists(ctx, node.value, isObject)) {
+        raise(ctx, node, `Duplicate identifier '${node.value}'`)
     }
 
     const newVar = createVar()
-    ctx.scopeCurr.vars[node.name] = newVar
+    ctx.scopeCurr.vars[node.value] = newVar
 
     return newVar
 }
@@ -220,6 +254,7 @@ const handle = {
     BinaryExpression: handleBinaryExpression,
     MemberExpression: handleMemberExpression,
     CallExpression: handleCallExpression,
+    ObjectExpression: handleObjectExpression,
     Identifier: handleIdentifier,
     Literal: handleNoop,
     NumericLiteral: handleNoop,

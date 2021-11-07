@@ -10,7 +10,7 @@ function parseIdentifier(ctx) {
         kind: "Identifier",
         start: ctx.start,
         end: ctx.end,
-        name: ctx.value,
+        value: ctx.value,
     }
 
     nextToken(ctx)
@@ -102,7 +102,6 @@ function parseMaybeDefault(ctx) {
         end: ctx.end,
         left,
         right,
-        type,
     }
 }
 
@@ -600,7 +599,7 @@ function parseProperty(ctx) {
         end: ctx.end,
         key,
         value,
-        kind: "init",
+        op: "init",
     }
 }
 
