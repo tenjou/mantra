@@ -41,6 +41,7 @@ function handleExpressionStatement(ctx, node) {
 
 function handleIfStatement(ctx, node) {
     handle[node.test.kind](ctx, node.test)
+
     if (node.consequent) {
         handle[node.consequent.kind](ctx, node.consequent)
     }
@@ -50,7 +51,12 @@ function handleIfStatement(ctx, node) {
 }
 
 function handleSwitchStatement(ctx, node) {
-    return
+    handle[node.discriminant.kind](ctx, node.discriminant)
+
+    for (const entry of node.cases) {
+        handle[entry.test.kind](ctx, entry.test)
+        handleStatements(ctx, entry.consequent)
+    }
 }
 
 function handleWhileStatement(ctx, node) {
@@ -58,7 +64,7 @@ function handleWhileStatement(ctx, node) {
 
     ctx.scopeCurr = createScope(ctx.scopeCurr)
 
-    handleBody(ctx, node.body.body)
+    handleStatements(ctx, node.body.body)
 
     ctx.scopeCurr = ctx.scopeCurr.parent
 }
@@ -70,7 +76,11 @@ function handleReturnStatement(ctx, node) {
 }
 
 function handleBlockStatement(ctx, node) {
-    handleBody(ctx, node.body)
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
+
+    handleStatements(ctx, node.body)
+
+    ctx.scopeCurr = ctx.scopeCurr.parent
 }
 
 function handleBinaryExpression(ctx, node) {
@@ -93,7 +103,7 @@ function handleCallExpression(ctx, node) {
     }
 }
 
-function handleBody(ctx, body) {
+function handleStatements(ctx, body) {
     for (const node of body) {
         handle[node.kind](ctx, node)
     }
@@ -168,7 +178,7 @@ export function analyze({ program, input, fileName }) {
         scopeCurr: scope,
     }
 
-    handleBody(ctx, program.body)
+    handleStatements(ctx, program.body)
 }
 
 const handle = {
