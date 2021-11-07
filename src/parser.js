@@ -2,7 +2,7 @@ import { raise, unexpected } from "./error.js"
 import { canInsertSemicolon, eat, expect, expectContextual, nextTemplateToken, nextToken, kinds } from "./tokenizer.js"
 
 function parseIdentifier(ctx) {
-    if (ctx.kind !== kinds.name) {
+    if (ctx.kind !== kinds.name && !ctx.kind.keyword) {
         unexpected(ctx)
     }
 
@@ -52,7 +52,7 @@ function parseExpressionAtom(ctx) {
         case kinds.num:
             return parseNumericLiteral(ctx)
 
-        case kinds.string:
+        case kinds.text:
         case kinds.true:
         case kinds.false:
         case kinds.null:

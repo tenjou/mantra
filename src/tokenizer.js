@@ -93,7 +93,7 @@ function readWord(ctx) {
     }
 }
 
-function readString(ctx, quote) {
+function readText(ctx, quote) {
     const start = ctx.pos++
 
     for (;;) {
@@ -109,7 +109,7 @@ function readString(ctx, quote) {
         }
     }
 
-    ctx.kind = kinds.string
+    ctx.kind = kinds.text
     ctx.value = ctx.input.slice(start + 1, ctx.pos - 1)
 }
 
@@ -250,7 +250,7 @@ function getTokenFromCode(ctx, charCode) {
             return
         case 34:
         case 39: // " '
-            readString(ctx, charCode)
+            readText(ctx, charCode)
             return
         case 37:
             finishTokenAssign(ctx, kinds.modulo)
@@ -517,7 +517,7 @@ export const kinds = {
     eof: createToken("eof"),
     name: createToken("name"),
     num: createToken("num"),
-    string: createToken("string"),
+    text: createToken("text"),
     template: createToken("template"),
     plusMinus: createToken("+/-", { binop: 9, prefix: true }),
     var: createKeyword("var"),
