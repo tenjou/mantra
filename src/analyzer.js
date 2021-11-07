@@ -56,6 +56,12 @@ function handleExpressionStatement(ctx, node) {
     handle[node.expression.kind](ctx, node.expression)
 }
 
+function handleConditionExpression(ctx, node) {
+    handle[node.test.kind](ctx, node.test)
+    handle[node.consequent.kind](ctx, node.consequent)
+    handle[node.alternate.kind](ctx, node.alternate)
+}
+
 function handleIfStatement(ctx, node) {
     handle[node.test.kind](ctx, node.test)
 
@@ -262,6 +268,7 @@ const handle = {
     ImportDeclaration: handleImportDeclaration,
     ExportNamedDeclaration: handleExportNamedDeclaration,
     ExpressionStatement: handleExpressionStatement,
+    ConditionExpression: handleConditionExpression,
     IfStatement: handleIfStatement,
     BreakStatement: handleNoop,
     SwitchStatement: handleSwitchStatement,
