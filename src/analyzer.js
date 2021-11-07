@@ -79,6 +79,20 @@ function handleWhileStatement(ctx, node) {
     handleBlockStatement(ctx, node.body)
 }
 
+function handleForStatement(ctx, node) {
+    if (node.init) {
+        handle[node.init.kind](ctx, node.init)
+    }
+    if (node.test) {
+        handle[node.test.kind](ctx, node.test)
+    }
+    if (node.update) {
+        handle[node.update.kind](ctx, node.update)
+    }
+
+    handle[node.body.kind](ctx, node.body)
+}
+
 function handleReturnStatement(ctx, node) {
     if (node.argument) {
         handle[node.argument.kind](ctx, node.argument)
@@ -245,6 +259,7 @@ const handle = {
     BreakStatement: handleNoop,
     SwitchStatement: handleSwitchStatement,
     WhileStatement: handleWhileStatement,
+    ForStatement: handleForStatement,
     ReturnStatement: handleReturnStatement,
     BlockStatement: handleBlockStatement,
     AssignmentExpression: handleAssignmentExpression,

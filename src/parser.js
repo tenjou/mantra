@@ -520,7 +520,7 @@ function parseForInOf(ctx, left, start) {
 
 function parseForStatement(ctx) {
     const start = ctx.start
-    let init
+    let init = null
 
     nextToken(ctx)
 
