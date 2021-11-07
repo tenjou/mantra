@@ -80,9 +80,23 @@ function handleBlockStatement(ctx, node) {
     ctx.scopeCurr = ctx.scopeCurr.parent
 }
 
+function handleAssignmentExpression(ctx, node) {
+    handle[node.left.kind](ctx, node.left)
+    handle[node.right.kind](ctx, node.right)
+}
+
 function handleUpdateExpression(ctx, node) {
-    // TODO: Check if argument is a number
+    // TODO: Check if argument is a number.
     handle[node.argument.kind](ctx, node.argument)
+}
+
+function handleUnaryExpression(ctx, node) {
+    handle[node.argument.kind](ctx, node.argument)
+}
+
+function handleLogicalExpression(ctx, node) {
+    handle[node.left.kind](ctx, node.left)
+    handle[node.right.kind](ctx, node.right)
 }
 
 function handleBinaryExpression(ctx, node) {
@@ -91,7 +105,7 @@ function handleBinaryExpression(ctx, node) {
 }
 
 function handleMemberExpression(ctx, node) {
-    // TODO: We should check whole depth.
+    // TODO: We should check the whole depth.
     handle[node.object.kind](ctx, node.object)
 }
 
@@ -194,7 +208,10 @@ const handle = {
     WhileStatement: handleWhileStatement,
     ReturnStatement: handleReturnStatement,
     BlockStatement: handleBlockStatement,
+    AssignmentExpression: handleAssignmentExpression,
     UpdateExpression: handleUpdateExpression,
+    UnaryExpression: handleUnaryExpression,
+    LogicalExpression: handleLogicalExpression,
     BinaryExpression: handleBinaryExpression,
     MemberExpression: handleMemberExpression,
     CallExpression: handleCallExpression,
