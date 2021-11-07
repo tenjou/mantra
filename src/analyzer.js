@@ -184,13 +184,13 @@ function exists(ctx, value, isObject) {
 }
 
 function declareFunc(ctx, node) {
-    if (exists(ctx, node.name)) {
-        raise(ctx, "Duplicate function implementation", node)
+    if (exists(ctx, node.value)) {
+        raise(ctx, node, `Duplicate function implementation '${node.value}'`)
     }
 
     const newVar = createVar()
     newVar.scope = createScope(ctx.scope)
-    ctx.scopeCurr.vars[node.name] = newVar
+    ctx.scopeCurr.vars[node.value] = newVar
 
     return newVar
 }
