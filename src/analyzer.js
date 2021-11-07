@@ -42,6 +42,10 @@ function handleImportDeclaration(ctx, node) {
     if (!fs.existsSync(filePath)) {
         raise(ctx, node, `Cannot find module '${sourceFileName}' or its corresponding type declarations`)
     }
+
+    for (const entry of node.specifiers) {
+        declareVar(ctx, entry.imported)
+    }
 }
 
 function handleExportNamedDeclaration(ctx, node) {
@@ -245,6 +249,9 @@ export function analyze({ program, input, fileName }) {
         scope,
         scopeCurr: scope,
     }
+
+    scope.vars["Infinity"] = createVar()
+    scope.vars["NaN"] = createVar()
 
     handleStatements(ctx, program.body)
 }
