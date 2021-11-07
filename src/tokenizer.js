@@ -460,7 +460,7 @@ export function canInsertSemicolon(ctx) {
     return false
 }
 
-function token(label, options = {}) {
+function createToken(label, options = {}) {
     return {
         label,
         keyword: options.keyword || false,
@@ -471,78 +471,78 @@ function token(label, options = {}) {
     }
 }
 
-function keyword(name) {
-    const keywordToken = token(name, { keyword: true })
+function createKeyword(name) {
+    const keywordToken = createToken(name, { keyword: true })
     keywords[name] = keywordToken
 
     return keywordToken
 }
 
-function binop(name, binop) {
-    return token(name, { binop })
+function createBinop(name, binop) {
+    return createToken(name, { binop })
 }
 
 const keywords = {}
 
 export const kinds = {
-    assign: token("=", { isAssign: true }),
-    incrementDecrement: token("++/--", { prefix: true, postfix: true }),
-    exclamation: token("!", { prefix: true }),
-    logicalOr: binop("||", 1),
-    logicalAnd: binop("&&", 2),
-    bitwiseOr: binop("|", 3),
-    bitwiseXor: binop("^", 4),
-    bitwiseAnd: binop("&", 5),
-    equality: binop("==/===", 6),
-    greaterThan: binop(">", 7),
-    lessThan: binop("<", 7),
-    greaterThanEquals: binop(">=", 7),
-    lessThanEquals: binop("<=", 7),
-    star: binop("*", 10),
-    slash: binop("/", 10),
-    modulo: binop("%", 10),
-    comma: token(","),
-    dot: token("."),
-    backQuote: token("`"),
-    colon: token(":"),
-    question: token("?"),
-    semicolon: token(";"),
-    parenthesisL: token("("),
-    parenthesisR: token(")"),
-    braceL: token("{"),
-    braceR: token("}"),
-    bracketL: token("["),
-    bracketR: token("]"),
-    dollarBraceL: token("${"),
-    eof: token("eof"),
-    name: token("name"),
-    num: token("num"),
-    string: token("string"),
-    template: token("template"),
-    plusMinus: token("+/-", { binop: 9, prefix: true }),
-    var: keyword("var"),
-    let: keyword("let"),
-    const: keyword("const"),
-    new: keyword("new"),
-    function: keyword("function"),
-    if: keyword("if"),
-    else: keyword("else"),
-    switch: keyword("switch"),
-    case: keyword("case"),
-    default: keyword("default"),
-    break: keyword("break"),
-    true: keyword("true"),
-    false: keyword("false"),
-    null: keyword("null"),
-    return: keyword("return"),
-    while: keyword("while"),
-    for: keyword("for"),
-    in: keyword("in"),
-    of: keyword("of"),
-    throw: keyword("throw"),
-    import: keyword("import"),
-    export: keyword("export"),
-    number: keyword("number"),
-    string: keyword("string"),
-    boolean: keyword("boolean"),
+    assign: createToken("=", { isAssign: true }),
+    incrementDecrement: createToken("++/--", { prefix: true, postfix: true }),
+    exclamation: createToken("!", { prefix: true }),
+    logicalOr: createBinop("||", 1),
+    logicalAnd: createBinop("&&", 2),
+    bitwiseOr: createBinop("|", 3),
+    bitwiseXor: createBinop("^", 4),
+    bitwiseAnd: createBinop("&", 5),
+    equality: createBinop("==/===", 6),
+    greaterThan: createBinop(">", 7),
+    lessThan: createBinop("<", 7),
+    greaterThanEquals: createBinop(">=", 7),
+    lessThanEquals: createBinop("<=", 7),
+    star: createBinop("*", 10),
+    slash: createBinop("/", 10),
+    modulo: createBinop("%", 10),
+    comma: createToken(","),
+    dot: createToken("."),
+    backQuote: createToken("`"),
+    colon: createToken(":"),
+    question: createToken("?"),
+    semicolon: createToken(";"),
+    parenthesisL: createToken("("),
+    parenthesisR: createToken(")"),
+    braceL: createToken("{"),
+    braceR: createToken("}"),
+    bracketL: createToken("["),
+    bracketR: createToken("]"),
+    dollarBraceL: createToken("${"),
+    eof: createToken("eof"),
+    name: createToken("name"),
+    num: createToken("num"),
+    string: createToken("string"),
+    template: createToken("template"),
+    plusMinus: createToken("+/-", { binop: 9, prefix: true }),
+    var: createKeyword("var"),
+    let: createKeyword("let"),
+    const: createKeyword("const"),
+    new: createKeyword("new"),
+    function: createKeyword("function"),
+    if: createKeyword("if"),
+    else: createKeyword("else"),
+    switch: createKeyword("switch"),
+    case: createKeyword("case"),
+    default: createKeyword("default"),
+    break: createKeyword("break"),
+    true: createKeyword("true"),
+    false: createKeyword("false"),
+    null: createKeyword("null"),
+    return: createKeyword("return"),
+    while: createKeyword("while"),
+    for: createKeyword("for"),
+    in: createKeyword("in"),
+    of: createKeyword("of"),
+    throw: createKeyword("throw"),
+    import: createKeyword("import"),
+    export: createKeyword("export"),
+    number: createKeyword("number"),
+    string: createKeyword("string"),
+    boolean: createKeyword("boolean"),
 }
