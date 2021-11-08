@@ -29,9 +29,8 @@ function handleFunctionDeclaration(ctx, node) {
         }
     }
 
-    handle[node.body.kind](ctx, node.body)
-
     ctx.scopeCurr = ctx.scopeCurr.parent
+    ctx.scopeCurr.funcDecls.push(node.body)
 }
 
 function handleImportDeclaration(ctx, node) {
@@ -174,12 +173,6 @@ function handleObjectExpression(ctx, node) {
     ctx.scopeCurr = ctx.scopeCurr.parent
 }
 
-function handleStatements(ctx, body) {
-    for (const node of body) {
-        handle[node.kind](ctx, node)
-    }
-}
-
 function handleIdentifier(ctx, node) {
     if (!exists(ctx, node.value)) {
         raise(ctx, node, `Cannot find name '${node.value}'`)
@@ -187,6 +180,17 @@ function handleIdentifier(ctx, node) {
 }
 
 function handleNoop(_ctx, _node) {}
+
+function handleStatements(ctx, body) {
+    for (const node of body) {
+        handle[node.kind](ctx, node)
+    }
+
+    const funcDecls = ctx.scopeCurr.funcDecls
+    for (const decl of funcDecls) {
+        handleBlockStatement(ctx, decl)
+    }
+}
 
 function exists(ctx, value, isObject) {
     if (isObject) {
@@ -214,6 +218,7 @@ function declareFunc(ctx, node) {
 
     const newVar = createVar()
     newVar.scope = createScope(ctx.scope)
+
     ctx.scopeCurr.vars[node.value] = newVar
 
     return newVar
@@ -234,6 +239,7 @@ function createScope(parent) {
     return {
         parent,
         vars: {},
+        funcDecls: [],
     }
 }
 
