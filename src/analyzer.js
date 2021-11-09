@@ -3,7 +3,9 @@ import path from "path"
 
 function handleVariableDeclarator(ctx, node) {
     declareVar(ctx, node.id)
-    handle[node.init.kind](ctx, node.init)
+    if (node.init) {
+        handle[node.init.kind](ctx, node.init)
+    }
 }
 
 function handleVariableDeclaration(ctx, node) {
@@ -105,6 +107,18 @@ function handleForStatement(ctx, node) {
         handle[node.update.kind](ctx, node.update)
     }
 
+    handle[node.body.kind](ctx, node.body)
+}
+
+function handleForInStatement(ctx, node) {
+    handle[node.left.kind](ctx, node.left)
+    handle[node.right.kind](ctx, node.right)
+    handle[node.body.kind](ctx, node.body)
+}
+
+function handleForOfStatement(ctx, node) {
+    handle[node.left.kind](ctx, node.left)
+    handle[node.right.kind](ctx, node.right)
     handle[node.body.kind](ctx, node.body)
 }
 
@@ -286,6 +300,8 @@ const handle = {
     SwitchStatement: handleSwitchStatement,
     WhileStatement: handleWhileStatement,
     ForStatement: handleForStatement,
+    ForInStatement: handleForInStatement,
+    ForOfStatement: handleForOfStatement,
     ReturnStatement: handleReturnStatement,
     BlockStatement: handleBlockStatement,
     AssignmentExpression: handleAssignmentExpression,
