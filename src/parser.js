@@ -587,7 +587,19 @@ function parseParenthesisExpression(ctx) {
 
 function parseProperty(ctx) {
     const start = ctx.start
-    const key = parseLiteral(ctx)
+
+    let key
+    let computed = false
+
+    if (eat(ctx, kinds.bracketL)) {
+        key = parseMaybeAssign(ctx)
+        computed = true
+        expect(ctx, kinds.bracketR)
+    } else if (ctx.kind === kinds.string || ctx.kind === kinds.number) {
+        key = parseExpressionAtom(ctx)
+    } else {
+        key = parseIdentifier(ctx)
+    }
 
     let value = null
     if (eat(ctx, kinds.colon)) {
@@ -600,6 +612,7 @@ function parseProperty(ctx) {
         end: ctx.end,
         key,
         value,
+        computed,
         op: "init",
     }
 }

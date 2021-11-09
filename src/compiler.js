@@ -269,7 +269,8 @@ function parseObjectExpression(ctx, node) {
 }
 
 function parseProperty(ctx, node) {
-    const key = parseLiteral(ctx, node.key)
+    const key = node.computed ? `[${parse[node.key.kind](ctx, node.key)}]` : parse[node.key.kind](ctx, node.key)
+
     if (node.value) {
         const value = parse[node.value.kind](ctx, node.value)
         const result = `${key}: ${value},`
