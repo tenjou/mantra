@@ -84,6 +84,7 @@ function readWord(ctx) {
     }
 
     ctx.value = ctx.input.slice(ctx.start, ctx.pos)
+    ctx.raw = ctx.value
 
     const keyword = keywords[ctx.value]
     if (keyword) {
@@ -110,6 +111,7 @@ function readText(ctx, quote) {
     }
 
     ctx.kind = kinds.text
+    ctx.raw = ctx.input.slice(start, ctx.pos)
     ctx.value = ctx.input.slice(start + 1, ctx.pos - 1)
 }
 

@@ -37,6 +37,7 @@ function parseLiteral(ctx) {
         start: ctx.start,
         end: ctx.end,
         value: ctx.value,
+        raw: ctx.raw,
     }
 
     nextToken(ctx)
@@ -948,6 +949,7 @@ export function parser(fileName, input) {
         inFunction: false,
 
         value: undefined,
+        raw: undefined,
         kind: null,
     }
 
