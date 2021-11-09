@@ -13,7 +13,13 @@ function handleVariableDeclaration(ctx, node) {
 }
 
 function handleFunctionDeclaration(ctx, node) {
-    const func = declareFunc(ctx, node.id)
+    if (exists(ctx, node.id.value)) {
+        raise(ctx, node.id, `Duplicate function implementation '${node.id.value}'`)
+    }
+
+    const func = createVar(node)
+    func.scope = createScope(ctx.scopeCurr)
+    ctx.scopeCurr.vars[node.id.value] = func
     ctx.scopeCurr = func.scope
 
     for (const param of node.params) {
@@ -30,7 +36,7 @@ function handleFunctionDeclaration(ctx, node) {
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent
-    ctx.scopeCurr.funcDecls.push(node.body)
+    ctx.scopeCurr.funcDecls.push(func)
 }
 
 function handleImportDeclaration(ctx, node) {
@@ -182,14 +188,19 @@ function handleIdentifier(ctx, node) {
 function handleNoop(_ctx, _node) {}
 
 function handleStatements(ctx, body) {
+    const scopeCurr = ctx.scopeCurr
+
     for (const node of body) {
         handle[node.kind](ctx, node)
     }
 
     const funcDecls = ctx.scopeCurr.funcDecls
     for (const decl of funcDecls) {
-        handleBlockStatement(ctx, decl)
+        ctx.scopeCurr = decl.scope
+        handle[decl.node.body.kind](ctx, decl.node.body)
     }
+
+    ctx.scopeCurr = scopeCurr
 }
 
 function exists(ctx, value, isObject) {
@@ -211,19 +222,6 @@ function exists(ctx, value, isObject) {
     return false
 }
 
-function declareFunc(ctx, node) {
-    if (exists(ctx, node.value)) {
-        raise(ctx, node, `Duplicate function implementation '${node.value}'`)
-    }
-
-    const newVar = createVar()
-    newVar.scope = createScope(ctx.scope)
-
-    ctx.scopeCurr.vars[node.value] = newVar
-
-    return newVar
-}
-
 function declareVar(ctx, node, isObject) {
     if (exists(ctx, node.value, isObject)) {
         raise(ctx, node, `Duplicate identifier '${node.value}'`)
@@ -235,17 +233,19 @@ function declareVar(ctx, node, isObject) {
     return newVar
 }
 
-function createScope(parent) {
+function createScope(parent, node = null) {
     return {
         parent,
+        node,
         vars: {},
         funcDecls: [],
     }
 }
 
-function createVar() {
+function createVar(node = null) {
     return {
         scope: null,
+        node,
     }
 }
 
