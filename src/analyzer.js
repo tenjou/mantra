@@ -185,6 +185,12 @@ function handleIdentifier(ctx, node) {
     }
 }
 
+function handleTemplateLiteral(ctx, node) {
+    for (const expression of node.expressions) {
+        handle[expression.kind](ctx, expression)
+    }
+}
+
 function handleNoop(_ctx, _node) {}
 
 function handleStatements(ctx, body) {
@@ -291,6 +297,7 @@ const handle = {
     CallExpression: handleCallExpression,
     ObjectExpression: handleObjectExpression,
     Identifier: handleIdentifier,
+    TemplateLiteral: handleTemplateLiteral,
     Literal: handleNoop,
     NumericLiteral: handleNoop,
 }
