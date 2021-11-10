@@ -42,12 +42,15 @@ function handleFunctionDeclaration(ctx, node) {
 }
 
 function handleImportDeclaration(ctx, node) {
-    const fileDir = path.dirname(ctx.fileName)
-    const fileExt = path.extname(node.source.value)
-    const sourceFileName = fileExt ? node.source.value : `${node.source.value}.js`
-    const filePath = path.resolve(fileDir, sourceFileName)
-    if (!fs.existsSync(filePath)) {
-        raise(ctx, node, `Cannot find module '${sourceFileName}' or its corresponding type declarations`)
+    // TODO: if it's a module check if it exists
+    if (node.source.value.charCodeAt(0) === 46) {
+        const fileDir = path.dirname(ctx.fileName)
+        const fileExt = path.extname(node.source.value)
+        const sourceFileName = fileExt ? node.source.value : `${node.source.value}.js`
+        const filePath = path.resolve(fileDir, sourceFileName)
+        if (!fs.existsSync(filePath)) {
+            raise(ctx, node, `Cannot find module '${sourceFileName}' or its corresponding type declarations`)
+        }
     }
 
     for (const entry of node.specifiers) {

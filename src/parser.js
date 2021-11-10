@@ -723,6 +723,27 @@ function parseEmptyStatement(ctx) {
 
 function parseImportSpecifiers(ctx) {
     const nodes = []
+
+    if (ctx.kind === kinds.name) {
+        const start = ctx.start
+        const end = ctx.end
+        const imported = parseIdentifier(ctx)
+
+        checkLValue(ctx, imported)
+
+        const node = {
+            kind: "ImportDefaultSpecifier",
+            start,
+            end,
+            imported,
+        }
+        nodes.push(node)
+
+        if (!eat(ctx, kinds.comma)) {
+            return nodes
+        }
+    }
+
     let first = true
 
     expect(ctx, kinds.braceL)

@@ -57,10 +57,16 @@ function parseExportNamedDeclaration(ctx, node) {
     return result
 }
 
-function parseImportSpecifiers(_ctx, specifiers) {
+function parseImportSpecifiers(specifiers) {
+    let resultDefault = ""
     let result = ""
 
     for (const specifier of specifiers) {
+        if (specifier.kind === "ImportDefaultSpecifier") {
+            resultDefault = specifier.imported.value
+            continue
+        }
+
         const specifierResult = specifier.local ? `${specifier.imported.value} as ${specifier.local.value}` : specifier.imported.value
 
         if (result) {
@@ -70,13 +76,17 @@ function parseImportSpecifiers(_ctx, specifiers) {
         }
     }
 
-    return result
+    if (resultDefault && result) {
+        return `${resultDefault}, { ${result} }`
+    }
+
+    return resultDefault || `{ ${result} }`
 }
 
 function parseImportDeclaration(ctx, node) {
-    const specifiers = parseImportSpecifiers(ctx, node.specifiers)
+    const specifiers = parseImportSpecifiers(node.specifiers)
     const source = parse[node.source.kind](ctx, node.source)
-    const result = `import { ${specifiers} } from ${source}`
+    const result = `import ${specifiers} from ${source}`
 
     return result
 }
