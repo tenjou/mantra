@@ -131,6 +131,10 @@ function handleReturnStatement(ctx, node) {
     }
 }
 
+function handleThrowStatement(ctx, node) {
+    handle[node.argument.kind](ctx, node.argument)
+}
+
 function handleTryStatement(ctx, node) {
     handle[node.block.kind](ctx, node.block)
     if (node.handler) {
@@ -318,6 +322,7 @@ const handle = {
     ForInStatement: handleForInStatement,
     ForOfStatement: handleForOfStatement,
     ReturnStatement: handleReturnStatement,
+    ThrowStatement: handleThrowStatement,
     TryStatement: handleTryStatement,
     BlockStatement: handleBlockStatement,
     AssignmentExpression: handleAssignmentExpression,
