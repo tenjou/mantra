@@ -131,6 +131,17 @@ function handleReturnStatement(ctx, node) {
     }
 }
 
+function handleTryStatement(ctx, node) {
+    handle[node.block.kind](ctx, node.block)
+    if (node.handler) {
+        declareVar(ctx, node.handler.param)
+        handle[node.handler.body.kind](ctx, node.handler.body)
+    }
+    if (node.finalize) {
+        handle[node.finalize.kind](ctx, node.finalize)
+    }
+}
+
 function handleBlockStatement(ctx, node) {
     ctx.scopeCurr = createScope(ctx.scopeCurr)
 
@@ -287,6 +298,7 @@ export function analyze({ program, input, fileName }) {
 
     scope.vars["Infinity"] = createVar()
     scope.vars["NaN"] = createVar()
+    scope.vars["console"] = createVar()
 
     handleStatements(ctx, program.body)
 }
@@ -306,6 +318,7 @@ const handle = {
     ForInStatement: handleForInStatement,
     ForOfStatement: handleForOfStatement,
     ReturnStatement: handleReturnStatement,
+    TryStatement: handleTryStatement,
     BlockStatement: handleBlockStatement,
     AssignmentExpression: handleAssignmentExpression,
     UpdateExpression: handleUpdateExpression,

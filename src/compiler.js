@@ -175,6 +175,23 @@ function parseExpressionStatement(ctx, node) {
     return result
 }
 
+function parseCatchClause(ctx, node) {
+    const param = parse[node.param.kind](ctx, node.param)
+    const block = parse[node.body.kind](ctx, node.body)
+    const result = `catch(${param}) ${block}`
+
+    return result
+}
+
+function parseTryStatement(ctx, node) {
+    const block = parse[node.block.kind](ctx, node.block)
+    const handler = node.handler ? ` ${parseCatchClause(ctx, node.handler)}` : ""
+    const finalizer = node.finalizer ? ` finally ${parseBlockStatement(ctx, node.finalizer)}` : ""
+    const result = `try ${block}${handler}${finalizer}`
+
+    return result
+}
+
 function parseThrowStatement(ctx, node) {
     const argument = parse[node.argument.kind](ctx, node.argument)
     const result = `throw ${argument}`
@@ -421,6 +438,7 @@ const parse = {
     ReturnStatement: parseReturnStatement,
     BreakStatement: parseBreakStatement,
     ExpressionStatement: parseExpressionStatement,
+    TryStatement: parseTryStatement,
     ThrowStatement: parseThrowStatement,
     BlockStatement: parseBlockStatement,
     EmptyStatement: parseEmptyStatement,

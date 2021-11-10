@@ -356,6 +356,8 @@ function parseStatement(ctx) {
             return parseReturnStatement(ctx)
         case kinds.function:
             return parseFunctionStatement(ctx)
+        case kinds.try:
+            return parseTryStatement(ctx)
         case kinds.throw:
             return parseThrowStatement(ctx)
         case kinds.braceL:
@@ -884,6 +886,52 @@ function parseFunctionParams(ctx) {
 
 function parseFunctionBody(ctx) {
     return parseBlock(ctx)
+}
+
+function parseTryStatement(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    const block = parseBlock(ctx)
+    let handler = null
+    let finalizer = null
+
+    if (ctx.kind === kinds.catch) {
+        const startClause = ctx.start
+
+        nextToken(ctx)
+        expect(ctx, kinds.parenthesisL)
+
+        const param = parseBindingAtom(ctx)
+        checkLValue(ctx, param)
+        expect(ctx, kinds.parenthesisR)
+
+        const body = parseBlock(ctx)
+
+        handler = {
+            kind: "CatchClause",
+            start: startClause,
+            end: ctx.end,
+            param,
+            body,
+        }
+    }
+
+    finalizer = eat(ctx, kinds.finally) ? parseBlock(ctx) : null
+
+    if (!handler && !finalizer) {
+        raise(ctx, "Missing catch or finally clause")
+    }
+
+    return {
+        kind: "TryStatement",
+        start,
+        end: ctx.end,
+        block,
+        handler,
+        finalizer,
+    }
 }
 
 function parseBlock(ctx) {
