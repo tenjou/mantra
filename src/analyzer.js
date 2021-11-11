@@ -193,6 +193,12 @@ function handleCallExpression(ctx, node) {
     }
 }
 
+function handleArrayExpression(ctx, node) {
+    for (const element of node.elements) {
+        handle[element.kind](ctx, element)
+    }
+}
+
 function handleObjectExpression(ctx, node) {
     ctx.scopeCurr = createScope(ctx.scopeCurr)
 
@@ -333,6 +339,7 @@ const handle = {
     BinaryExpression: handleBinaryExpression,
     MemberExpression: handleMemberExpression,
     CallExpression: handleCallExpression,
+    ArrayExpression: handleArrayExpression,
     ObjectExpression: handleObjectExpression,
     Identifier: handleIdentifier,
     TemplateLiteral: handleTemplateLiteral,

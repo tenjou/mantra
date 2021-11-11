@@ -276,6 +276,29 @@ function parseConditionExpression(ctx, node) {
     return result
 }
 
+function parseExpressionList(ctx, elements) {
+    let result = ""
+    let first = true
+
+    for (const element of elements) {
+        if (first) {
+            first = false
+            result = parse[element.kind](ctx, element)
+        } else {
+            result += `, ${parse[element.kind](ctx, element)}`
+        }
+    }
+
+    return result
+}
+
+function parseArrayExpression(ctx, node) {
+    const elements = parseExpressionList(ctx, node.elements)
+    const result = `[${elements}]`
+
+    return result
+}
+
 function parseObjectExpression(ctx, node) {
     if (node.properties.length === 0) {
         return "{}"
@@ -455,6 +478,7 @@ const parse = {
     CallExpression: parseCallExpression,
     NewExpression: parseCallExpression,
     ConditionExpression: parseConditionExpression,
+    ArrayExpression: parseArrayExpression,
     ObjectExpression: parseObjectExpression,
     TemplateLiteral: parseTemplateLiteral,
     NumericLiteral: parseNumericLiteral,

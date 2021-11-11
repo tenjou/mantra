@@ -66,6 +66,9 @@ function parseExpressionAtom(ctx) {
         case kinds.braceL:
             return parseObject(ctx)
 
+        case kinds.bracketL:
+            return parseArrayExpression(ctx)
+
         case kinds.new:
             return parseNew(ctx)
 
@@ -662,6 +665,21 @@ function parseObject(ctx) {
         start,
         end: ctx.end,
         properties,
+    }
+}
+
+function parseArrayExpression(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    const elements = parseExpressionList(ctx, kinds.bracketR)
+
+    return {
+        kind: "ArrayExpression",
+        start,
+        end: ctx.end,
+        elements,
     }
 }
 
