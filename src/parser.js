@@ -343,7 +343,9 @@ function parseStatement(ctx) {
         case kinds.const:
             return parseVarStatement(ctx)
         case kinds.break:
-            return parseBreak(ctx)
+            return parseBreakStatement(ctx)
+        case kinds.continue:
+            return parseContinueStatement(ctx)
         case kinds.if:
             return parseIfStatement(ctx)
         case kinds.switch:
@@ -399,13 +401,26 @@ function parseVarStatement(ctx) {
     return node
 }
 
-function parseBreak(ctx) {
+function parseBreakStatement(ctx) {
     const start = ctx.start
 
     nextToken(ctx)
 
     return {
         kind: "BreakStatement",
+        start,
+        end: ctx.endLast,
+        label: null,
+    }
+}
+
+function parseContinueStatement(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    return {
+        kind: "ContinueStatement",
         start,
         end: ctx.endLast,
         label: null,

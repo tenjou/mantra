@@ -316,6 +316,7 @@ const handle = {
     ConditionExpression: handleConditionExpression,
     IfStatement: handleIfStatement,
     BreakStatement: handleNoop,
+    ContinueStatement: handleNoop,
     SwitchStatement: handleSwitchStatement,
     WhileStatement: handleWhileStatement,
     ForStatement: handleForStatement,

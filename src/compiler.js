@@ -163,10 +163,12 @@ function parseReturnStatement(ctx, node) {
     return result
 }
 
-function parseBreakStatement(ctx, node) {
-    const result = `break`
+function parseBreakStatement(_ctx, _node) {
+    return "break"
+}
 
-    return result
+function parseContinueStatement(_ctx, _node) {
+    return "continue"
 }
 
 function parseExpressionStatement(ctx, node) {
@@ -437,6 +439,7 @@ const parse = {
     ForOfStatement: parseForOfStatement,
     ReturnStatement: parseReturnStatement,
     BreakStatement: parseBreakStatement,
+    ContinueStatement: parseContinueStatement,
     ExpressionStatement: parseExpressionStatement,
     TryStatement: parseTryStatement,
     ThrowStatement: parseThrowStatement,

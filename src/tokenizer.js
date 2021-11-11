@@ -535,6 +535,7 @@ export const kinds = {
     return: createKeyword("return"),
     while: createKeyword("while"),
     for: createKeyword("for"),
+    continue: createKeyword("continue"),
     in: createKeyword("in"),
     of: createKeyword("of"),
     try: createKeyword("try"),
