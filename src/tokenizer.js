@@ -162,7 +162,7 @@ function finishTokenAssign(ctx, kind) {
     ctx.pos++
 }
 
-function readEquality(ctx) {
+function readEquality(ctx, charCode) {
     let size = 1
 
     let nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
@@ -178,7 +178,7 @@ function readEquality(ctx) {
         unexpected(ctx)
     }
 
-    ctx.kind = size === 1 ? kinds.assign : kinds.equality
+    ctx.kind = size === 1 ? (charCode === 33 ? kinds.prefix : kinds.assign) : kinds.equality
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + size)
     ctx.pos += size
 }
@@ -248,7 +248,8 @@ function finishToken(ctx, kind) {
 function getTokenFromCode(ctx, charCode) {
     switch (charCode) {
         case 33:
-            finishToken(ctx, kinds.exclamation)
+        case 61: // '! ='
+            readEquality(ctx, charCode)
             return
         case 34:
         case 39: // " '
@@ -295,11 +296,6 @@ function getTokenFromCode(ctx, charCode) {
 
         case 58: // ':'
             finishToken(ctx, kinds.colon)
-            return
-
-        case 33:
-        case 61: // '! ='
-            readEquality(ctx)
             return
 
         case 60: // <
@@ -489,7 +485,7 @@ const keywords = {}
 export const kinds = {
     assign: createToken("=", { isAssign: true }),
     incrementDecrement: createToken("++/--", { prefix: true, postfix: true }),
-    exclamation: createToken("!", { prefix: true }),
+    prefix: createToken("!", { prefix: true }),
     logicalOr: createBinop("||", 1),
     logicalAnd: createBinop("&&", 2),
     bitwiseOr: createBinop("|", 3),
@@ -547,7 +543,4 @@ export const kinds = {
     throw: createKeyword("throw"),
     import: createKeyword("import"),
     export: createKeyword("export"),
-    number: createKeyword("number"),
-    string: createKeyword("string"),
-    boolean: createKeyword("boolean"),
 }
