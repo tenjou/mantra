@@ -32,6 +32,11 @@ function handleFunctionDeclaration(ctx, node) {
             case "AssignPattern":
                 declareVar(ctx, param.left)
                 break
+            case "ObjectExpression":
+                for (const property of param.properties) {
+                    declareVar(ctx, property.key.value)
+                }
+                break
             default:
                 raise(ctx, param, "Unsupported feature")
         }

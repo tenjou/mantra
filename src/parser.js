@@ -64,7 +64,7 @@ function parseExpressionAtom(ctx) {
             return parseParenthesisExpression(ctx)
 
         case kinds.braceL:
-            return parseObject(ctx)
+            return parseObjectExpression(ctx)
 
         case kinds.bracketL:
             return parseArrayExpression(ctx)
@@ -81,6 +81,10 @@ function parseExpressionAtom(ctx) {
 }
 
 function parseBindingAtom(ctx) {
+    if (ctx.kind === kinds.braceL) {
+        return parseObjectExpression(ctx)
+    }
+
     return parseIdentifier(ctx)
 }
 
@@ -637,7 +641,7 @@ function parseProperty(ctx) {
     }
 }
 
-function parseObject(ctx) {
+function parseObjectExpression(ctx) {
     const start = ctx.start
     const properties = []
     let first = true
