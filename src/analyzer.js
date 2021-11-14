@@ -1,5 +1,6 @@
 import fs from "fs"
 import path from "path"
+import { getLineInfo } from "./error.js"
 
 function handleVariableDeclarator(ctx, node) {
     declareVar(ctx, node.id)
@@ -299,7 +300,8 @@ function createVar(node = null) {
 }
 
 function raise(ctx, node, error) {
-    throw new SyntaxError(`${error}. ${ctx.fileName}:${1}:${node.start + 1}`)
+    const lineInfo = getLineInfo(ctx, node.start)
+    throw new SyntaxError(`${error}. ${ctx.fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 }
 
 export function analyze({ program, input, fileName }) {
