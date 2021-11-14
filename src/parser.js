@@ -1008,7 +1008,7 @@ function parseVar(ctx, kind) {
 
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
-        node.type = ctx.kind
+        node.kind = ctx.kind
         nextToken(ctx)
     }
 
