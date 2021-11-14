@@ -30,21 +30,29 @@ function handleFunctionDeclaration(ctx, node) {
     ctx.scopeCurr.vars[node.id.value] = func
     ctx.scopeCurr = func.scope
 
-    node.type = types.function
+    node.type = {
+        kind: types.function,
+        argsMin: 0,
+        argsMax: node.params.length,
+    }
 
     for (const param of node.params) {
         switch (param.kind) {
             case "Identifier":
                 declareVar(ctx, param)
+                node.type.argsMin++
                 break
+
             case "AssignPattern":
                 declareVar(ctx, param.left)
                 break
+
             case "ObjectExpression":
                 for (const property of param.properties) {
                     declareVar(ctx, property.key.value)
                 }
                 break
+
             default:
                 raise(ctx, param, "Unsupported feature")
         }
@@ -200,10 +208,16 @@ function handleMemberExpression(ctx, node) {
 }
 
 function handleCallExpression(ctx, node) {
-    // TODO: Check if number of arguments are correct.
     const type = handle[node.callee.kind](ctx, node.callee)
-    if (type !== types.function) {
+    if (type.kind !== types.function) {
         raiseAt(ctx, node.callee.start, `This expression is not callable.\n  Type '${type.name}' has no call signatures`)
+    }
+
+    if (node.arguments.length < type.argsMin) {
+        raiseAt(ctx, node.callee.start, `Expected ${type.argsMin} arguments, but got ${node.arguments.length}`)
+    }
+    if (node.arguments.length > type.argsMax) {
+        raiseAt(ctx, node.callee.start, `Expected ${type.argsMax} arguments, but got ${node.arguments.length}`)
     }
 
     for (const arg of node.arguments) {
