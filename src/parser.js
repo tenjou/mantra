@@ -552,8 +552,7 @@ function parseForStatement(ctx) {
     expect(ctx, kinds.parenthesisL)
 
     if (ctx.kind === kinds.const || ctx.kind === kinds.let) {
-        const kind = ctx.value
-        init = parseVarStatement(ctx, kind)
+        init = parseVarStatement(ctx)
 
         if (ctx.kind === kinds.in || ctx.kind === kinds.of) {
             return parseForInOf(ctx, init, start)
