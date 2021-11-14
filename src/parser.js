@@ -1,5 +1,6 @@
 import { raise, unexpected } from "./error.js"
-import { canInsertSemicolon, eat, expect, expectContextual, nextTemplateToken, nextToken, kinds } from "./tokenizer.js"
+import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer.js"
+import { getType } from "./types.js"
 
 function parseIdentifier(ctx) {
     if (ctx.kind !== kinds.name && !ctx.kind.keyword) {
@@ -1007,7 +1008,7 @@ function parseVar(ctx, kind) {
 
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
-        node.kind = ctx.kind
+        node.type = getType(ctx, ctx.value)
         nextToken(ctx)
     }
 

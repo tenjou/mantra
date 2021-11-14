@@ -1,12 +1,19 @@
 import fs from "fs"
 import path from "path"
-import { getLineInfo } from "./error.js"
+import { raiseAt, getLineInfo } from "./error.js"
+import { types } from "./types.js"
 
 function handleVariableDeclarator(ctx, node) {
     declareVar(ctx, node.id)
     if (node.init) {
-        handle[node.init.kind](ctx, node.init)
+        const type = handle[node.init.kind](ctx, node.init)
+        if (node.type && node.type !== type) {
+            raiseAt(ctx, node.start, `Type '${type.name}' is not assignable to type '${node.type.name}'`)
+        }
+        node.type = type
     }
+
+    return node.type
 }
 
 function handleVariableDeclaration(ctx, node) {
@@ -235,6 +242,18 @@ function handleTemplateLiteral(ctx, node) {
     }
 }
 
+function handleLiteral(_ctx, node) {
+    if (node.value === "true" || node.value === "false") {
+        return types.boolean
+    }
+
+    return types.string
+}
+
+function handleNumericLiteral(_ctx, _node) {
+    return types.number
+}
+
 function handleNoop(_ctx, _node) {}
 
 function handleStatements(ctx, body) {
@@ -350,6 +369,6 @@ const handle = {
     ObjectExpression: handleObjectExpression,
     Identifier: handleIdentifier,
     TemplateLiteral: handleTemplateLiteral,
-    Literal: handleNoop,
-    NumericLiteral: handleNoop,
+    Literal: handleLiteral,
+    NumericLiteral: handleNumericLiteral,
 }
