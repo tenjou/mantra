@@ -19,4 +19,5 @@ export const types = {
     number: createType("number"),
     string: createType("string"),
     boolean: createType("boolean"),
+    function: createType("function"),
 }

@@ -30,6 +30,8 @@ function handleFunctionDeclaration(ctx, node) {
     ctx.scopeCurr.vars[node.id.value] = func
     ctx.scopeCurr = func.scope
 
+    node.type = types.function
+
     for (const param of node.params) {
         switch (param.kind) {
             case "Identifier":
@@ -198,9 +200,11 @@ function handleMemberExpression(ctx, node) {
 }
 
 function handleCallExpression(ctx, node) {
-    // TODO: Check if is a valid function call.
     // TODO: Check if number of arguments are correct.
-    handle[node.callee.kind](ctx, node.callee)
+    const type = handle[node.callee.kind](ctx, node.callee)
+    if (type !== types.function) {
+        raiseAt(ctx, node.callee.start, `This expression is not callable.\n  Type '${type.name}' has no call signatures`)
+    }
 
     for (const arg of node.arguments) {
         handle[arg.kind](ctx, arg)
@@ -238,6 +242,8 @@ function handleIdentifier(ctx, node) {
     }
 
     node.type = identifier.type
+
+    return node.type
 }
 
 function handleTemplateLiteral(ctx, node) {
