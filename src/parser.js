@@ -1,6 +1,6 @@
 import { raise, unexpected } from "./error.js"
 import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer.js"
-import { getType } from "./types.js"
+import { getType, types } from "./types.js"
 
 function parseIdentifier(ctx) {
     if (ctx.kind !== kinds.name && !ctx.kind.keyword) {
@@ -12,6 +12,7 @@ function parseIdentifier(ctx) {
         start: ctx.start,
         end: ctx.end,
         value: ctx.value,
+        type: null,
     }
 
     nextToken(ctx)
@@ -25,6 +26,7 @@ function parseNumericLiteral(ctx) {
         start: ctx.start,
         end: ctx.end,
         value: ctx.value,
+        type: types.number,
     }
 
     nextToken(ctx)
@@ -39,6 +41,7 @@ function parseLiteral(ctx) {
         end: ctx.end,
         value: ctx.value,
         raw: ctx.raw,
+        type: null,
     }
 
     nextToken(ctx)
@@ -289,6 +292,7 @@ function parseMaybeAssign(ctx) {
             left,
             operator,
             right,
+            type: null,
         }
     }
 

@@ -4,13 +4,11 @@ import { raiseAt, getLineInfo } from "./error.js"
 import { types } from "./types.js"
 
 function handleVariableDeclarator(ctx, node) {
-    declareVar(ctx, node.id)
+    declareVar(ctx, node.id.value, node)
+
     if (node.init) {
-        const type = handle[node.init.kind](ctx, node.init)
-        if (node.type && node.type !== type) {
-            raiseAt(ctx, node.start, `Type '${type.name}' is not assignable to type '${node.type.name}'`)
-        }
-        node.type = type
+        handle[node.init.kind](ctx, node.init)
+        assignType(ctx, node, node.init)
     }
 
     return node.type
@@ -150,6 +148,7 @@ function handleThrowStatement(ctx, node) {
 
 function handleTryStatement(ctx, node) {
     handle[node.block.kind](ctx, node.block)
+
     if (node.handler) {
         declareVar(ctx, node.handler.param)
         handle[node.handler.body.kind](ctx, node.handler.body)
@@ -170,6 +169,8 @@ function handleBlockStatement(ctx, node) {
 function handleAssignmentExpression(ctx, node) {
     handle[node.left.kind](ctx, node.left)
     handle[node.right.kind](ctx, node.right)
+
+    assignType(ctx, node.left, node.right)
 }
 
 function handleUpdateExpression(ctx, node) {
@@ -231,9 +232,12 @@ function handleObjectExpression(ctx, node) {
 }
 
 function handleIdentifier(ctx, node) {
-    if (!exists(ctx, node.value)) {
+    const identifier = exists(ctx, node.value)
+    if (!identifier) {
         raise(ctx, node, `Cannot find name '${node.value}'`)
     }
+
+    node.type = identifier.type
 }
 
 function handleTemplateLiteral(ctx, node) {
@@ -244,14 +248,10 @@ function handleTemplateLiteral(ctx, node) {
 
 function handleLiteral(_ctx, node) {
     if (node.value === "true" || node.value === "false") {
-        return types.boolean
+        node.type = types.boolean
+    } else {
+        node.type = types.string
     }
-
-    return types.string
-}
-
-function handleNumericLiteral(_ctx, _node) {
-    return types.number
 }
 
 function handleNoop(_ctx, _node) {}
@@ -274,15 +274,17 @@ function handleStatements(ctx, body) {
 
 function exists(ctx, value, isObject) {
     if (isObject) {
-        if (ctx.scopeCurr.vars[value]) {
-            return true
+        const item = ctx.scopeCurr.vars[value]
+        if (item) {
+            return item.node
         }
     } else {
         let scope = ctx.scopeCurr
 
         while (scope) {
-            if (scope.vars[value]) {
-                return true
+            let item = scope.vars[value]
+            if (item) {
+                return item.node
             }
             scope = scope.parent
         }
@@ -291,13 +293,13 @@ function exists(ctx, value, isObject) {
     return false
 }
 
-function declareVar(ctx, node, isObject) {
-    if (exists(ctx, node.value, isObject)) {
+function declareVar(ctx, name, node, isObject = false) {
+    if (exists(ctx, name, isObject)) {
         raise(ctx, node, `Duplicate identifier '${node.value}'`)
     }
 
-    const newVar = createVar()
-    ctx.scopeCurr.vars[node.value] = newVar
+    const newVar = createVar(node)
+    ctx.scopeCurr.vars[name] = newVar
 
     return newVar
 }
@@ -315,6 +317,14 @@ function createVar(node = null) {
     return {
         scope: null,
         node,
+    }
+}
+
+function assignType(ctx, nodeLeft, nodeRight) {
+    if (!nodeLeft.type) {
+        nodeLeft.type = nodeRight.type
+    } else if (nodeLeft.type !== nodeRight.type) {
+        raiseAt(ctx, nodeRight.start, `Type '${nodeRight.type.name}' is not assignable to type '${nodeLeft.type.name}'`)
     }
 }
 
@@ -370,5 +380,5 @@ const handle = {
     Identifier: handleIdentifier,
     TemplateLiteral: handleTemplateLiteral,
     Literal: handleLiteral,
-    NumericLiteral: handleNumericLiteral,
+    NumericLiteral: handleNoop,
 }
