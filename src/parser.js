@@ -58,6 +58,7 @@ function parseExpressionAtom(ctx) {
         case kinds.false:
         case kinds.null:
         case kinds.break:
+        case kinds._undefined:
             return parseLiteral(ctx)
 
         case kinds.parenthesisL:
@@ -117,7 +118,6 @@ function parseMaybeUnary(ctx) {
     const start = ctx.start
 
     if (ctx.kind.prefix) {
-        const start = ctx.start
         const operator = ctx.value
         const isUpdate = ctx.kind === kinds.incrementDecrement
 
