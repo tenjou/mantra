@@ -118,7 +118,7 @@ function readText(ctx, quote) {
 function readNumber(ctx) {
     for (; ctx.pos < Infinity; ctx.pos++) {
         const charCode = ctx.input.charCodeAt(ctx.pos)
-        if (charCode < 48 || charCode > 57) {
+        if (charCode < 48 || charCode > 57 || isNaN(charCode)) {
             break
         }
     }
