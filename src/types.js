@@ -1,23 +1,23 @@
-import { raise } from "./error.js"
-
-function createType(name) {
-    return {
-        name,
-    }
+function createType(kind) {
+    return { kind }
 }
 
-export function getType(ctx, name) {
-    const type = types[name]
-    if (!type) {
-        raise(ctx, `Cannot find type: ${name}`)
-    }
-
-    return type
-}
-
-export const types = {
+export const coreTypes = {
     number: createType("number"),
     string: createType("string"),
     boolean: createType("boolean"),
-    function: createType("function"),
+}
+
+export function loadCoreTypes(ctx) {
+    ctx.types = {
+        ...coreTypes,
+    }
+}
+
+export function useType(ctx, type) {
+    if (!type) {
+        return null
+    }
+
+    return ctx.types[type.kind] || null
 }

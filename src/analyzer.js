@@ -1,17 +1,19 @@
 import fs from "fs"
 import path from "path"
 import { raiseAt, getLineInfo } from "./error.js"
-import { types } from "./types.js"
+import { coreTypes, loadCoreTypes, useType } from "./types.js"
 
 function handleVariableDeclarator(ctx, node) {
-    declareVar(ctx, node.id.value, node)
+    const newVar = declareVar(ctx, node.id.value, node)
 
     if (node.init) {
-        handle[node.init.kind](ctx, node.init)
-        assignType(ctx, node, node.init)
+        const initType = handle[node.init.kind](ctx, node.init)
+        if (!newVar.type) {
+            newVar.type = initType
+        } else if (newVar.type !== initType) {
+            raiseTypeError(ctx, node.init.start, newVar.type, initType)
+        }
     }
-
-    return node.type
 }
 
 function handleVariableDeclaration(ctx, node) {
@@ -21,30 +23,29 @@ function handleVariableDeclaration(ctx, node) {
 }
 
 function handleFunctionDeclaration(ctx, node) {
-    if (exists(ctx, node.id.value)) {
+    if (getVar(ctx, node.id.value)) {
         raise(ctx, node.id, `Duplicate function implementation '${node.id.value}'`)
     }
 
-    const func = createVar(node)
+    const type = {
+        kind: "Function",
+        argsMin: 0,
+        args: [],
+    }
+    const func = createVar(type)
     func.scope = createScope(ctx.scopeCurr)
     ctx.scopeCurr.vars[node.id.value] = func
     ctx.scopeCurr = func.scope
 
-    node.type = {
-        kind: types.function,
-        argsMin: 0,
-        argsMax: node.params.length,
-    }
-
     for (const param of node.params) {
         switch (param.kind) {
             case "Identifier":
-                declareVar(ctx, param)
-                node.type.argsMin++
+                type.args.push(declareVar(ctx, param))
+                type.argsMin++
                 break
 
             case "AssignPattern":
-                declareVar(ctx, param.left)
+                type.args.push(declareVar(ctx, param.left))
                 break
 
             case "ObjectExpression":
@@ -177,10 +178,12 @@ function handleBlockStatement(ctx, node) {
 }
 
 function handleAssignmentExpression(ctx, node) {
-    handle[node.left.kind](ctx, node.left)
-    handle[node.right.kind](ctx, node.right)
+    const leftType = handle[node.left.kind](ctx, node.left)
+    const rightType = handle[node.right.kind](ctx, node.right)
 
-    assignType(ctx, node.left, node.right)
+    if (leftType !== rightType) {
+        raiseTypeError(ctx, node.right.start, leftType, rightType)
+    }
 }
 
 function handleUpdateExpression(ctx, node) {
@@ -209,7 +212,7 @@ function handleMemberExpression(ctx, node) {
 
 function handleCallExpression(ctx, node) {
     const type = handle[node.callee.kind](ctx, node.callee)
-    if (type.kind !== types.function) {
+    if (type.kind !== "Function") {
         raiseAt(ctx, node.callee.start, `This expression is not callable.\n  Type '${type.name}' has no call signatures`)
     }
 
@@ -220,8 +223,11 @@ function handleCallExpression(ctx, node) {
         raiseAt(ctx, node.callee.start, `Expected ${type.argsMax} arguments, but got ${node.arguments.length}`)
     }
 
-    for (const arg of node.arguments) {
-        handle[arg.kind](ctx, arg)
+    for (const n = 0; n < node.arguments.length; n++) {
+        const funcArgType = type[n]
+        const arg = node.arguments[n]
+        const argType = handle[arg.kind](ctx, arg)
+        checkAssignment(funcArgType, argType)
     }
 }
 
@@ -250,14 +256,12 @@ function handleObjectExpression(ctx, node) {
 }
 
 function handleIdentifier(ctx, node) {
-    const identifier = exists(ctx, node.value)
+    const identifier = getVar(ctx, node.value)
     if (!identifier) {
         raise(ctx, node, `Cannot find name '${node.value}'`)
     }
 
-    node.type = identifier.type
-
-    return node.type
+    return identifier.type
 }
 
 function handleTemplateLiteral(ctx, node) {
@@ -268,10 +272,14 @@ function handleTemplateLiteral(ctx, node) {
 
 function handleLiteral(_ctx, node) {
     if (node.value === "true" || node.value === "false") {
-        node.type = types.boolean
-    } else {
-        node.type = types.string
+        return coreTypes.boolean
     }
+
+    return coreTypes.string
+}
+
+function handleNumericLiteral(_ctx, _node) {
+    return coreTypes.number
 }
 
 function handleNoop(_ctx, _node) {}
@@ -292,11 +300,11 @@ function handleStatements(ctx, body) {
     ctx.scopeCurr = scopeCurr
 }
 
-function exists(ctx, value, isObject) {
+function getVar(ctx, value, isObject) {
     if (isObject) {
         const item = ctx.scopeCurr.vars[value]
         if (item) {
-            return item.node
+            return item
         }
     } else {
         let scope = ctx.scopeCurr
@@ -304,21 +312,23 @@ function exists(ctx, value, isObject) {
         while (scope) {
             let item = scope.vars[value]
             if (item) {
-                return item.node
+                return item
             }
             scope = scope.parent
         }
     }
 
-    return false
+    return null
 }
 
 function declareVar(ctx, name, node, isObject = false) {
-    if (exists(ctx, name, isObject)) {
-        raise(ctx, node, `Duplicate identifier '${node.value}'`)
+    const prevVar = getVar(ctx, name, isObject)
+    if (prevVar) {
+        raise(ctx, node, `Duplicate identifier '${name}'`)
     }
 
-    const newVar = createVar(node)
+    const type = useType(ctx, node.type)
+    const newVar = createVar(type)
     ctx.scopeCurr.vars[name] = newVar
 
     return newVar
@@ -333,24 +343,20 @@ function createScope(parent, node = null) {
     }
 }
 
-function createVar(node = null) {
+function createVar(type) {
     return {
         scope: null,
-        node,
-    }
-}
-
-function assignType(ctx, nodeLeft, nodeRight) {
-    if (!nodeLeft.type) {
-        nodeLeft.type = nodeRight.type
-    } else if (nodeLeft.type !== nodeRight.type) {
-        raiseAt(ctx, nodeRight.start, `Type '${nodeRight.type.name}' is not assignable to type '${nodeLeft.type.name}'`)
+        type,
     }
 }
 
 function raise(ctx, node, error) {
     const lineInfo = getLineInfo(ctx, node.start)
     throw new SyntaxError(`${error}. ${ctx.fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
+}
+
+function raiseTypeError(ctx, start, leftType, rightType) {
+    raiseAt(ctx, start, `Type '${rightType.kind}' is not assignable to type '${leftType.kind}'`)
 }
 
 export function analyze({ program, input, fileName }) {
@@ -360,7 +366,10 @@ export function analyze({ program, input, fileName }) {
         fileName,
         scope,
         scopeCurr: scope,
+        types: {},
     }
+
+    loadCoreTypes(ctx)
 
     scope.vars["Infinity"] = createVar()
     scope.vars["NaN"] = createVar()
@@ -400,5 +409,5 @@ const handle = {
     Identifier: handleIdentifier,
     TemplateLiteral: handleTemplateLiteral,
     Literal: handleLiteral,
-    NumericLiteral: handleNoop,
+    NumericLiteral: handleNumericLiteral,
 }

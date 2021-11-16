@@ -1,6 +1,5 @@
 import { raise, unexpected } from "./error.js"
 import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer.js"
-import { getType, types } from "./types.js"
 
 function parseIdentifier(ctx) {
     if (ctx.kind !== kinds.name && !ctx.kind.keyword) {
@@ -12,7 +11,6 @@ function parseIdentifier(ctx) {
         start: ctx.start,
         end: ctx.end,
         value: ctx.value,
-        type: null,
     }
 
     nextToken(ctx)
@@ -26,7 +24,6 @@ function parseNumericLiteral(ctx) {
         start: ctx.start,
         end: ctx.end,
         value: ctx.value,
-        type: types.number,
     }
 
     nextToken(ctx)
@@ -41,7 +38,6 @@ function parseLiteral(ctx) {
         end: ctx.end,
         value: ctx.value,
         raw: ctx.raw,
-        type: null,
     }
 
     nextToken(ctx)
@@ -93,14 +89,27 @@ function parseBindingAtom(ctx) {
     return parseIdentifier(ctx)
 }
 
+function parseTypeAnnotation(ctx) {
+    const node = {
+        kind: "TypeAnnotation",
+        start: ctx.start,
+        end: 0,
+        value: ctx.value,
+    }
+
+    nextToken(ctx)
+    node.end = ctx.end
+
+    return node
+}
+
 function parseMaybeDefault(ctx) {
     const start = ctx.start
     const left = parseBindingAtom(ctx)
 
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
-        left.type = ctx.kind
-        nextToken(ctx)
+        left.type = parseTypeAnnotation(ctx)
     }
 
     if (!eat(ctx, kinds.assign)) {
@@ -1074,6 +1083,8 @@ export function parser(fileName, input) {
         value: undefined,
         raw: undefined,
         kind: null,
+
+        types: {},
     }
 
     nextToken(ctx)
