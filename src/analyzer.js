@@ -1,24 +1,26 @@
 import fs from "fs"
 import path from "path"
-import { raiseAt, getLineInfo } from "./error.js"
-import { coreTypes, loadCoreTypes, useType } from "./types.js"
+import { getLineInfo, raiseAt } from "./error.js"
+import { coreTypes, Flags, loadCoreTypes, tryCreateType, TypeKind, TypeKindNamed } from "./types.js"
 
-function handleVariableDeclarator(ctx, node) {
-    const newVar = declareVar(ctx, node.id.value, node)
+function handleVariableDeclarator(ctx, node, flags) {
+    const newVar = declareVar(ctx, node.id.value, node, flags)
 
     if (node.init) {
         const initType = handle[node.init.kind](ctx, node.init)
-        if (!newVar.type) {
-            newVar.type = initType
-        } else if (newVar.type !== initType) {
+        if (!newVar.type.kind) {
+            newVar.type.kind = initType.kind
+        } else if (newVar.type.kind !== initType.kind) {
             raiseTypeError(ctx, node.init.start, newVar.type, initType)
         }
     }
 }
 
 function handleVariableDeclaration(ctx, node) {
+    const flags = node.keyword === "const" ? Flags.Const : 0
+
     for (const decl of node.declarations) {
-        handleVariableDeclarator(ctx, decl)
+        handleVariableDeclarator(ctx, decl, flags)
     }
 }
 
@@ -28,7 +30,8 @@ function handleFunctionDeclaration(ctx, node) {
     }
 
     const type = {
-        kind: "Function",
+        kind: TypeKind.Function,
+        flags: 0,
         argsMin: 0,
         args: [],
     }
@@ -179,9 +182,13 @@ function handleBlockStatement(ctx, node) {
 
 function handleAssignmentExpression(ctx, node) {
     const leftType = handle[node.left.kind](ctx, node.left)
+    if (leftType.flags & Flags.Const) {
+        raiseAt(ctx, node.left.start, `Cannot assign to '${node.left.value}' because it is a constant`)
+    }
+
     const rightType = handle[node.right.kind](ctx, node.right)
 
-    if (leftType !== rightType) {
+    if (leftType.kind !== rightType.kind) {
         raiseTypeError(ctx, node.right.start, leftType, rightType)
     }
 }
@@ -321,13 +328,13 @@ function getVar(ctx, value, isObject) {
     return null
 }
 
-function declareVar(ctx, name, node, isObject = false) {
+function declareVar(ctx, name, node, flags, isObject = false) {
     const prevVar = getVar(ctx, name, isObject)
     if (prevVar) {
         raise(ctx, node, `Duplicate identifier '${name}'`)
     }
 
-    const type = useType(ctx, node.type)
+    const type = tryCreateType(node.type, flags)
     const newVar = createVar(type)
     ctx.scopeCurr.vars[name] = newVar
 
@@ -356,7 +363,7 @@ function raise(ctx, node, error) {
 }
 
 function raiseTypeError(ctx, start, leftType, rightType) {
-    raiseAt(ctx, start, `Type '${rightType.kind}' is not assignable to type '${leftType.kind}'`)
+    raiseAt(ctx, start, `Type '${TypeKindNamed[rightType.kind]}' is not assignable to type '${TypeKindNamed[leftType.kind]}'`)
 }
 
 export function analyze({ program, input, fileName }) {
