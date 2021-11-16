@@ -208,8 +208,23 @@ function handleLogicalExpression(ctx, node) {
 }
 
 function handleBinaryExpression(ctx, node) {
-    handle[node.left.kind](ctx, node.left)
-    handle[node.right.kind](ctx, node.right)
+    const leftType = handle[node.left.kind](ctx, node.left)
+    const rightType = handle[node.right.kind](ctx, node.right)
+
+    if (
+        (leftType.kind !== TypeKind.Number && leftType.kind !== TypeKind.String) ||
+        (rightType.kind !== TypeKind.Number && rightType.kind !== TypeKind.String)
+    ) {
+        raiseAt(
+            ctx,
+            node.left.start,
+            `Operator '${node.operator}' cannot be applied to types '${TypeKindNamed[leftType.kind]}' and '${
+                TypeKindNamed[rightType.kind]
+            }'`
+        )
+    }
+
+    return leftType
 }
 
 function handleMemberExpression(ctx, node) {

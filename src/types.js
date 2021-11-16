@@ -19,7 +19,7 @@ export const coreTypes = {
     boolean: createType(TypeKind.Boolean),
 }
 
-function createType(kind, flags) {
+function createType(kind, flags = 0) {
     return { kind, flags }
 }
 
