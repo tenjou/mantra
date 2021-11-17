@@ -883,18 +883,22 @@ function parseThrowStatement(ctx) {
 function parseFunctionStatement(ctx) {
     nextToken(ctx)
 
-    return parseFunction(ctx)
+    return parseFunctionDeclaration(ctx)
 }
 
-function parseFunction(ctx) {
+function parseFunctionDeclaration(ctx) {
     const start = ctx.startLast
     const id = ctx.kind === kinds.name ? parseIdentifier(ctx) : null
     const params = parseFunctionParams(ctx)
 
+    let returnType = null
+    if (ctx.kind === kinds.colon) {
+        nextToken(ctx)
+        returnType = parseTypeAnnotation(ctx)
+    }
+
     ctx.inFunction = true
-
     const body = parseFunctionBody(ctx)
-
     ctx.inFunction = false
 
     const expression = false
@@ -911,6 +915,7 @@ function parseFunction(ctx) {
         async,
         params,
         body,
+        returnType,
     }
 }
 
