@@ -49,9 +49,15 @@ function handleFunctionDeclaration(ctx, node) {
                 break
             }
 
-            case "AssignPattern":
-                type.args.push(declareVar(ctx, param.left))
+            case "AssignPattern": {
+                const argVar = declareVar(ctx, param.left.value, param.left, 0)
+                const rightType = handle[param.right.kind](ctx, param.right)
+                if (argVar.type.kind !== rightType.kind) {
+                    raiseTypeError(ctx, param.right.start, argVar.type, rightType)
+                }
+                type.args.push(argVar.type)
                 break
+            }
 
             case "ObjectExpression":
                 for (const property of param.properties) {
