@@ -34,6 +34,7 @@ function handleFunctionDeclaration(ctx, node) {
         flags: 0,
         argsMin: 0,
         args: [],
+        returnType: useType(ctx, node.pos, node.returnType, 0),
     }
     const func = createVar(type, node)
     func.scope = createScope(ctx.scopeCurr)
@@ -159,8 +160,16 @@ function handleForOfStatement(ctx, node) {
 }
 
 function handleReturnStatement(ctx, node) {
+    let returnType = coreTypes.void
+
     if (node.argument) {
-        handle[node.argument.kind](ctx, node.argument)
+        returnType = handle[node.argument.kind](ctx, node.argument)
+    }
+
+    if (!ctx.currFuncType.returnType.kind) {
+        ctx.currFuncType.returnType = returnType
+    } else if (ctx.currFuncType.returnType.kind !== returnType.kind) {
+        raiseTypeError(ctx, node.start, ctx.currFuncType.returnType, returnType)
     }
 }
 
@@ -325,8 +334,13 @@ function handleStatements(ctx, body) {
 
     const funcDecls = ctx.scopeCurr.funcDecls
     for (const decl of funcDecls) {
+        const prevFuncType = ctx.currFuncType
         ctx.scopeCurr = decl.scope
+        ctx.currFuncType = decl.type
+
         handle[decl.node.body.kind](ctx, decl.node.body)
+
+        ctx.currFuncType = prevFuncType
     }
 
     ctx.scopeCurr = scopeCurr
@@ -359,7 +373,7 @@ function declareVar(ctx, name, node, flags, isObject = false) {
         raise(ctx, node, `Duplicate identifier '${name}'`)
     }
 
-    const type = useType(ctx, node, flags)
+    const type = useType(ctx, node.start, node.type, flags)
     const newVar = createVar(type, node)
     ctx.scopeCurr.vars[name] = newVar
 
@@ -399,6 +413,7 @@ export function analyze({ program, input, fileName }) {
         fileName,
         scope,
         scopeCurr: scope,
+        currFuncType: null,
         types: {},
     }
 

@@ -6,6 +6,7 @@ export const TypeKind = {
     String: 2,
     Boolean: 3,
     Function: 4,
+    Void: 5,
 }
 
 export const TypeKindNamed = Object.keys(TypeKind)
@@ -19,9 +20,10 @@ export const coreTypes = {
     number: createType(TypeKind.Number),
     string: createType(TypeKind.String),
     boolean: createType(TypeKind.Boolean),
+    void: createType(TypeKind.Void),
 }
 
-function createType(kind, flags = 0) {
+export function createType(kind, flags = 0) {
     return { kind, flags }
 }
 
@@ -31,11 +33,11 @@ export function loadCoreTypes(ctx) {
     }
 }
 
-export function useType(ctx, node, flags = 0) {
-    if (node.type) {
-        const type = coreTypes[node.type.value]
+export function useType(ctx, pos, typeAnnotation, flags = 0) {
+    if (typeAnnotation) {
+        const type = coreTypes[typeAnnotation.value]
         if (!type) {
-            raiseAt(ctx, node.start, `Cannot find name '${node.type}'`)
+            raiseAt(ctx, pos, `Cannot find name '${typeAnnotation.value}'`)
         }
 
         return createType(type.kind, flags)
