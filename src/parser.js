@@ -1021,8 +1021,7 @@ function parseVar(ctx, kind) {
 
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
-        node.type = getType(ctx, ctx.value)
-        nextToken(ctx)
+        node.type = parseTypeAnnotation(ctx)
     }
 
     if (eat(ctx, kinds.assign)) {

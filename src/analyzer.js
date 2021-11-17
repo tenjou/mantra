@@ -1,7 +1,7 @@
 import fs from "fs"
 import path from "path"
 import { getLineInfo, raiseAt } from "./error.js"
-import { coreTypes, Flags, loadCoreTypes, tryCreateType, TypeKind, TypeKindNamed } from "./types.js"
+import { coreTypes, Flags, loadCoreTypes, TypeKind, TypeKindNamed, useType } from "./types.js"
 
 function handleVariableDeclarator(ctx, node, flags) {
     const newVar = declareVar(ctx, node.id.value, node, flags)
@@ -35,17 +35,19 @@ function handleFunctionDeclaration(ctx, node) {
         argsMin: 0,
         args: [],
     }
-    const func = createVar(type)
+    const func = createVar(type, node)
     func.scope = createScope(ctx.scopeCurr)
     ctx.scopeCurr.vars[node.id.value] = func
     ctx.scopeCurr = func.scope
 
     for (const param of node.params) {
         switch (param.kind) {
-            case "Identifier":
-                type.args.push(declareVar(ctx, param))
+            case "Identifier": {
+                const argVar = declareVar(ctx, param.value, param, 0)
+                type.args.push(argVar.type)
                 type.argsMin++
                 break
+            }
 
             case "AssignPattern":
                 type.args.push(declareVar(ctx, param.left))
@@ -224,7 +226,7 @@ function handleBinaryExpression(ctx, node) {
         )
     }
 
-    return leftType
+    return leftType.kind > rightType.kind ? leftType : rightType
 }
 
 function handleMemberExpression(ctx, node) {
@@ -234,7 +236,7 @@ function handleMemberExpression(ctx, node) {
 
 function handleCallExpression(ctx, node) {
     const type = handle[node.callee.kind](ctx, node.callee)
-    if (type.kind !== "Function") {
+    if (type.kind !== TypeKind.Function) {
         raiseAt(ctx, node.callee.start, `This expression is not callable.\n  Type '${type.name}' has no call signatures`)
     }
 
@@ -245,11 +247,13 @@ function handleCallExpression(ctx, node) {
         raiseAt(ctx, node.callee.start, `Expected ${type.argsMax} arguments, but got ${node.arguments.length}`)
     }
 
-    for (const n = 0; n < node.arguments.length; n++) {
-        const funcArgType = type[n]
+    for (let n = 0; n < node.arguments.length; n++) {
         const arg = node.arguments[n]
         const argType = handle[arg.kind](ctx, arg)
-        checkAssignment(funcArgType, argType)
+        const funcArgType = type.args[n]
+        if (funcArgType.kind !== argType.kind) {
+            raiseTypeError(ctx, arg.start, funcArgType, argType)
+        }
     }
 }
 
@@ -349,8 +353,8 @@ function declareVar(ctx, name, node, flags, isObject = false) {
         raise(ctx, node, `Duplicate identifier '${name}'`)
     }
 
-    const type = tryCreateType(node.type, flags)
-    const newVar = createVar(type)
+    const type = useType(ctx, node, flags)
+    const newVar = createVar(type, node)
     ctx.scopeCurr.vars[name] = newVar
 
     return newVar
@@ -365,10 +369,11 @@ function createScope(parent, node = null) {
     }
 }
 
-function createVar(type) {
+function createVar(type, node) {
     return {
         scope: null,
         type,
+        node,
     }
 }
 

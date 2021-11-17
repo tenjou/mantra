@@ -1,3 +1,5 @@
+import { raiseAt } from "./error.js"
+
 export const TypeKind = {
     Unknown: 0,
     Number: 1,
@@ -29,6 +31,15 @@ export function loadCoreTypes(ctx) {
     }
 }
 
-export function tryCreateType(type = null, flags = 0) {
-    return createType(type ? type.kind : TypeKind.Unknown, flags)
+export function useType(ctx, node, flags = 0) {
+    if (node.type) {
+        const type = coreTypes[node.type.value]
+        if (!type) {
+            raiseAt(ctx, node.start, `Cannot find name '${node.type}'`)
+        }
+
+        return createType(type.kind, flags)
+    }
+
+    return createType(TypeKind.Unknown, flags)
 }
