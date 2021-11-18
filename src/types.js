@@ -6,7 +6,8 @@ export const TypeKind = {
     String: 2,
     Boolean: 3,
     Function: 4,
-    Void: 5,
+    Object: 5,
+    Void: 6,
 }
 
 export const TypeKindNamed = Object.keys(TypeKind)
@@ -44,4 +45,16 @@ export function useType(ctx, pos, typeAnnotation, flags = 0) {
     }
 
     return createType(TypeKind.Unknown, flags)
+}
+
+export function createObject(name, props, flags = 0) {
+    return { kind: TypeKind.Object, name, flags, props }
+}
+
+export function createFunction(args, returnType = null, flags = 0) {
+    return { kind: TypeKind.Function, flags, args, argsMin: args.length, returnType }
+}
+
+export function createArg(name, kind, flags = 0) {
+    return { name, kind, flags }
 }

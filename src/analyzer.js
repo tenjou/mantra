@@ -1,7 +1,7 @@
 import fs from "fs"
 import path from "path"
 import { getLineInfo, raiseAt } from "./error.js"
-import { coreTypes, Flags, loadCoreTypes, TypeKind, TypeKindNamed, useType } from "./types.js"
+import { coreTypes, createArg, createFunction, createObject, Flags, loadCoreTypes, TypeKind, TypeKindNamed, useType } from "./types.js"
 
 function handleVariableDeclarator(ctx, node, flags) {
     const newVar = declareVar(ctx, node.id.value, node, flags)
@@ -245,8 +245,23 @@ function handleBinaryExpression(ctx, node) {
 }
 
 function handleMemberExpression(ctx, node) {
-    // TODO: We should check the whole depth.
-    handle[node.object.kind](ctx, node.object)
+    const type = handle[node.object.kind](ctx, node.object)
+    if (type.kind !== TypeKind.Object) {
+        raiseAt(ctx, node.object.start, `'${node.object.value}' is not an object`)
+    }
+
+    switch (node.property.kind) {
+        case "Identifier": {
+            const prop = type.props[node.property.value]
+            if (!prop) {
+                raiseAt(ctx, node.property.start, `Property '${node.property.value}' does not exist on type '${type.name}'`)
+            }
+            return prop
+        }
+
+        default:
+            raiseAt(ctx, node.property.start, `Unsupported object access`)
+    }
 }
 
 function handleCallExpression(ctx, node) {
@@ -389,7 +404,7 @@ function createScope(parent, node = null) {
     }
 }
 
-function createVar(type, node) {
+function createVar(type, node = null) {
     return {
         scope: null,
         type,
@@ -421,7 +436,11 @@ export function analyze({ program, input, fileName }) {
 
     scope.vars["Infinity"] = createVar()
     scope.vars["NaN"] = createVar()
-    scope.vars["console"] = createVar()
+    scope.vars["console"] = createVar(
+        createObject("Console", {
+            log: createFunction([createArg("data", TypeKind.String)]),
+        })
+    )
 
     handleStatements(ctx, program.body)
 }
