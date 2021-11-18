@@ -250,18 +250,25 @@ function handleMemberExpression(ctx, node) {
         raiseAt(ctx, node.object.start, `'${node.object.value}' is not an object`)
     }
 
+    if (!node.computed) {
+        const prop = type.props[node.property.value]
+        if (!prop) {
+            raiseAt(ctx, node.property.start, `Property '${node.property.value}' does not exist on type '${type.name}'`)
+        }
+        return prop
+    }
+
     switch (node.property.kind) {
-        case "Identifier": {
+        case "Literal": {
             const prop = type.props[node.property.value]
             if (!prop) {
                 raiseAt(ctx, node.property.start, `Property '${node.property.value}' does not exist on type '${type.name}'`)
             }
             return prop
         }
-
-        default:
-            raiseAt(ctx, node.property.start, `Unsupported object access`)
     }
+
+    raiseAt(ctx, node.property.start, "Unsupported object property access")
 }
 
 function handleCallExpression(ctx, node) {
