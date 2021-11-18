@@ -400,6 +400,10 @@ function parseAssignParam(ctx, node) {
     return result
 }
 
+function parseNoop(_ctx, _node) {
+    return ""
+}
+
 function parseBlockStatement(ctx, node) {
     return parseBlock(ctx, node.body)
 }
@@ -453,6 +457,7 @@ const parse = {
     FunctionDeclaration: parseFunctionDeclaration,
     ExportNamedDeclaration: parseExportNamedDeclaration,
     ImportDeclaration: parseImportDeclaration,
+    TypeAlias: parseNoop,
     IfStatement: parseIfStatement,
     SwitchStatement: parseSwitchStatement,
     SwitchCase: parseSwitchCase,

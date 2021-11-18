@@ -1,13 +1,14 @@
 import { raiseAt } from "./error.js"
 
 export const TypeKind = {
-    Unknown: 0,
-    Number: 1,
-    String: 2,
-    Boolean: 3,
-    Function: 4,
-    Object: 5,
-    Void: 6,
+    unknown: 0,
+    number: 1,
+    string: 2,
+    boolean: 3,
+    function: 4,
+    object: 5,
+    type: 6,
+    void: 7,
 }
 
 export const TypeKindNamed = Object.keys(TypeKind)
@@ -17,11 +18,11 @@ export const Flags = {
     Const: 1,
 }
 
-export const coreTypes = {
-    number: createType(TypeKind.Number),
-    string: createType(TypeKind.String),
-    boolean: createType(TypeKind.Boolean),
-    void: createType(TypeKind.Void),
+export const coreTypeAliases = {
+    number: createType(TypeKind.number),
+    string: createType(TypeKind.string),
+    boolean: createType(TypeKind.boolean),
+    void: createType(TypeKind.void),
 }
 
 export function createType(kind, flags = 0) {
@@ -29,14 +30,14 @@ export function createType(kind, flags = 0) {
 }
 
 export function loadCoreTypes(ctx) {
-    ctx.types = {
-        ...coreTypes,
+    ctx.typeAliases = {
+        ...coreTypeAliases,
     }
 }
 
 export function useType(ctx, pos, typeAnnotation, flags = 0) {
     if (typeAnnotation) {
-        const type = coreTypes[typeAnnotation.value]
+        const type = ctx.typeAliases[typeAnnotation.value]
         if (!type) {
             raiseAt(ctx, pos, `Cannot find name '${typeAnnotation.value}'`)
         }
@@ -44,15 +45,15 @@ export function useType(ctx, pos, typeAnnotation, flags = 0) {
         return createType(type.kind, flags)
     }
 
-    return createType(TypeKind.Unknown, flags)
+    return createType(TypeKind.unknown, flags)
 }
 
 export function createObject(name, props, flags = 0) {
-    return { kind: TypeKind.Object, name, flags, props }
+    return { kind: TypeKind.object, name, flags, props }
 }
 
 export function createFunction(args, returnType = null, flags = 0) {
-    return { kind: TypeKind.Function, flags, args, argsMin: args.length, returnType }
+    return { kind: TypeKind.function, flags, args, argsMin: args.length, returnType }
 }
 
 export function createArg(name, kind, flags = 0) {

@@ -90,15 +90,20 @@ function parseBindingAtom(ctx) {
 }
 
 function parseTypeAnnotation(ctx) {
+    const start = ctx.start
+
     const node = {
         kind: "TypeAnnotation",
-        start: ctx.start,
+        start,
         end: 0,
         value: ctx.value,
     }
 
     nextToken(ctx)
     node.end = ctx.end
+
+    // expect(ctx, kinds.braceL)
+    // expect(ctx, kinds.braceR)
 
     return node
 }
@@ -391,6 +396,8 @@ function parseStatement(ctx) {
             return parseExport(ctx)
         case kinds.import:
             return parseImport(ctx)
+        case kinds.type:
+            return parseTypeStatement(ctx)
     }
 
     const expression = parseExpression(ctx)
@@ -862,6 +869,26 @@ function parseImport(ctx) {
         end: ctx.end,
         specifiers,
         source,
+    }
+}
+
+function parseTypeStatement(ctx) {
+    const start = ctx.start
+    nextToken(ctx)
+
+    const id = ctx.value
+    nextToken(ctx)
+
+    expect(ctx, kinds.assign)
+
+    const type = parseTypeAnnotation(ctx)
+
+    return {
+        kind: "TypeAlias",
+        start,
+        end: ctx.end,
+        id,
+        type,
     }
 }
 

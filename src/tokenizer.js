@@ -502,4 +502,5 @@ export const kinds = {
     throw: createKeyword("throw"),
     import: createKeyword("import"),
     export: createKeyword("export"),
+    type: createKeyword("type"),
 }

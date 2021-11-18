@@ -1,7 +1,17 @@
 import fs from "fs"
 import path from "path"
 import { getLineInfo, raiseAt } from "./error.js"
-import { coreTypes, createArg, createFunction, createObject, Flags, loadCoreTypes, TypeKind, TypeKindNamed, useType } from "./types.js"
+import {
+    coreTypeAliases,
+    createArg,
+    createFunction,
+    createObject,
+    Flags,
+    loadCoreTypes,
+    TypeKind,
+    TypeKindNamed,
+    useType,
+} from "./types.js"
 
 function handleVariableDeclarator(ctx, node, flags) {
     const newVar = declareVar(ctx, node.id.value, node, flags)
@@ -30,7 +40,7 @@ function handleFunctionDeclaration(ctx, node) {
     }
 
     const type = {
-        kind: TypeKind.Function,
+        kind: TypeKind.function,
         flags: 0,
         argsMin: 0,
         args: [],
@@ -76,7 +86,6 @@ function handleFunctionDeclaration(ctx, node) {
 }
 
 function handleImportDeclaration(ctx, node) {
-    // TODO: if it's a module check if it exists
     if (node.source.value.charCodeAt(0) === 46) {
         const fileDir = path.dirname(ctx.fileName)
         const fileExt = path.extname(node.source.value)
@@ -94,6 +103,19 @@ function handleImportDeclaration(ctx, node) {
 
 function handleExportNamedDeclaration(ctx, node) {
     handle[node.declaration.kind](ctx, node.declaration)
+}
+
+function handleTypeAlias(ctx, node) {
+    if (ctx.typeAliases[node.id]) {
+        raise(ctx, node, `Type alias name cannot be '${node.id}'`)
+    }
+
+    const coreType = coreTypeAliases[node.type.value]
+    if (!coreType) {
+        raise(ctx, node.type.start, `Cannot find name '${node.type.value}'`)
+    }
+
+    ctx.typeAliases[node.id] = coreType
 }
 
 function handleExpressionStatement(ctx, node) {
@@ -160,7 +182,7 @@ function handleForOfStatement(ctx, node) {
 }
 
 function handleReturnStatement(ctx, node) {
-    let returnType = coreTypes.void
+    let returnType = coreTypeAliases.void
 
     if (node.argument) {
         returnType = handle[node.argument.kind](ctx, node.argument)
@@ -229,8 +251,8 @@ function handleBinaryExpression(ctx, node) {
     const rightType = handle[node.right.kind](ctx, node.right)
 
     if (
-        (leftType.kind !== TypeKind.Number && leftType.kind !== TypeKind.String) ||
-        (rightType.kind !== TypeKind.Number && rightType.kind !== TypeKind.String)
+        (leftType.kind !== TypeKind.number && leftType.kind !== TypeKind.string) ||
+        (rightType.kind !== TypeKind.number && rightType.kind !== TypeKind.string)
     ) {
         raiseAt(
             ctx,
@@ -246,7 +268,7 @@ function handleBinaryExpression(ctx, node) {
 
 function handleMemberExpression(ctx, node) {
     const type = handle[node.object.kind](ctx, node.object)
-    if (type.kind !== TypeKind.Object) {
+    if (type.kind !== TypeKind.object) {
         raiseAt(ctx, node.object.start, `'${node.object.value}' is not an object`)
     }
 
@@ -273,7 +295,7 @@ function handleMemberExpression(ctx, node) {
 
 function handleCallExpression(ctx, node) {
     const type = handle[node.callee.kind](ctx, node.callee)
-    if (type.kind !== TypeKind.Function) {
+    if (type.kind !== TypeKind.function) {
         raiseAt(ctx, node.callee.start, `This expression is not callable.\n  Type '${type.name}' has no call signatures`)
     }
 
@@ -335,14 +357,14 @@ function handleTemplateLiteral(ctx, node) {
 
 function handleLiteral(_ctx, node) {
     if (node.value === "true" || node.value === "false") {
-        return coreTypes.boolean
+        return coreTypeAliases.boolean
     }
 
-    return coreTypes.string
+    return coreTypeAliases.string
 }
 
 function handleNumericLiteral(_ctx, _node) {
-    return coreTypes.number
+    return coreTypeAliases.number
 }
 
 function handleNoop(_ctx, _node) {}
@@ -436,7 +458,7 @@ export function analyze({ program, input, fileName }) {
         scope,
         scopeCurr: scope,
         currFuncType: null,
-        types: {},
+        typeAliases: {},
     }
 
     loadCoreTypes(ctx)
@@ -445,7 +467,7 @@ export function analyze({ program, input, fileName }) {
     scope.vars["NaN"] = createVar()
     scope.vars["console"] = createVar(
         createObject("Console", {
-            log: createFunction([createArg("data", TypeKind.String)]),
+            log: createFunction([createArg("data", TypeKind.string)]),
         })
     )
 
@@ -457,6 +479,7 @@ const handle = {
     FunctionDeclaration: handleFunctionDeclaration,
     ImportDeclaration: handleImportDeclaration,
     ExportNamedDeclaration: handleExportNamedDeclaration,
+    TypeAlias: handleTypeAlias,
     ExpressionStatement: handleExpressionStatement,
     ConditionExpression: handleConditionExpression,
     IfStatement: handleIfStatement,
