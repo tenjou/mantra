@@ -453,11 +453,11 @@ function exitBlock(ctx) {
 }
 
 const parse = {
+    TypeAliasDeclaration: parseNoop,
     VariableDeclaration: parseVariableDeclaration,
     FunctionDeclaration: parseFunctionDeclaration,
     ExportNamedDeclaration: parseExportNamedDeclaration,
     ImportDeclaration: parseImportDeclaration,
-    TypeAlias: parseNoop,
     IfStatement: parseIfStatement,
     SwitchStatement: parseSwitchStatement,
     SwitchCase: parseSwitchCase,

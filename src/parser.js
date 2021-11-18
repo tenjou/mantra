@@ -89,21 +89,34 @@ function parseBindingAtom(ctx) {
     return parseIdentifier(ctx)
 }
 
-function parseTypeAnnotation(ctx) {
+function parseTypeLiteral(ctx) {
     const start = ctx.start
 
+    expect(ctx, kinds.braceL)
+
+    const members = {}
+
+    expect(ctx, kinds.braceR)
+
+    return {
+        kind: "TypeLiteral",
+        start,
+        end: ctx.end,
+        members,
+    }
+}
+
+function parseTypeReference(ctx) {
+    const start = ctx.start
     const node = {
-        kind: "TypeAnnotation",
+        kind: "TypeReference",
         start,
         end: 0,
-        value: ctx.value,
+        name: ctx.value,
     }
 
     nextToken(ctx)
     node.end = ctx.end
-
-    // expect(ctx, kinds.braceL)
-    // expect(ctx, kinds.braceR)
 
     return node
 }
@@ -397,7 +410,7 @@ function parseStatement(ctx) {
         case kinds.import:
             return parseImport(ctx)
         case kinds.type:
-            return parseTypeStatement(ctx)
+            return parseTypeAliasDeclaration(ctx)
     }
 
     const expression = parseExpression(ctx)
@@ -872,7 +885,42 @@ function parseImport(ctx) {
     }
 }
 
-function parseTypeStatement(ctx) {
+function parseTypeAnnotation(ctx) {
+    if (ctx.kind === kinds.braceL) {
+        return parseTypeLiteral(ctx)
+    }
+
+    if (ctx.kind !== kinds.name) {
+        unexpected(ctx)
+    }
+
+    const start = ctx.start
+
+    let kind
+    switch (ctx.value) {
+        case "number":
+            kind = "NumberKeyword"
+            break
+        case "string":
+            kind = "StringKeyword"
+            break
+        case "boolean":
+            kind = "BooleanKeyword"
+            break
+        default:
+            unexpected(ctx)
+    }
+
+    nextToken(ctx)
+
+    return {
+        kind,
+        start,
+        end: ctx.end,
+    }
+}
+
+function parseTypeAliasDeclaration(ctx) {
     const start = ctx.start
     nextToken(ctx)
 
@@ -884,7 +932,7 @@ function parseTypeStatement(ctx) {
     const type = parseTypeAnnotation(ctx)
 
     return {
-        kind: "TypeAlias",
+        kind: "TypeAliasDeclaration",
         start,
         end: ctx.end,
         id,
@@ -1053,7 +1101,7 @@ function parseVar(ctx, kind) {
 
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
-        node.type = parseTypeAnnotation(ctx)
+        node.type = parseTypeReference(ctx)
     }
 
     if (eat(ctx, kinds.assign)) {

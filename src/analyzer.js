@@ -6,6 +6,7 @@ import {
     createArg,
     createFunction,
     createObject,
+    createType,
     Flags,
     loadCoreTypes,
     TypeKind,
@@ -105,17 +106,37 @@ function handleExportNamedDeclaration(ctx, node) {
     handle[node.declaration.kind](ctx, node.declaration)
 }
 
-function handleTypeAlias(ctx, node) {
+function handleTypeAliasDeclaration(ctx, node) {
     if (ctx.typeAliases[node.id]) {
         raise(ctx, node, `Type alias name cannot be '${node.id}'`)
     }
 
-    const coreType = coreTypeAliases[node.type.value]
-    if (!coreType) {
-        raise(ctx, node.type.start, `Cannot find name '${node.type.value}'`)
-    }
+    switch (node.type.kind) {
+        case "TypeLiteral": {
+            const objType = createType(TypeKind.object, 0)
+            ctx.typeAliases[node.id] = objType
+            break
+        }
 
-    ctx.typeAliases[node.id] = coreType
+        case "NumberKeyword":
+            ctx.typeAliases[node.id] = coreTypeAliases.number
+            break
+        case "StringKeyword":
+            ctx.typeAliases[node.id] = coreTypeAliases.string
+            break
+        case "BooleanKeyword":
+            ctx.typeAliases[node.id] = coreTypeAliases.boolean
+            break
+
+        default: {
+            const coreType = coreTypeAliases[node.type.value]
+            if (!coreType) {
+                raise(ctx, node.type.start, `Cannot find name '${node.type.value}'`)
+            }
+
+            ctx.typeAliases[node.id] = coreType
+        }
+    }
 }
 
 function handleExpressionStatement(ctx, node) {
@@ -475,11 +496,11 @@ export function analyze({ program, input, fileName }) {
 }
 
 const handle = {
+    TypeAliasDeclaration: handleTypeAliasDeclaration,
     VariableDeclaration: handleVariableDeclaration,
     FunctionDeclaration: handleFunctionDeclaration,
     ImportDeclaration: handleImportDeclaration,
     ExportNamedDeclaration: handleExportNamedDeclaration,
-    TypeAlias: handleTypeAlias,
     ExpressionStatement: handleExpressionStatement,
     ConditionExpression: handleConditionExpression,
     IfStatement: handleIfStatement,

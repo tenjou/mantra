@@ -37,9 +37,9 @@ export function loadCoreTypes(ctx) {
 
 export function useType(ctx, pos, typeAnnotation, flags = 0) {
     if (typeAnnotation) {
-        const type = ctx.typeAliases[typeAnnotation.value]
+        const type = ctx.typeAliases[typeAnnotation.name]
         if (!type) {
-            raiseAt(ctx, pos, `Cannot find name '${typeAnnotation.value}'`)
+            raiseAt(ctx, pos, `Cannot find name '${typeAnnotation.name}'`)
         }
 
         return createType(type.kind, flags)
