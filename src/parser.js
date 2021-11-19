@@ -94,9 +94,25 @@ function parseTypeLiteral(ctx) {
 
     expect(ctx, kinds.braceL)
 
-    const members = {}
+    const members = []
 
-    expect(ctx, kinds.braceR)
+    while (!eat(ctx, kinds.braceR)) {
+        const start = ctx.start
+        const name = ctx.value
+
+        nextToken(ctx)
+        expect(ctx, kinds.colon)
+
+        const type = parseTypeAnnotation(ctx)
+
+        members.push({
+            kind: "PropertySignature",
+            start: start,
+            end: ctx.end,
+            name,
+            type,
+        })
+    }
 
     return {
         kind: "TypeLiteral",

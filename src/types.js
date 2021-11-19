@@ -48,8 +48,8 @@ export function useType(ctx, pos, typeAnnotation, flags = 0) {
     return createType(TypeKind.unknown, flags)
 }
 
-export function createObject(name, props, flags = 0) {
-    return { kind: TypeKind.object, name, flags, props }
+export function createObject(name, members, flags = 0) {
+    return { kind: TypeKind.object, name, flags, members }
 }
 
 export function createFunction(args, returnType = null, flags = 0) {

@@ -106,37 +106,41 @@ function handleExportNamedDeclaration(ctx, node) {
     handle[node.declaration.kind](ctx, node.declaration)
 }
 
+function handleType(ctx, name, type) {
+    switch (type.kind) {
+        case "TypeLiteral": {
+            const members = {}
+            for (const entry of type.members) {
+                members[entry.name] = handleType(ctx, entry.name, entry.type)
+            }
+
+            return createObject(name.value, members)
+        }
+
+        case "NumberKeyword":
+            return coreTypeAliases.number
+        case "StringKeyword":
+            return coreTypeAliases.string
+        case "BooleanKeyword":
+            return coreTypeAliases.boolean
+
+        default: {
+            const coreType = coreTypeAliases[type.value]
+            if (!coreType) {
+                raise(ctx, type.start, `Cannot find name '${type.value}'`)
+            }
+
+            return coreType
+        }
+    }
+}
+
 function handleTypeAliasDeclaration(ctx, node) {
     if (ctx.typeAliases[node.id]) {
         raise(ctx, node, `Type alias name cannot be '${node.id}'`)
     }
 
-    switch (node.type.kind) {
-        case "TypeLiteral": {
-            const objType = createType(TypeKind.object, 0)
-            ctx.typeAliases[node.id] = objType
-            break
-        }
-
-        case "NumberKeyword":
-            ctx.typeAliases[node.id] = coreTypeAliases.number
-            break
-        case "StringKeyword":
-            ctx.typeAliases[node.id] = coreTypeAliases.string
-            break
-        case "BooleanKeyword":
-            ctx.typeAliases[node.id] = coreTypeAliases.boolean
-            break
-
-        default: {
-            const coreType = coreTypeAliases[node.type.value]
-            if (!coreType) {
-                raise(ctx, node.type.start, `Cannot find name '${node.type.value}'`)
-            }
-
-            ctx.typeAliases[node.id] = coreType
-        }
-    }
+    ctx.typeAliases[node.id] = handleType(ctx, node.id, node.type)
 }
 
 function handleExpressionStatement(ctx, node) {
