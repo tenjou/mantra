@@ -144,7 +144,11 @@ function handleTypeAliasDeclaration(ctx, node) {
 }
 
 function handleLabeledStatement(ctx, node) {
-    // handle[node.body.kind](ctx, node.body)
+    ctx.scopeCurr.labels.push(node.label.value)
+
+    handle[node.body.kind](ctx, node.body)
+
+    ctx.scopeCurr.labels.pop()
 }
 
 function handleExpressionStatement(ctx, node) {
@@ -165,6 +169,17 @@ function handleIfStatement(ctx, node) {
     }
     if (node.alternate) {
         handle[node.alternate.kind](ctx, node.alternate)
+    }
+}
+
+function handleBreakContinueStatement(ctx, node) {
+    if (!node.label) {
+        return
+    }
+
+    if (!haveLabel(ctx, node.label.value)) {
+        const statementName = node.kind === "BreakStatement" ? "break" : "continue"
+        raiseAt(ctx, node.label.start, `A '${statementName}' statement can only jump to a label of an enclosing statement`)
     }
 }
 
@@ -423,8 +438,6 @@ function handleNumericLiteral(_ctx, _node) {
     return { type: coreTypeAliases.number, flags: 0 }
 }
 
-function handleNoop(_ctx, _node) {}
-
 function handleStatements(ctx, body) {
     const scopeCurr = ctx.scopeCurr
 
@@ -444,6 +457,22 @@ function handleStatements(ctx, body) {
     }
 
     ctx.scopeCurr = scopeCurr
+}
+
+function haveLabel(ctx, label) {
+    let scope = ctx.scopeCurr
+
+    while (scope) {
+        for (const scopeLabel of scope.labels) {
+            if (scopeLabel === label) {
+                return true
+            }
+        }
+
+        scope = scope.parent
+    }
+
+    return false
 }
 
 function getVar(ctx, value, isObject) {
@@ -486,6 +515,7 @@ function createScope(parent, node = null) {
         node,
         vars: {},
         funcDecls: [],
+        labels: [],
     }
 }
 
@@ -540,8 +570,8 @@ const handle = {
     ExpressionStatement: handleExpressionStatement,
     ConditionExpression: handleConditionExpression,
     IfStatement: handleIfStatement,
-    BreakStatement: handleNoop,
-    ContinueStatement: handleNoop,
+    BreakStatement: handleBreakContinueStatement,
+    ContinueStatement: handleBreakContinueStatement,
     SwitchStatement: handleSwitchStatement,
     WhileStatement: handleWhileStatement,
     ForStatement: handleForStatement,
