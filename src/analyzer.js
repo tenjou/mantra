@@ -6,7 +6,6 @@ import {
     createArg,
     createFunction,
     createObject,
-    createType,
     Flags,
     loadCoreTypes,
     TypeKind,
@@ -18,11 +17,11 @@ function handleVariableDeclarator(ctx, node, flags) {
     const newVar = declareVar(ctx, node.id.value, node, flags)
 
     if (node.init) {
-        const initType = handle[node.init.kind](ctx, node.init)
-        if (!newVar.type.kind) {
-            newVar.type.kind = initType.kind
-        } else if (newVar.type.kind !== initType.kind) {
-            raiseTypeError(ctx, node.init.start, newVar.type, initType)
+        const initRef = handle[node.init.kind](ctx, node.init)
+        if (!newVar.ref.type) {
+            newVar.ref.type = initRef.type
+        } else if (newVar.ref.type !== initRef.type) {
+            raiseTypeError(ctx, node.init.start, newVar.ref.type, initRef.type)
         }
     }
 }
@@ -114,7 +113,7 @@ function handleType(ctx, name, type) {
                 members[entry.name] = handleType(ctx, entry.name, entry.type)
             }
 
-            return createObject(name.value, members)
+            return createObject(name, members)
         }
 
         case "NumberKeyword":
@@ -389,7 +388,7 @@ function handleLiteral(_ctx, node) {
 }
 
 function handleNumericLiteral(_ctx, _node) {
-    return coreTypeAliases.number
+    return { type: coreTypeAliases.number, flags: 0 }
 }
 
 function handleNoop(_ctx, _node) {}
@@ -442,8 +441,8 @@ function declareVar(ctx, name, node, flags, isObject = false) {
         raise(ctx, node, `Duplicate identifier '${name}'`)
     }
 
-    const type = useType(ctx, node.start, node.type, flags)
-    const newVar = createVar(type, node)
+    const typeRef = useType(ctx, node.start, node.type, flags)
+    const newVar = createVar(typeRef, node)
     ctx.scopeCurr.vars[name] = newVar
 
     return newVar
@@ -458,10 +457,10 @@ function createScope(parent, node = null) {
     }
 }
 
-function createVar(type, node = null) {
+function createVar(ref, node = null) {
     return {
         scope: null,
-        type,
+        ref,
         node,
     }
 }
@@ -472,7 +471,7 @@ function raise(ctx, node, error) {
 }
 
 function raiseTypeError(ctx, start, leftType, rightType) {
-    raiseAt(ctx, start, `Type '${TypeKindNamed[rightType.kind]}' is not assignable to type '${TypeKindNamed[leftType.kind]}'`)
+    raiseAt(ctx, start, `Type '${rightType.name}' is not assignable to type '${leftType.name}'`)
 }
 
 export function analyze({ program, input, fileName }) {

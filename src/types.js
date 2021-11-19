@@ -19,14 +19,14 @@ export const Flags = {
 }
 
 export const coreTypeAliases = {
-    number: createType(TypeKind.number),
-    string: createType(TypeKind.string),
-    boolean: createType(TypeKind.boolean),
-    void: createType(TypeKind.void),
+    number: createType("number", TypeKind.number),
+    string: createType("string", TypeKind.string),
+    boolean: createType("boolean", TypeKind.boolean),
+    void: createType("void", TypeKind.void),
 }
 
-export function createType(kind, flags = 0) {
-    return { kind, flags }
+export function createType(name, kind, flags = 0) {
+    return { name, kind, flags }
 }
 
 export function loadCoreTypes(ctx) {
@@ -42,10 +42,16 @@ export function useType(ctx, pos, typeAnnotation, flags = 0) {
             raiseAt(ctx, pos, `Cannot find name '${typeAnnotation.name}'`)
         }
 
-        return createType(type.kind, flags)
+        return {
+            type,
+            flags,
+        }
     }
 
-    return createType(TypeKind.unknown, flags)
+    return {
+        type: null,
+        flags,
+    }
 }
 
 export function createObject(name, members, flags = 0) {
