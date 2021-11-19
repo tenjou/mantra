@@ -91,6 +91,14 @@ function parseImportDeclaration(ctx, node) {
     return result
 }
 
+function parseLabeledStatement(ctx, node) {
+    const label = parse[node.label.kind](ctx, node.label)
+    const body = parse[node.body.kind](ctx, node.body)
+    const result = `${label}: ${body}`
+
+    return result
+}
+
 function parseIfStatement(ctx, node) {
     const test = parse[node.test.kind](ctx, node.test)
     const consequent = parseBlockStatement(ctx, node.consequent)
@@ -163,11 +171,19 @@ function parseReturnStatement(ctx, node) {
     return result
 }
 
-function parseBreakStatement(_ctx, _node) {
+function parseBreakStatement(_ctx, node) {
+    if (node.label) {
+        return `break ${node.label.value}`
+    }
+
     return "break"
 }
 
-function parseContinueStatement(_ctx, _node) {
+function parseContinueStatement(_ctx, node) {
+    if (node.label) {
+        return `continue ${node.label.value}`
+    }
+
     return "continue"
 }
 
@@ -458,6 +474,7 @@ const parse = {
     FunctionDeclaration: parseFunctionDeclaration,
     ExportNamedDeclaration: parseExportNamedDeclaration,
     ImportDeclaration: parseImportDeclaration,
+    LabeledStatement: parseLabeledStatement,
     IfStatement: parseIfStatement,
     SwitchStatement: parseSwitchStatement,
     SwitchCase: parseSwitchCase,

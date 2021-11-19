@@ -364,6 +364,18 @@ function parseExpression(ctx) {
     return expression
 }
 
+function parseLabeledStatement(ctx, label) {
+    const body = parseStatement(ctx)
+
+    return {
+        kind: "LabeledStatement",
+        start: label.start,
+        end: ctx.end,
+        body,
+        label,
+    }
+}
+
 function parseExpressionStatement(ctx, expression) {
     return {
         kind: "ExpressionStatement",
@@ -398,9 +410,8 @@ function parseStatement(ctx) {
         case kinds.const:
             return parseVarStatement(ctx)
         case kinds.break:
-            return parseBreakStatement(ctx)
         case kinds.continue:
-            return parseContinueStatement(ctx)
+            return parseBreakContinueStatement(ctx)
         case kinds.if:
             return parseIfStatement(ctx)
         case kinds.switch:
@@ -429,7 +440,13 @@ function parseStatement(ctx) {
             return parseTypeAliasDeclaration(ctx)
     }
 
+    const startKind = ctx.kind
     const expression = parseExpression(ctx)
+
+    if (startKind === kinds.name && expression.kind === "Identifier" && eat(ctx, kinds.colon)) {
+        return parseLabeledStatement(ctx, expression)
+    }
+
     return parseExpressionStatement(ctx, expression)
 }
 
@@ -471,16 +488,22 @@ function parseBreakStatement(ctx) {
     }
 }
 
-function parseContinueStatement(ctx) {
+function parseBreakContinueStatement(ctx) {
     const start = ctx.start
+    const kind = ctx.kind === kinds.continue ? "ContinueStatement" : "BreakStatement"
 
     nextToken(ctx)
 
+    let label = null
+    if (ctx.kind === kinds.name) {
+        label = parseIdentifier(ctx)
+    }
+
     return {
-        kind: "ContinueStatement",
+        kind,
         start,
         end: ctx.endLast,
-        label: null,
+        label,
     }
 }
 

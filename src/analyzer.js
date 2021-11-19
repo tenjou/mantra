@@ -143,6 +143,10 @@ function handleTypeAliasDeclaration(ctx, node) {
     ctx.typeAliases[node.id] = handleType(ctx, node.id, node.type)
 }
 
+function handleLabeledStatement(ctx, node) {
+    // handle[node.body.kind](ctx, node.body)
+}
+
 function handleExpressionStatement(ctx, node) {
     handle[node.expression.kind](ctx, node.expression)
 }
@@ -532,6 +536,7 @@ const handle = {
     FunctionDeclaration: handleFunctionDeclaration,
     ImportDeclaration: handleImportDeclaration,
     ExportNamedDeclaration: handleExportNamedDeclaration,
+    LabeledStatement: handleLabeledStatement,
     ExpressionStatement: handleExpressionStatement,
     ConditionExpression: handleConditionExpression,
     IfStatement: handleIfStatement,
