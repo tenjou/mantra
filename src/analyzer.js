@@ -17,7 +17,7 @@ function handleVariableDeclarator(ctx, node, flags) {
     const newVar = declareVar(ctx, node.id.value, node, flags)
 
     if (node.init) {
-        const initRef = handle[node.init.kind](ctx, node.init)
+        const initRef = handle[node.init.kind](ctx, node.init, newVar.ref.type)
         if (!newVar.ref.type) {
             newVar.ref.type = initRef.type
         } else if (newVar.ref.type !== initRef.type) {
@@ -108,9 +108,10 @@ function handleExportNamedDeclaration(ctx, node) {
 function handleType(ctx, name, type) {
     switch (type.kind) {
         case "TypeLiteral": {
-            const members = {}
-            for (const entry of type.members) {
-                members[entry.name] = handleType(ctx, entry.name, entry.type)
+            const members = new Array(type.members.length)
+            for (let n = 0; n < type.members.length; n++) {
+                const entry = type.members[n]
+                members[n] = { name: entry.name, type: handleType(ctx, entry.name, entry.type) }
             }
 
             return createObject(name, members)
@@ -346,22 +347,49 @@ function handleArrayExpression(ctx, node) {
     }
 }
 
-function handleObjectExpression(ctx, node) {
+function handleObjectExpression(ctx, node, type = null) {
     ctx.scopeCurr = createScope(ctx.scopeCurr)
 
-    for (const entry of node.properties) {
-        if (entry.op !== "init") {
-            raise(ctx, entry, "Unsupported feature")
+    for (const property of node.properties) {
+        if (property.op !== "init") {
+            raise(ctx, property, "Unsupported feature")
         }
 
-        declareVar(ctx, entry.key, true)
+        const newVar = declareVar(ctx, property.key.value, property, 0, true)
 
-        if (entry.value) {
-            handle[entry.value.kind](ctx, entry.value)
+        if (property.value) {
+            const valueRef = handle[property.value.kind](ctx, property.value)
+            newVar.ref.type = valueRef.type
+        }
+    }
+
+    if (type) {
+        for (const member of type.members) {
+            const memberVar = ctx.scopeCurr.vars[member.name]
+            if (!memberVar) {
+                raiseAt(ctx, node.start, `Property '${member.name}' is missing in type '{}' but required in type '${type.name}'`)
+            }
+            if (memberVar.ref.type !== member.type) {
+                raiseTypeError(ctx, memberVar.node.start, member.type, memberVar.ref.type)
+            }
+        }
+
+        if (node.properties.length > type.members.length) {
+            loop: for (const property of node.properties) {
+                for (const member of type.members) {
+                    if (member.name === property.key.value) {
+                        continue loop
+                    }
+                }
+
+                raiseAt(ctx, property.start, `'${property.key.value}' does not exist in type '${type.name}'`)
+            }
         }
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent
+
+    return { type: type || createObject(null, {}), flags: 0 }
 }
 
 function handleIdentifier(ctx, node) {
@@ -370,7 +398,7 @@ function handleIdentifier(ctx, node) {
         raise(ctx, node, `Cannot find name '${node.value}'`)
     }
 
-    return identifier.type
+    return identifier.ref
 }
 
 function handleTemplateLiteral(ctx, node) {
@@ -381,10 +409,10 @@ function handleTemplateLiteral(ctx, node) {
 
 function handleLiteral(_ctx, node) {
     if (node.value === "true" || node.value === "false") {
-        return coreTypeAliases.boolean
+        return { name: "boolean", type: coreTypeAliases.boolean }
     }
 
-    return coreTypeAliases.string
+    return { name: "string", type: coreTypeAliases.string }
 }
 
 function handleNumericLiteral(_ctx, _node) {

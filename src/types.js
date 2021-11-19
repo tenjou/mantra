@@ -15,7 +15,8 @@ export const TypeKindNamed = Object.keys(TypeKind)
 
 export const Flags = {
     None: 0,
-    Const: 1,
+    Checked: 1,
+    Const: 2,
 }
 
 export const coreTypeAliases = {
@@ -25,8 +26,8 @@ export const coreTypeAliases = {
     void: createType("void", TypeKind.void),
 }
 
-export function createType(name, kind, flags = 0) {
-    return { name, kind, flags }
+export function createType(name, kind) {
+    return { name, kind }
 }
 
 export function loadCoreTypes(ctx) {
@@ -54,14 +55,14 @@ export function useType(ctx, pos, typeAnnotation, flags = 0) {
     }
 }
 
-export function createObject(name, members, flags = 0) {
-    return { kind: TypeKind.object, name, flags, members }
+export function createObject(name, members) {
+    return { name: name || "object", kind: TypeKind.object, members }
 }
 
-export function createFunction(args, returnType = null, flags = 0) {
-    return { kind: TypeKind.function, flags, args, argsMin: args.length, returnType }
+export function createFunction(args, returnType = null) {
+    return { name: "function", kind: TypeKind.function, args, argsMin: args.length, returnType }
 }
 
-export function createArg(name, kind, flags = 0) {
-    return { name, kind, flags }
+export function createArg(name, kind) {
+    return { name, kind }
 }
