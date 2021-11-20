@@ -312,23 +312,25 @@ function handleLogicalExpression(ctx, node) {
 }
 
 function handleBinaryExpression(ctx, node) {
-    const leftType = handle[node.left.kind](ctx, node.left)
-    const rightType = handle[node.right.kind](ctx, node.right)
+    const leftRef = handle[node.left.kind](ctx, node.left)
+    const rightRef = handle[node.right.kind](ctx, node.right)
 
     if (
-        (leftType.kind !== TypeKind.number && leftType.kind !== TypeKind.string) ||
-        (rightType.kind !== TypeKind.number && rightType.kind !== TypeKind.string)
+        (leftRef.type.kind !== TypeKind.number && leftRef.type.kind !== TypeKind.string) ||
+        (rightRef.type.kind !== TypeKind.number && rightRef.type.kind !== TypeKind.string)
     ) {
         raiseAt(
             ctx,
             node.left.start,
-            `Operator '${node.operator}' cannot be applied to types '${TypeKindNamed[leftType.kind]}' and '${
-                TypeKindNamed[rightType.kind]
-            }'`
+            `Operator '${node.operator}' cannot be applied to types '${leftRef.type.name}' and '${rightRef.type.name}'`
         )
     }
 
-    return leftType.kind > rightType.kind ? leftType : rightType
+    if (node.operator === "===") {
+        return coreTypeRefs.boolean
+    }
+
+    return leftRef.type.kind > rightRef.type.kind ? leftRef : rightRef
 }
 
 function handleMemberExpression(ctx, node) {

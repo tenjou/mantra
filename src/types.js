@@ -64,7 +64,7 @@ export function useType(ctx, pos, typeAnnotation, flags = 0) {
 }
 
 export function createObject(name, members) {
-    return { name: name || "object", kind: TypeKind.object, members }
+    return { name: name || "{}", kind: TypeKind.object, members }
 }
 
 export function createFunction(args, returnType = null) {
