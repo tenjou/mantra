@@ -924,7 +924,7 @@ function parseImport(ctx) {
     }
 }
 
-function parseTypeAnnotation(ctx) {
+function parseTypeAnnotationEntry(ctx) {
     if (ctx.kind === kinds.braceL) {
         return parseTypeLiteral(ctx)
     }
@@ -950,13 +950,37 @@ function parseTypeAnnotation(ctx) {
             unexpected(ctx)
     }
 
-    nextToken(ctx)
-
-    return {
+    const node = {
         kind,
         start,
         end: ctx.end,
     }
+
+    nextToken(ctx)
+
+    return node
+}
+
+function parseTypeAnnotation(ctx) {
+    const type = parseTypeAnnotationEntry(ctx)
+
+    if (ctx.kind === kinds.bitwiseOr) {
+        const types = [type]
+
+        while (eat(ctx, kinds.bitwiseOr)) {
+            const newType = parseTypeAnnotationEntry(ctx)
+            types.push(newType)
+        }
+
+        return {
+            kind: "UnionType",
+            start: type.start,
+            end: ctx.end,
+            types,
+        }
+    }
+
+    return type
 }
 
 function parseTypeAliasDeclaration(ctx) {

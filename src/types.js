@@ -8,7 +8,8 @@ export const TypeKind = {
     function: 4,
     object: 5,
     type: 6,
-    void: 7,
+    union: 7,
+    void: 8,
 }
 
 export const TypeKindNamed = Object.keys(TypeKind)
@@ -65,4 +66,22 @@ export function createFunction(args, returnType = null) {
 
 export function createArg(name, kind) {
     return { name, kind }
+}
+
+export function createUnion(name, types) {
+    return { name, kind: TypeKind.union, types }
+}
+
+export function isValidType(leftType, rightType) {
+    if (leftType.kind === TypeKind.union) {
+        for (const type of leftType.types) {
+            if (isValidType(type, rightType)) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    return leftType === rightType
 }

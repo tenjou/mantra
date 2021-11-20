@@ -6,7 +6,9 @@ import {
     createArg,
     createFunction,
     createObject,
+    createUnion,
     Flags,
+    isValidType,
     loadCoreTypes,
     TypeKind,
     TypeKindNamed,
@@ -20,7 +22,7 @@ function handleVariableDeclarator(ctx, node, flags) {
         const initRef = handle[node.init.kind](ctx, node.init, newVar.ref.type)
         if (!newVar.ref.type) {
             newVar.ref.type = initRef.type
-        } else if (newVar.ref.type !== initRef.type) {
+        } else if (!isValidType(newVar.ref.type, initRef.type)) {
             raiseTypeError(ctx, node.init.start, newVar.ref.type, initRef.type)
         }
     }
@@ -105,13 +107,23 @@ function handleExportNamedDeclaration(ctx, node) {
     handle[node.declaration.kind](ctx, node.declaration)
 }
 
-function handleType(ctx, name, type) {
+function handleType(ctx, type, name = "") {
     switch (type.kind) {
+        case "UnionType": {
+            const types = new Array(type.types.length)
+            for (let n = 0; n < type.types.length; n++) {
+                const entry = type.types[n]
+                types[n] = handleType(ctx, entry)
+            }
+
+            return createUnion(name, types)
+        }
+
         case "TypeLiteral": {
             const members = new Array(type.members.length)
             for (let n = 0; n < type.members.length; n++) {
                 const entry = type.members[n]
-                members[n] = { name: entry.name, type: handleType(ctx, entry.name, entry.type) }
+                members[n] = { name: entry.name, type: handleType(ctx, entry.type, entry.name) }
             }
 
             return createObject(name, members)
@@ -140,7 +152,7 @@ function handleTypeAliasDeclaration(ctx, node) {
         raise(ctx, node, `Type alias name cannot be '${node.id}'`)
     }
 
-    ctx.typeAliases[node.id] = handleType(ctx, node.id, node.type)
+    ctx.typeAliases[node.id] = handleType(ctx, node.type, node.id)
 }
 
 function handleLabeledStatement(ctx, node) {
