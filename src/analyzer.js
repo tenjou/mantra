@@ -430,7 +430,10 @@ function handleObjectExpression(ctx, node, type = null) {
 
         if (type.kind === TypeKind.union) {
             for (const typeEntry of type.types) {
-                mostLikelyType = handleObjectType(ctx, type.name, node, typeEntry)
+                const objectType = handleObjectType(ctx, type.name, node, typeEntry)
+                if (objectType) {
+                    mostLikelyType = objectType
+                }
             }
         } else {
             mostLikelyType = handleObjectType(ctx, type.name, node, type)
