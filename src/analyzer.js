@@ -378,6 +378,37 @@ function handleArrayExpression(ctx, node) {
     }
 }
 
+function handleObjectType(ctx, name, node, type) {
+    if (type.kind !== TypeKind.object) {
+        return null
+    }
+
+    for (const member of type.members) {
+        const memberVar = ctx.scopeCurr.vars[member.name]
+        if (!memberVar) {
+            return null
+            // raiseAt(ctx, node.start, `Property '${member.name}' is missing in type '{}' but required in type '${type.name}'`)
+        }
+        if (memberVar.ref.type !== member.type) {
+            raiseTypeError(ctx, memberVar.node.start, member.type, memberVar.ref.type)
+        }
+    }
+
+    if (node.properties.length > type.members.length) {
+        loop: for (const property of node.properties) {
+            for (const member of type.members) {
+                if (member.name === property.key.value) {
+                    continue loop
+                }
+            }
+
+            raiseAt(ctx, property.start, `'${property.key.value}' does not exist in type '${name}'`)
+        }
+    }
+
+    return type
+}
+
 function handleObjectExpression(ctx, node, type = null) {
     ctx.scopeCurr = createScope(ctx.scopeCurr)
 
@@ -395,27 +426,21 @@ function handleObjectExpression(ctx, node, type = null) {
     }
 
     if (type) {
-        for (const member of type.members) {
-            const memberVar = ctx.scopeCurr.vars[member.name]
-            if (!memberVar) {
-                raiseAt(ctx, node.start, `Property '${member.name}' is missing in type '{}' but required in type '${type.name}'`)
+        let mostLikelyType = null
+
+        if (type.kind === TypeKind.union) {
+            for (const typeEntry of type.types) {
+                mostLikelyType = handleObjectType(ctx, type.name, node, typeEntry)
             }
-            if (memberVar.ref.type !== member.type) {
-                raiseTypeError(ctx, memberVar.node.start, member.type, memberVar.ref.type)
-            }
+        } else {
+            mostLikelyType = handleObjectType(ctx, type.name, node, type)
         }
 
-        if (node.properties.length > type.members.length) {
-            loop: for (const property of node.properties) {
-                for (const member of type.members) {
-                    if (member.name === property.key.value) {
-                        continue loop
-                    }
-                }
-
-                raiseAt(ctx, property.start, `'${property.key.value}' does not exist in type '${type.name}'`)
-            }
+        if (!mostLikelyType) {
+            raiseAt(ctx, node.start, `Type '{}' is not assignable to type '${type.name}'`)
         }
+
+        type = mostLikelyType
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent

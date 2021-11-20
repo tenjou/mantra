@@ -962,6 +962,8 @@ function parseTypeAnnotationEntry(ctx) {
 }
 
 function parseTypeAnnotation(ctx) {
+    eat(ctx, kinds.bitwiseOr)
+
     const type = parseTypeAnnotationEntry(ctx)
 
     if (ctx.kind === kinds.bitwiseOr) {

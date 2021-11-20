@@ -371,7 +371,10 @@ function parseStatements(ctx, statements) {
     let result = ""
 
     for (const statement of statements) {
-        result += `\n${ctx.spaces}${parse[statement.kind](ctx, statement)}`
+        const statementResult = parse[statement.kind](ctx, statement)
+        if (statementResult) {
+            result += `\n${ctx.spaces}${statementResult}`
+        }
     }
 
     exitBlock(ctx)
@@ -430,8 +433,10 @@ function parseBlock(ctx, body) {
     enterBlock(ctx)
 
     for (const statement of body) {
-        const nodeResult = parse[statement.kind](ctx, statement)
-        result += `\n${ctx.spaces}${nodeResult}`
+        const statementResult = parse[statement.kind](ctx, statement)
+        if (statementResult) {
+            result += `\n${ctx.spaces}${statementResult}`
+        }
     }
 
     exitBlock(ctx)
@@ -445,8 +450,10 @@ function parseProgram(ctx, program) {
     let result = ""
 
     for (const node of program.body) {
-        const nodeResult = parse[node.kind](ctx, node)
-        result += `${nodeResult}\n`
+        const statementResult = parse[node.kind](ctx, node)
+        if (statementResult) {
+            result += `${statementResult}\n`
+        }
     }
 
     return result
