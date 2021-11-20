@@ -17,7 +17,7 @@ export function isIdentifierStart(charCode) {
 
 export function isIdentifierChar(charCode) {
     if (charCode < 48) {
-        return charCode == 36 // $
+        return charCode === 36 // $
     }
     if (charCode < 58) {
         return true

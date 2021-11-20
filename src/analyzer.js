@@ -42,12 +42,8 @@ function handleFunctionDeclaration(ctx, node) {
         raise(ctx, node.id, `Duplicate function implementation '${node.id.value}'`)
     }
 
-    const type = {
-        kind: TypeKind.function,
-        argsMin: 0,
-        args: [],
-        returnType: handleType(ctx, node.returnType),
-    }
+    const returnType = handleType(ctx, node.returnType)
+    const type = createFunction([], returnType)
     const ref = { type, flags: 0 }
     const func = createVar(ref, node)
     func.scope = createScope(ctx.scopeCurr)
@@ -363,12 +359,12 @@ function handleMemberExpression(ctx, node) {
 }
 
 function handleCallExpression(ctx, node) {
-    const type = handle[node.callee.kind](ctx, node.callee)
-    if (type.kind !== TypeKind.function) {
-        raiseAt(ctx, node.callee.start, `This expression is not callable.\n  Type '${type.name}' has no call signatures`)
+    const typeRef = handle[node.callee.kind](ctx, node.callee)
+    if (typeRef.type.kind !== TypeKind.function) {
+        raiseAt(ctx, node.callee.start, `This expression is not callable.\n  Type '${typeRef.type.name}' has no call signatures`)
     }
 
-    if (node.arguments.length < type.argsMin) {
+    if (node.arguments.length < typeRef.type.argsMin) {
         raiseAt(ctx, node.callee.start, `Expected ${type.argsMin} arguments, but got ${node.arguments.length}`)
     }
     if (node.arguments.length > type.argsMax) {
