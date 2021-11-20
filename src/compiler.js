@@ -239,12 +239,15 @@ function parseSequenceExpression(ctx, node) {
     return result
 }
 
-function parseBinaryExpression(ctx, node) {
-    const left = parse[node.left.kind](ctx, node.left)
-    const right = parse[node.right.kind](ctx, node.right)
-    const result = `(${left} ${node.operator} ${right})`
+function parseBinaryExpression(ctx, node, depth = 0) {
+    const left = parse[node.left.kind](ctx, node.left, depth + 1)
+    const right = parse[node.right.kind](ctx, node.right, depth + 1)
 
-    return result
+    if (depth > 0) {
+        return `(${left} ${node.operator} ${right})`
+    }
+
+    return `${left} ${node.operator} ${right}`
 }
 
 function parseAssignmentExpression(ctx, node) {
