@@ -64,11 +64,15 @@ export function useType(ctx, pos, typeAnnotation, flags = 0) {
 }
 
 export function createObject(name, members) {
-    return { name: name || "{}", kind: TypeKind.object, members }
+    const type = { name: name || "{}", kind: TypeKind.object, members }
+
+    return { type, flags: 0 }
 }
 
 export function createFunction(args, returnType = null) {
-    return { name: "function", kind: TypeKind.function, args, argsMin: args.length, returnType }
+    const type = { name: "function", kind: TypeKind.function, args, argsMin: args.length, returnType }
+
+    return { type, flags: 0 }
 }
 
 export function createArg(name, kind) {

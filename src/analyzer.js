@@ -43,8 +43,7 @@ function handleFunctionDeclaration(ctx, node) {
     }
 
     const returnType = handleType(ctx, node.returnType)
-    const type = createFunction([], returnType)
-    const ref = { type, flags: 0 }
+    const ref = createFunction([], returnType)
     const func = createVar(ref, node)
     func.scope = createScope(ctx.scopeCurr)
     ctx.scopeCurr.vars[node.id.value] = func
@@ -264,7 +263,8 @@ function handleTryStatement(ctx, node) {
     handle[node.block.kind](ctx, node.block)
 
     if (node.handler) {
-        declareVar(ctx, node.handler.param)
+        const param = node.handler.param
+        declareVar(ctx, param.value, param, 0)
         handle[node.handler.body.kind](ctx, node.handler.body)
     }
     if (node.finalize) {
@@ -332,17 +332,20 @@ function handleBinaryExpression(ctx, node) {
 }
 
 function handleMemberExpression(ctx, node) {
-    const type = handle[node.object.kind](ctx, node.object)
-    if (type.kind !== TypeKind.object) {
+    const typeRef = handle[node.object.kind](ctx, node.object)
+    if (typeRef.type.kind !== TypeKind.object) {
+        if (typeRef.type.kind === TypeKind.unknown) {
+            raiseAt(ctx, node.object.start, `'${node.object.value}' is of type 'unknown'`)
+        }
         raiseAt(ctx, node.object.start, `'${node.object.value}' is not an object`)
     }
 
     if (!node.computed) {
-        const prop = type.props[node.property.value]
-        if (!prop) {
-            raiseAt(ctx, node.property.start, `Property '${node.property.value}' does not exist on type '${type.name}'`)
+        const propRef = typeRef.type.members[node.property.value]
+        if (!propRef) {
+            raiseAt(ctx, node.property.start, `Property '${node.property.value}' does not exist on type '${propRef.type.name}'`)
         }
-        return prop
+        return propRef
     }
 
     switch (node.property.kind) {
@@ -365,10 +368,10 @@ function handleCallExpression(ctx, node) {
     }
 
     if (node.arguments.length < typeRef.type.argsMin) {
-        raiseAt(ctx, node.callee.start, `Expected ${type.argsMin} arguments, but got ${node.arguments.length}`)
+        raiseAt(ctx, node.callee.start, `Expected ${typeRef.type.argsMin} arguments, but got ${node.arguments.length}`)
     }
-    if (node.arguments.length > type.argsMax) {
-        raiseAt(ctx, node.callee.start, `Expected ${type.argsMax} arguments, but got ${node.arguments.length}`)
+    if (node.arguments.length > typeRef.type.argsMax) {
+        raiseAt(ctx, node.callee.start, `Expected ${typeRef.type.argsMax} arguments, but got ${node.arguments.length}`)
     }
 
     for (let n = 0; n < node.arguments.length; n++) {
@@ -457,7 +460,11 @@ function handleObjectExpression(ctx, node, type = null) {
 
     ctx.scopeCurr = ctx.scopeCurr.parent
 
-    return { type: type || createObject(null, {}), flags: 0 }
+    if (type) {
+        return { type, flags: 0 }
+    }
+
+    return createObject(null, {})
 }
 
 function handleIdentifier(ctx, node) {
