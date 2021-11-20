@@ -309,6 +309,8 @@ function handleUnaryExpression(ctx, node) {
 function handleLogicalExpression(ctx, node) {
     handle[node.left.kind](ctx, node.left)
     handle[node.right.kind](ctx, node.right)
+
+    return coreTypeRefs.boolean
 }
 
 function handleBinaryExpression(ctx, node) {
