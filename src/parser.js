@@ -105,6 +105,8 @@ function parseTypeLiteral(ctx) {
 
         const type = parseTypeAnnotation(ctx)
 
+        eat(ctx, kinds.semicolon)
+
         members.push({
             kind: "PropertySignature",
             start: start,
