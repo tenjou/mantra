@@ -27,6 +27,13 @@ export const coreTypeAliases = {
     void: createType("void", TypeKind.void),
 }
 
+export const coreTypeRefs = {
+    number: { type: coreTypeAliases.number, flags: 0 },
+    string: { type: coreTypeAliases.string, flags: 0 },
+    boolean: { type: coreTypeAliases.boolean, flags: 0 },
+    void: { type: coreTypeAliases.void, flags: 0 },
+}
+
 export function createType(name, kind) {
     return { name, kind }
 }

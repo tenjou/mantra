@@ -3,6 +3,7 @@ import path from "path"
 import { getLineInfo, raiseAt } from "./error.js"
 import {
     coreTypeAliases,
+    coreTypeRefs,
     createArg,
     createFunction,
     createObject,
@@ -43,12 +44,12 @@ function handleFunctionDeclaration(ctx, node) {
 
     const type = {
         kind: TypeKind.function,
-        flags: 0,
         argsMin: 0,
         args: [],
-        returnType: useType(ctx, node.pos, node.returnType, 0),
+        returnType: handleType(ctx, node.returnType),
     }
-    const func = createVar(type, node)
+    const ref = { type, flags: 0 }
+    const func = createVar(ref, node)
     func.scope = createScope(ctx.scopeCurr)
     ctx.scopeCurr.vars[node.id.value] = func
     ctx.scopeCurr = func.scope
@@ -57,7 +58,7 @@ function handleFunctionDeclaration(ctx, node) {
         switch (param.kind) {
             case "Identifier": {
                 const argVar = declareVar(ctx, param.value, param, 0)
-                type.args.push(argVar.type)
+                type.args.push(argVar.ref.type)
                 type.argsMin++
                 break
             }
@@ -107,7 +108,11 @@ function handleExportNamedDeclaration(ctx, node) {
     handle[node.declaration.kind](ctx, node.declaration)
 }
 
-function handleType(ctx, type, name = "") {
+function handleType(ctx, type = null, name = "") {
+    if (!type) {
+        return { kind: TypeKind.unknown, name }
+    }
+
     switch (type.kind) {
         case "UnionType": {
             const types = new Array(type.types.length)
@@ -131,8 +136,10 @@ function handleType(ctx, type, name = "") {
 
         case "NumberKeyword":
             return coreTypeAliases.number
+
         case "StringKeyword":
             return coreTypeAliases.string
+
         case "BooleanKeyword":
             return coreTypeAliases.boolean
 
@@ -238,16 +245,18 @@ function handleForOfStatement(ctx, node) {
 }
 
 function handleReturnStatement(ctx, node) {
-    let returnType = coreTypeAliases.void
+    let returnRef
 
     if (node.argument) {
-        returnType = handle[node.argument.kind](ctx, node.argument)
+        returnRef = handle[node.argument.kind](ctx, node.argument)
+    } else {
+        returnRef = coreTypeRefs.void
     }
 
     if (!ctx.currFuncType.returnType.kind) {
-        ctx.currFuncType.returnType = returnType
-    } else if (ctx.currFuncType.returnType.kind !== returnType.kind) {
-        raiseTypeError(ctx, node.start, ctx.currFuncType.returnType, returnType)
+        ctx.currFuncType.returnType = returnRef.type
+    } else if (ctx.currFuncType.returnType.kind !== returnRef.type.kind) {
+        raiseTypeError(ctx, node.start, ctx.currFuncType.returnType, returnRef.type)
     }
 }
 
@@ -468,10 +477,10 @@ function handleTemplateLiteral(ctx, node) {
 
 function handleLiteral(_ctx, node) {
     if (node.value === "true" || node.value === "false") {
-        return { name: "boolean", type: coreTypeAliases.boolean }
+        return coreTypeRefs.boolean
     }
 
-    return { name: "string", type: coreTypeAliases.string }
+    return coreTypeRefs.string
 }
 
 function handleNumericLiteral(_ctx, _node) {
@@ -489,7 +498,7 @@ function handleStatements(ctx, body) {
     for (const decl of funcDecls) {
         const prevFuncType = ctx.currFuncType
         ctx.scopeCurr = decl.scope
-        ctx.currFuncType = decl.type
+        ctx.currFuncType = decl.ref.type
 
         handle[decl.node.body.kind](ctx, decl.node.body)
 
@@ -542,8 +551,9 @@ function declareVar(ctx, name, node, flags, isObject = false) {
         raise(ctx, node, `Duplicate identifier '${name}'`)
     }
 
-    const typeRef = useType(ctx, node.start, node.type, flags)
-    const newVar = createVar(typeRef, node)
+    const type = handleType(ctx, node.type, name)
+    const ref = { type, flags }
+    const newVar = createVar(ref, node)
     ctx.scopeCurr.vars[name] = newVar
 
     return newVar
