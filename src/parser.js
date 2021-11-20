@@ -275,6 +275,7 @@ function parseExpressionOp(ctx, left, minPrecedence) {
     if (precendence !== 0 && precendence > minPrecedence) {
         const operator = ctx.value
         const isLogical = ctx.kind === kinds.logicalOr || ctx.kind === kinds.logicalAnd
+        const isComparison = ctx.kind.isComparison
 
         nextToken(ctx)
 
@@ -287,6 +288,7 @@ function parseExpressionOp(ctx, left, minPrecedence) {
             left,
             operator,
             right,
+            isComparison,
         }
 
         return parseExpressionOp(ctx, node, minPrecedence)

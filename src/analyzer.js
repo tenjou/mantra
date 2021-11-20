@@ -326,7 +326,7 @@ function handleBinaryExpression(ctx, node) {
         )
     }
 
-    if (node.operator === "===") {
+    if (node.isComparison) {
         return coreTypeRefs.boolean
     }
 

@@ -423,6 +423,7 @@ function createToken(label, options = {}) {
         prefix: options.prefix || false,
         postfix: options.postfix || false,
         isAssign: options.isAssign || false,
+        isComparison: options.isComparison || false,
     }
 }
 
@@ -433,8 +434,8 @@ function createKeyword(name) {
     return keywordToken
 }
 
-function createBinop(name, binop) {
-    return createToken(name, { binop })
+function createBinop(name, binop, isComparison = false) {
+    return createToken(name, { binop, isComparison })
 }
 
 const keywords = {}
@@ -443,16 +444,16 @@ export const kinds = {
     assign: createToken("=", { isAssign: true }),
     incrementDecrement: createToken("++/--", { prefix: true, postfix: true }),
     prefix: createToken("!", { prefix: true }),
-    logicalOr: createBinop("||", 1),
+    logicalOr: createBinop("||", 1, true),
     logicalAnd: createBinop("&&", 2),
     bitwiseOr: createBinop("|", 3),
     bitwiseXor: createBinop("^", 4),
     bitwiseAnd: createBinop("&", 5),
-    equality: createBinop("==/===", 6),
-    greaterThan: createBinop(">", 7),
-    lessThan: createBinop("<", 7),
-    greaterThanEquals: createBinop(">=", 7),
-    lessThanEquals: createBinop("<=", 7),
+    equality: createBinop("==/===", 6, true),
+    greaterThan: createBinop(">", 7, true),
+    lessThan: createBinop("<", 7, true),
+    greaterThanEquals: createBinop(">=", 7, true),
+    lessThanEquals: createBinop("<=", 7, true),
     star: createBinop("*", 10),
     slash: createBinop("/", 10),
     modulo: createBinop("%", 10),
