@@ -118,7 +118,7 @@ function handleType(ctx, type = null, name = "") {
         }
 
         case "ArrayType":
-            return createArray(type.name)
+            return createArray(handleType(ctx, type.elementType))
 
         case "TypeLiteral": {
             const members = new Array(type.members.length)
@@ -408,6 +408,11 @@ function handleArrayExpression(ctx, node) {
 
     for (const element of node.elements) {
         const elementRef = handle[element.kind](ctx, element)
+        if (!arrayType) {
+            arrayType = elementRef.type
+        } else if (!isValidType(arrayType, elementRef.type)) {
+            raiseTypeError(ctx, element.start, arrayType, elementRef.type)
+        }
     }
 
     return createArray(arrayType || coreTypeAliases.unknown)
@@ -611,22 +616,16 @@ function raise(ctx, node, error) {
     throw new SyntaxError(`${error}. ${ctx.fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 }
 
+function getTypeName(type) {
+    if (type.kind === TypeKind.array) {
+        return `${getTypeName(type.elementType)}[]`
+    }
+
+    return type.name
+}
+
 function raiseTypeError(ctx, start, leftType, rightType) {
-    let leftTypeName
-    if (leftType.kind === TypeKind.array) {
-        leftTypeName = `${leftType.elementType}[]`
-    } else {
-        leftTypeName = rightType.name
-    }
-
-    let rightTypeName
-    if (rightType.kind === TypeKind.array) {
-        rightTypeName = `${rightType.elementType}[]`
-    } else {
-        rightTypeName = rightType.name
-    }
-
-    raiseAt(ctx, start, `Type '${rightTypeName}' is not assignable to type '${leftTypeName}'`)
+    raiseAt(ctx, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
 }
 
 export function analyze({ program, input, fileName }) {

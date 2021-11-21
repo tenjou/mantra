@@ -124,34 +124,6 @@ function parseTypeLiteral(ctx) {
     }
 }
 
-function parseTypeReference(ctx) {
-    const start = ctx.start
-    const typeName = ctx.value
-
-    nextToken(ctx)
-
-    if (ctx.kind === kinds.bracketL) {
-        nextToken(ctx)
-        expect(ctx, kinds.bracketR)
-
-        return {
-            kind: "ArrayType",
-            start,
-            end: ctx.end,
-            name: typeName,
-        }
-    }
-
-    node.end = ctx.end
-
-    return {
-        kind: "TypeReference",
-        start,
-        end: ctx.end,
-        name: typeName,
-    }
-}
-
 function parseMaybeDefault(ctx) {
     const start = ctx.start
     const left = parseBindingAtom(ctx)
@@ -891,6 +863,7 @@ function parseImportSpecifiers(ctx) {
             start,
             end: ctx.end,
             imported,
+
             local: null,
         })
     }
@@ -996,6 +969,16 @@ function parseTypeAnnotation(ctx) {
             start: type.start,
             end: ctx.end,
             types,
+        }
+    } else if (ctx.kind === kinds.bracketL) {
+        nextToken(ctx)
+        expect(ctx, kinds.bracketR)
+
+        return {
+            kind: "ArrayType",
+            start: type.start,
+            end: ctx.end,
+            elementType: type,
         }
     }
 
@@ -1183,7 +1166,7 @@ function parseVar(ctx, kind) {
 
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
-        node.type = parseTypeReference(ctx)
+        node.type = parseTypeAnnotation(ctx)
     }
 
     if (eat(ctx, kinds.assign)) {

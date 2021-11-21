@@ -90,7 +90,7 @@ export function isValidType(leftType, rightType) {
             return false
         }
 
-        return leftType.elementType !== rightType.elementType
+        return isValidType(leftType.elementType, rightType.elementType)
     }
 
     return leftType === rightType
