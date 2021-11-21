@@ -28,6 +28,7 @@ export const coreTypeAliases = {
 }
 
 export const coreTypeRefs = {
+    unknown: { type: coreTypeAliases.unknown, flags: 0 },
     number: { type: coreTypeAliases.number, flags: 0 },
     string: { type: coreTypeAliases.string, flags: 0 },
     boolean: { type: coreTypeAliases.boolean, flags: 0 },

@@ -103,7 +103,7 @@ function handleExportNamedDeclaration(ctx, node) {
 
 function handleType(ctx, type = null, name = "") {
     if (!type) {
-        return { kind: TypeKind.unknown, name }
+        return coreTypeRefs.unknown
     }
 
     switch (type.kind) {
