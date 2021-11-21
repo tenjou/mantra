@@ -101,7 +101,7 @@ function parseLabeledStatement(ctx, node) {
 
 function parseIfStatement(ctx, node) {
     const test = parse[node.test.kind](ctx, node.test)
-    const consequent = parseBlockStatement(ctx, node.consequent)
+    const consequent = parse[node.consequent.kind](ctx, node.consequent)
     const alternate = node.alternate ? parse[node.alternate.kind](ctx, node.alternate) : null
     let result = `if(${test}) ${consequent}`
 
