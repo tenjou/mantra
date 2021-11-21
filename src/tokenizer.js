@@ -427,8 +427,10 @@ function createToken(label, options = {}) {
     }
 }
 
-function createKeyword(name) {
-    const keywordToken = createToken(name, { keyword: true })
+function createKeyword(name, options = {}) {
+    options.keyword = true
+
+    const keywordToken = createToken(name, options)
     keywords[name] = keywordToken
 
     return keywordToken
@@ -476,6 +478,7 @@ export const kinds = {
     text: createToken("text"),
     template: createToken("template"),
     plusMinus: createToken("+/-", { binop: 9, prefix: true }),
+    instanceof: createKeyword("instanceof", { binop: 7 }),
     var: createKeyword("var"),
     let: createKeyword("let"),
     const: createKeyword("const"),

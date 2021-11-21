@@ -8,23 +8,22 @@ import {
     createFunction,
     createObject,
     createUnion,
+    createVar,
     Flags,
     isValidType,
     loadCoreTypes,
     TypeKind,
-    TypeKindNamed,
-    useType,
 } from "./types.js"
 
 function handleVariableDeclarator(ctx, node, flags) {
-    const newVar = declareVar(ctx, node.id.value, node, flags)
+    const varRef = declareVar(ctx, node.id.value, node, flags)
 
     if (node.init) {
-        const initRef = handle[node.init.kind](ctx, node.init, newVar.ref.type)
-        if (!newVar.ref.type) {
-            newVar.ref.type = initRef.type
-        } else if (!isValidType(newVar.ref.type, initRef.type)) {
-            raiseTypeError(ctx, node.init.start, newVar.ref.type, initRef.type)
+        const initRef = handle[node.init.kind](ctx, node.init, varRef.type)
+        if (!varRef.type) {
+            varRef.type = initRef.type
+        } else if (!isValidType(varRef.type, initRef.type)) {
+            raiseTypeError(ctx, node.init.start, varRef.type, initRef.type)
         }
     }
 }
@@ -44,7 +43,6 @@ function handleFunctionDeclaration(ctx, node) {
 
     const returnType = handleType(ctx, node.returnType)
     const ref = createFunction([], returnType)
-    const func = createVar(ref, node)
     func.scope = createScope(ctx.scopeCurr)
     ctx.scopeCurr.vars[node.id.value] = func
     ctx.scopeCurr = func.scope
@@ -80,7 +78,7 @@ function handleFunctionDeclaration(ctx, node) {
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent
-    ctx.scopeCurr.funcDecls.push(func)
+    ctx.scopeCurr.funcDecls.push({ ref, scope: func.scope, node })
 }
 
 function handleImportDeclaration(ctx, node) {
@@ -176,11 +174,25 @@ function handleConditionExpression(ctx, node) {
 }
 
 function handleIfStatement(ctx, node) {
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
+
     handle[node.test.kind](ctx, node.test)
 
-    if (node.consequent) {
-        handle[node.consequent.kind](ctx, node.consequent)
+    switch (node.consequent.kind) {
+        case "BlockStatement":
+            handleStatements(ctx, node.consequent.body)
+            break
+
+        case "ExpressionStatement":
+            handle[node.consequent.expression.kind](ctx, node.consequent.expression)
+            break
+
+        default:
+            raiseAt(ctx, node.consequent.start, "Unsupported feature")
     }
+
+    ctx.scopeCurr = ctx.scopeCurr.parent
+
     if (node.alternate) {
         handle[node.alternate.kind](ctx, node.alternate)
     }
@@ -313,6 +325,10 @@ function handleBinaryExpression(ctx, node) {
     const leftRef = handle[node.left.kind](ctx, node.left)
     const rightRef = handle[node.right.kind](ctx, node.right)
 
+    if (node.operator === "instanceof") {
+        return redeclareVar(ctx, leftRef, rightRef.type)
+    }
+
     if (
         (leftRef.type.kind !== TypeKind.number && leftRef.type.kind !== TypeKind.string) ||
         (rightRef.type.kind !== TypeKind.number && rightRef.type.kind !== TypeKind.string)
@@ -376,10 +392,10 @@ function handleCallExpression(ctx, node) {
 
     for (let n = 0; n < node.arguments.length; n++) {
         const arg = node.arguments[n]
-        const argType = handle[arg.kind](ctx, arg)
-        const funcArgType = type.args[n]
-        if (funcArgType.kind !== argType.kind) {
-            raiseTypeError(ctx, arg.start, funcArgType, argType)
+        const argRef = handle[arg.kind](ctx, arg)
+        const funcArgType = typeRef.type.args[n]
+        if (funcArgType.kind !== argRef.type.kind) {
+            raiseTypeError(ctx, arg.start, funcArgType, argRef.type)
         }
     }
 }
@@ -429,11 +445,11 @@ function handleObjectExpression(ctx, node, type = null) {
             raise(ctx, property, "Unsupported feature")
         }
 
-        const newVar = declareVar(ctx, property.key.value, property, 0, true)
+        const varRef = declareVar(ctx, property.key.value, property, 0, true)
 
         if (property.value) {
             const valueRef = handle[property.value.kind](ctx, property.value)
-            newVar.ref.type = valueRef.type
+            varRef.type = valueRef.type
         }
     }
 
@@ -473,7 +489,7 @@ function handleIdentifier(ctx, node) {
         raise(ctx, node, `Cannot find name '${node.value}'`)
     }
 
-    return identifier.ref
+    return identifier
 }
 
 function handleTemplateLiteral(ctx, node) {
@@ -559,11 +575,17 @@ function declareVar(ctx, name, node, flags, isObject = false) {
     }
 
     const type = handleType(ctx, node.type, name)
-    const ref = { type, flags }
-    const newVar = createVar(ref, node)
-    ctx.scopeCurr.vars[name] = newVar
+    const varRef = { type, flags }
+    ctx.scopeCurr.vars[name] = varRef
 
-    return newVar
+    return varRef
+}
+
+function redeclareVar(ctx, varRef, newType) {
+    const newVarRef = { type: newType, flags: varRef.flags }
+    ctx.scopeCurr.vars[varRef.type.name] = newVarRef
+
+    return newVarRef
 }
 
 function createScope(parent, node = null) {
@@ -573,14 +595,6 @@ function createScope(parent, node = null) {
         vars: {},
         funcDecls: [],
         labels: [],
-    }
-}
-
-function createVar(ref, node = null) {
-    return {
-        scope: null,
-        ref,
-        node,
     }
 }
 
@@ -606,13 +620,14 @@ export function analyze({ program, input, fileName }) {
 
     loadCoreTypes(ctx)
 
-    scope.vars["Infinity"] = createVar()
-    scope.vars["NaN"] = createVar()
-    scope.vars["console"] = createVar(
-        createObject("Console", {
-            log: createFunction([createArg("data", TypeKind.string)]),
-        })
-    )
+    scope.vars["Infinity"] = coreTypeRefs.number
+    scope.vars["NaN"] = coreTypeRefs.number
+    scope.vars["console"] = createObject("Console", {
+        log: createFunction([createArg("data", TypeKind.string)]),
+    })
+    scope.vars["Error"] = createObject("Error", {
+        // message: createVar()
+    })
 
     handleStatements(ctx, program.body)
 }
