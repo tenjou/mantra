@@ -117,6 +117,9 @@ function handleType(ctx, type = null, name = "") {
             return createUnion(name, types)
         }
 
+        case "ArrayType":
+            return createArray(type.name)
+
         case "TypeLiteral": {
             const members = new Array(type.members.length)
             for (let n = 0; n < type.members.length; n++) {
@@ -578,8 +581,9 @@ function declareVar(ctx, name, node, flags, isObject = false) {
         raise(ctx, node, `Duplicate identifier '${name}'`)
     }
 
-    const type = handleType(ctx, node.type, name)
-    const varRef = { type, flags }
+    const varRef = handleType(ctx, node.type, name)
+    varRef.flags = flags
+
     ctx.scopeCurr.vars[name] = varRef
 
     return varRef
@@ -608,14 +612,21 @@ function raise(ctx, node, error) {
 }
 
 function raiseTypeError(ctx, start, leftType, rightType) {
+    let leftTypeName
+    if (leftType.kind === TypeKind.array) {
+        leftTypeName = `${leftType.elementType}[]`
+    } else {
+        leftTypeName = rightType.name
+    }
+
     let rightTypeName
     if (rightType.kind === TypeKind.array) {
-        rightTypeName = `${rightType.elementType.name}[]`
+        rightTypeName = `${rightType.elementType}[]`
     } else {
         rightTypeName = rightType.name
     }
 
-    raiseAt(ctx, start, `Type '${rightTypeName}' is not assignable to type '${leftType.name}'`)
+    raiseAt(ctx, start, `Type '${rightTypeName}' is not assignable to type '${leftTypeName}'`)
 }
 
 export function analyze({ program, input, fileName }) {

@@ -126,17 +126,30 @@ function parseTypeLiteral(ctx) {
 
 function parseTypeReference(ctx) {
     const start = ctx.start
-    const node = {
-        kind: "TypeReference",
-        start,
-        end: 0,
-        name: ctx.value,
-    }
+    const typeName = ctx.value
 
     nextToken(ctx)
+
+    if (ctx.kind === kinds.bracketL) {
+        nextToken(ctx)
+        expect(ctx, kinds.bracketR)
+
+        return {
+            kind: "ArrayType",
+            start,
+            end: ctx.end,
+            name: typeName,
+        }
+    }
+
     node.end = ctx.end
 
-    return node
+    return {
+        kind: "TypeReference",
+        start,
+        end: ctx.end,
+        name: typeName,
+    }
 }
 
 function parseMaybeDefault(ctx) {

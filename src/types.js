@@ -85,5 +85,13 @@ export function isValidType(leftType, rightType) {
         return false
     }
 
+    if (leftType.kind === TypeKind.array) {
+        if (rightType.kind !== TypeKind.array) {
+            return false
+        }
+
+        return leftType.elementType !== rightType.elementType
+    }
+
     return leftType === rightType
 }
