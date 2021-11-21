@@ -1,15 +1,14 @@
-import { raiseAt } from "./error.js"
-
 export const TypeKind = {
     unknown: 0,
     number: 1,
     string: 2,
     boolean: 3,
     function: 4,
-    object: 5,
-    type: 6,
-    union: 7,
-    void: 8,
+    array: 5,
+    object: 6,
+    type: 7,
+    union: 8,
+    void: 9,
 }
 
 export const TypeKindNamed = Object.keys(TypeKind)
@@ -21,6 +20,7 @@ export const Flags = {
 }
 
 export const coreTypeAliases = {
+    unknown: createType("unknown", TypeKind.unknown),
     number: createType("number", TypeKind.number),
     string: createType("string", TypeKind.string),
     boolean: createType("boolean", TypeKind.boolean),
@@ -66,6 +66,12 @@ export function createArg(name, kind) {
 
 export function createUnion(name, types) {
     return { name, kind: TypeKind.union, types }
+}
+
+export function createArray(elementType) {
+    const type = { name: "array", kind: TypeKind.array, elementType }
+
+    return { type, flags: 0 }
 }
 
 export function isValidType(leftType, rightType) {

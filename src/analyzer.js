@@ -8,7 +8,7 @@ import {
     createFunction,
     createObject,
     createUnion,
-    createVar,
+    createArray,
     Flags,
     isValidType,
     loadCoreTypes,
@@ -20,7 +20,7 @@ function handleVariableDeclarator(ctx, node, flags) {
 
     if (node.init) {
         const initRef = handle[node.init.kind](ctx, node.init, varRef.type)
-        if (!varRef.type) {
+        if (!varRef.type.kind) {
             varRef.type = initRef.type
         } else if (!isValidType(varRef.type, initRef.type)) {
             raiseTypeError(ctx, node.init.start, varRef.type, initRef.type)
@@ -137,9 +137,9 @@ function handleType(ctx, type = null, name = "") {
             return coreTypeAliases.boolean
 
         default: {
-            const coreType = coreTypeAliases[type.value]
+            const coreType = ctx.typeAliases[type.name]
             if (!coreType) {
-                raise(ctx, type.start, `Cannot find name '${type.value}'`)
+                raise(ctx, type.start, `Cannot find name '${type.name}'`)
             }
 
             return coreType
@@ -401,9 +401,13 @@ function handleCallExpression(ctx, node) {
 }
 
 function handleArrayExpression(ctx, node) {
+    let arrayType = null
+
     for (const element of node.elements) {
-        handle[element.kind](ctx, element)
+        const elementRef = handle[element.kind](ctx, element)
     }
+
+    return createArray(arrayType || coreTypeAliases.unknown)
 }
 
 function handleObjectType(ctx, name, node, type) {
@@ -604,7 +608,14 @@ function raise(ctx, node, error) {
 }
 
 function raiseTypeError(ctx, start, leftType, rightType) {
-    raiseAt(ctx, start, `Type '${rightType.name}' is not assignable to type '${leftType.name}'`)
+    let rightTypeName
+    if (rightType.kind === TypeKind.array) {
+        rightTypeName = `${rightType.elementType.name}[]`
+    } else {
+        rightTypeName = rightType.name
+    }
+
+    raiseAt(ctx, start, `Type '${rightTypeName}' is not assignable to type '${leftType.name}'`)
 }
 
 export function analyze({ program, input, fileName }) {
