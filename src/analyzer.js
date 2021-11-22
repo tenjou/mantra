@@ -5,10 +5,12 @@ import {
     coreTypeAliases,
     coreTypeRefs,
     createArg,
+    createRef,
+    createArray,
     createFunction,
     createObject,
     createUnion,
-    createArray,
+    createVar,
     Flags,
     isValidType,
     loadCoreTypes,
@@ -103,7 +105,7 @@ function handleExportNamedDeclaration(ctx, node) {
 
 function handleType(ctx, type = null, name = "") {
     if (!type) {
-        return coreTypeRefs.unknown
+        return name ? createRef(coreTypeAliases.unknown, name) : coreTypeRefs.unknown
     }
 
     switch (type.kind) {
@@ -131,13 +133,13 @@ function handleType(ctx, type = null, name = "") {
         }
 
         case "NumberKeyword":
-            return coreTypeAliases.number
+            return name ? createRef(coreTypeAliases.number, name) : coreTypeRefs.number
 
         case "StringKeyword":
-            return coreTypeAliases.string
+            return name ? createRef(coreTypeAliases.string, name) : coreTypeRefs.string
 
         case "BooleanKeyword":
-            return coreTypeAliases.boolean
+            return name ? createRef(coreTypeAliases.boolean, name) : coreTypeRefs.boolean
 
         default: {
             const coreType = ctx.typeAliases[type.name]
@@ -596,7 +598,7 @@ function declareVar(ctx, name, node, flags, isObject = false) {
 
 function redeclareVar(ctx, varRef, newType) {
     const newVarRef = { type: newType, flags: varRef.flags }
-    ctx.scopeCurr.vars[varRef.type.name] = newVarRef
+    ctx.scopeCurr.vars[varRef.name] = newVarRef
 
     return newVarRef
 }
@@ -647,7 +649,7 @@ export function analyze({ program, input, fileName }) {
         log: createFunction([createArg("data", TypeKind.string)]),
     })
     scope.vars["Error"] = createObject("Error", {
-        // message: createVar()
+        message: createVar(coreTypeAliases.string),
     })
 
     handleStatements(ctx, program.body)

@@ -9,6 +9,7 @@ export const TypeKind = {
     type: 7,
     union: 8,
     void: 9,
+    args: 10,
 }
 
 export const TypeKindNamed = Object.keys(TypeKind)
@@ -25,6 +26,7 @@ export const coreTypeAliases = {
     string: createType("string", TypeKind.string),
     boolean: createType("boolean", TypeKind.boolean),
     void: createType("void", TypeKind.void),
+    args: createType("args", TypeKind.args),
 }
 
 export const coreTypeRefs = {
@@ -47,6 +49,10 @@ export function loadCoreTypes(ctx) {
 
 export function createVar(type) {
     return { type, flags: 0 }
+}
+
+export function createRef(type, name = null) {
+    return { type, flags: 0, name }
 }
 
 export function createObject(name, members = {}) {
