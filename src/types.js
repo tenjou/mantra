@@ -62,7 +62,20 @@ export function createObject(name, members = {}) {
 }
 
 export function createFunction(args, returnType = null) {
-    const type = { name: "function", kind: TypeKind.function, args, argsMin: args.length, returnType }
+    let argsMin = 0
+    let argsMax = 0
+
+    for (let n = 0; n < args.length; n++) {
+        const arg = args[n]
+        if (arg.kind !== TypeKind.args) {
+            argsMin++
+            argsMax++
+        } else {
+            argsMax = Number.MAX_SAFE_INTEGER
+        }
+    }
+
+    const type = { name: "function", kind: TypeKind.function, args, argsMin, argsMax, returnType }
 
     return { type, flags: 0 }
 }

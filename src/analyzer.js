@@ -400,6 +400,9 @@ function handleCallExpression(ctx, node) {
         const argRef = handle[arg.kind](ctx, arg)
         const funcArgType = typeRef.type.args[n]
         if (funcArgType.kind !== argRef.type.kind) {
+            if (funcArgType.kind === TypeKind.args) {
+                break
+            }
             raiseTypeError(ctx, arg.start, funcArgType, argRef.type)
         }
     }
@@ -646,7 +649,7 @@ export function analyze({ program, input, fileName }) {
     scope.vars["Infinity"] = coreTypeRefs.number
     scope.vars["NaN"] = coreTypeRefs.number
     scope.vars["console"] = createObject("Console", {
-        log: createFunction([createArg("data", TypeKind.string)]),
+        log: createFunction([createArg("msg", TypeKind.args)]),
     })
     scope.vars["Error"] = createObject("Error", {
         message: createVar(coreTypeAliases.string),
