@@ -45,16 +45,20 @@ function handleFunctionDeclaration(ctx, node) {
 
     const returnType = handleType(ctx, node.returnType)
     const ref = createFunction([], returnType)
-    func.scope = createScope(ctx.scopeCurr)
+    const func = {
+        ref,
+        scope: createScope(ctx.scopeCurr),
+        node,
+    }
     ctx.scopeCurr.vars[node.id.value] = func
     ctx.scopeCurr = func.scope
 
     for (const param of node.params) {
         switch (param.kind) {
             case "Identifier": {
-                const argVar = declareVar(ctx, param.value, param, 0)
-                type.args.push(argVar.ref.type)
-                type.argsMin++
+                const argRef = declareVar(ctx, param.value, param, 0)
+                ref.type.args.push(argRef.type)
+                ref.type.argsMin++
                 break
             }
 
@@ -80,7 +84,7 @@ function handleFunctionDeclaration(ctx, node) {
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent
-    ctx.scopeCurr.funcDecls.push({ ref, scope: func.scope, node })
+    ctx.scopeCurr.funcDecls.push(func)
 }
 
 function handleImportDeclaration(ctx, node) {
