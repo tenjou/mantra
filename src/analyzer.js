@@ -91,7 +91,7 @@ function handleImportDeclaration(ctx, node) {
     if (node.source.value.charCodeAt(0) === 46) {
         const fileDir = path.dirname(ctx.fileName)
         const fileExt = path.extname(node.source.value)
-        const sourceFileName = fileExt ? node.source.value : `${node.source.value}.js`
+        const sourceFileName = fileExt ? node.source.value : `${node.source.value}.ts`
         const filePath = path.resolve(fileDir, sourceFileName)
         if (!fs.existsSync(filePath)) {
             raise(ctx, node, `Cannot find module '${sourceFileName}' or its corresponding type declarations`)
@@ -99,7 +99,7 @@ function handleImportDeclaration(ctx, node) {
     }
 
     for (const entry of node.specifiers) {
-        declareVar(ctx, entry.imported)
+        declareVar(ctx, entry.imported.value, entry.imported)
     }
 }
 
@@ -589,7 +589,7 @@ function getVar(ctx, value, isObject) {
     return null
 }
 
-function declareVar(ctx, name, node, flags, isObject = false) {
+function declareVar(ctx, name, node, flags = 0, isObject = false) {
     const prevVar = getVar(ctx, name, isObject)
     if (prevVar) {
         raise(ctx, node, `Duplicate identifier '${name}'`)
