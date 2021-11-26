@@ -1,8 +1,10 @@
+import path from "path"
 import { isNewLine } from "./utils.js"
 
 export function raiseAt(ctx, pos, error) {
     const lineInfo = getLineInfo(ctx, pos)
-    throw new SyntaxError(`${error}. ${ctx.fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
+    const fileName = path.relative("./", ctx.filePath)
+    throw new SyntaxError(`${error}. ${fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 }
 
 export function raise(ctx, error) {

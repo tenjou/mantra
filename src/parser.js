@@ -1,3 +1,5 @@
+import fs from "fs"
+import path from "path"
 import { raise, unexpected } from "./error.js"
 import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer.js"
 
@@ -904,6 +906,21 @@ function parseImport(ctx) {
     expectContextual(ctx, "from")
 
     const source = parseExpressionAtom(ctx)
+    if (source.value.charCodeAt(0) === 46) {
+        const fileDir = path.dirname(ctx.filePath)
+        const fileExt = path.extname(source.value)
+        const sourceFileName = fileExt ? source.value : `${source.value}.ts`
+        const filePath = path.resolve(fileDir, sourceFileName)
+        if (!fs.existsSync(filePath)) {
+            raise(ctx, node, `Cannot find module '${sourceFileName}' or its corresponding type declarations`)
+        }
+
+        if (!ctx.modules[filePath]) {
+            const input = fs.readFileSync(filePath, "utf-8")
+            const program = parser(filePath, input, ctx.modules)
+            ctx.modules[filePath] = program
+        }
+    }
 
     return {
         kind: "ImportDeclaration",
@@ -1212,9 +1229,9 @@ function canExportStatement(ctx) {
     return ctx.kind === kinds.function || ctx.kind === kinds.const || ctx.kind === kinds.let
 }
 
-export function parser(fileName, input) {
+export function parser(filePath, input, modules = {}) {
     const ctx = {
-        fileName,
+        filePath,
         input,
         pos: 0,
         start: 0,
@@ -1229,6 +1246,7 @@ export function parser(fileName, input) {
         kind: null,
 
         types: {},
+        modules,
     }
 
     nextToken(ctx)

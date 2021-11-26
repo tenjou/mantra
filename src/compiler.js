@@ -462,9 +462,10 @@ function parseProgram(ctx, program) {
     return result
 }
 
-export function compiler(program) {
+export function compiler(program, modules) {
     const ctx = {
         spaces: "",
+        modules,
     }
 
     return parseProgram(ctx, program)

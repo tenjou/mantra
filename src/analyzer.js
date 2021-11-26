@@ -1,4 +1,3 @@
-import fs from "fs"
 import path from "path"
 import { getLineInfo, raiseAt } from "./error.js"
 import {
@@ -88,16 +87,6 @@ function handleFunctionDeclaration(ctx, node) {
 }
 
 function handleImportDeclaration(ctx, node) {
-    if (node.source.value.charCodeAt(0) === 46) {
-        const fileDir = path.dirname(ctx.fileName)
-        const fileExt = path.extname(node.source.value)
-        const sourceFileName = fileExt ? node.source.value : `${node.source.value}.ts`
-        const filePath = path.resolve(fileDir, sourceFileName)
-        if (!fs.existsSync(filePath)) {
-            raise(ctx, node, `Cannot find module '${sourceFileName}' or its corresponding type declarations`)
-        }
-    }
-
     for (const entry of node.specifiers) {
         declareVar(ctx, entry.imported.value, entry.imported)
     }
@@ -622,7 +611,8 @@ function createScope(parent, node = null) {
 
 function raise(ctx, node, error) {
     const lineInfo = getLineInfo(ctx, node.start)
-    throw new SyntaxError(`${error}. ${ctx.fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
+    const fileName = path.relative("./", ctx.filePath)
+    throw new SyntaxError(`${error}. ${fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 }
 
 function getTypeName(type) {
@@ -637,11 +627,11 @@ function raiseTypeError(ctx, start, leftType, rightType) {
     raiseAt(ctx, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
 }
 
-export function analyze({ program, input, fileName }) {
+export function analyze({ program, modules, filePath }) {
     const scope = createScope(null)
     const ctx = {
-        input,
-        fileName,
+        modules,
+        filePath,
         scope,
         scopeCurr: scope,
         currFuncType: null,
