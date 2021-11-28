@@ -1,13 +1,14 @@
 import path from "path"
 import { getLineInfo, raiseAt } from "./error.js"
+import { getFilePath } from "./file.js"
 import {
     coreTypeAliases,
     coreTypeRefs,
     createArg,
-    createRef,
     createArray,
     createFunction,
     createObject,
+    createRef,
     createUnion,
     createVar,
     Flags,
@@ -89,11 +90,12 @@ function handleFunctionDeclaration(ctx, node) {
 }
 
 function handleImportDeclaration(ctx, node) {
-    const fileExt = path.extname(node.source.value) || ".ts"
-    const filePath = path.resolve(path.dirname(ctx.filePath), node.source.value + fileExt)
+    const filePath = getFilePath(ctx, node.source.value)
 
     if (!ctx.modulesExports[filePath]) {
-        analyze(ctx.modules[filePath], ctx.modules, filePath)
+        const module = ctx.modules[filePath]
+        analyze(module, ctx.modules, filePath)
+        module.order = ctx.module.order + 1
     }
 
     for (const entry of node.specifiers) {
@@ -637,14 +639,13 @@ function raiseTypeError(ctx, start, leftType, rightType) {
     raiseAt(ctx, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
 }
 
-export function analyze(module, modules, filePath) {
+export function analyze(module, modules) {
     const scope = createScope(null)
     const ctx = {
+        module,
         modules,
         modulesExports: {},
         exports: {},
-        input: module.input,
-        filePath,
         scope,
         scopeCurr: scope,
         currFuncType: null,

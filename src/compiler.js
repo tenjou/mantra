@@ -1,3 +1,5 @@
+import { getFilePath } from "./file.js"
+
 function parseFunctionDeclaration(ctx, node) {
     const params = parseFunctionParams(ctx, node.params)
     const body = parse[node.body.kind](ctx, node.body)
@@ -86,7 +88,7 @@ function parseImportSpecifiers(specifiers) {
 function parseImportDeclaration(ctx, node) {
     const specifiers = parseImportSpecifiers(node.specifiers)
     const source = parse[node.source.kind](ctx, node.source)
-    const result = `import ${specifiers} from ${source}`
+    const result = `import ${specifiers} from ${source}\n`
 
     return result
 }
@@ -450,25 +452,44 @@ function parseBlock(ctx, body) {
 }
 
 function parseProgram(ctx, program) {
-    let result = ""
+    let result = "function() {"
+
+    enterBlock(ctx)
 
     for (const node of program.body) {
         const statementResult = parse[node.kind](ctx, node)
         if (statementResult) {
-            result += `${statementResult}\n`
+            result += `\n${ctx.spaces}${statementResult}`
         }
     }
+
+    exitBlock(ctx)
+
+    result += "}()\n\n"
 
     return result
 }
 
-export function compiler(program, modules) {
+function compile(module) {
     const ctx = {
+        module,
         spaces: "",
-        modules,
     }
 
-    return parseProgram(ctx, program)
+    return parseProgram(ctx, module.program)
+}
+
+export function compiler(module, modules) {
+    let result = "window.modules = {}\n\n"
+
+    const modulesToCompile = Object.values(modules).sort((a, b) => a.order - b.order)
+    for (const module of modulesToCompile) {
+        result += compile(module)
+    }
+
+    result += compile(module)
+
+    return result
 }
 
 function enterBlock(ctx) {

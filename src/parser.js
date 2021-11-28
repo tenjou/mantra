@@ -1254,5 +1254,7 @@ export function parser(filePath, input, modules = {}) {
     return {
         program,
         input,
+        filePath,
+        order: 0,
     }
 }
