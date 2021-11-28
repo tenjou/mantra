@@ -3,6 +3,8 @@ import path from "path"
 import { raise, unexpected } from "./error.js"
 import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer.js"
 
+let aliasCounter = 0
+
 function parseIdentifier(ctx) {
     if (ctx.kind !== kinds.name && !ctx.kind.keyword) {
         unexpected(ctx)
@@ -1250,11 +1252,13 @@ export function parser(filePath, input, modules = {}) {
     nextToken(ctx)
 
     const program = parseTopLevel(ctx)
+    const alias = aliasCounter++
 
     return {
         program,
         input,
         filePath,
+        alias,
         order: 0,
     }
 }

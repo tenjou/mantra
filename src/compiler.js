@@ -54,7 +54,7 @@ function parseDeclarations(ctx, decls) {
 
 function parseExportNamedDeclaration(ctx, node) {
     const declaration = parse[node.declaration.kind](ctx, node.declaration)
-    const result = `export ${declaration}`
+    const result = `__module__.isIdentifierChar = ${declaration}`
 
     return result
 }
@@ -87,8 +87,10 @@ function parseImportSpecifiers(specifiers) {
 
 function parseImportDeclaration(ctx, node) {
     const specifiers = parseImportSpecifiers(node.specifiers)
-    const source = parse[node.source.kind](ctx, node.source)
-    const result = `import ${specifiers} from ${source}\n`
+    const filePath = getFilePath(ctx, node.source.value)
+    const module = ctx.modules[filePath]
+
+    const result = `const ${specifiers} = __modules__[${module.alias}]\n`
 
     return result
 }
@@ -451,43 +453,43 @@ function parseBlock(ctx, body) {
     return result
 }
 
-function parseProgram(ctx, program) {
-    let result = "function() {"
+function compile(module, modules, indexModule = false) {
+    const ctx = {
+        module,
+        modules,
+        spaces: "",
+    }
 
     enterBlock(ctx)
 
-    for (const node of program.body) {
+    let result = `;(function() {`
+    if (!indexModule) {
+        result += `\n${ctx.spaces}const __module__ = {}\n`
+    }
+
+    for (const node of module.program.body) {
         const statementResult = parse[node.kind](ctx, node)
         if (statementResult) {
             result += `\n${ctx.spaces}${statementResult}`
         }
     }
 
-    exitBlock(ctx)
+    result += indexModule ? `})()\n\n` : `\n${ctx.spaces}__modules__[${module.alias}] = __module__\n})()\n\n`
 
-    result += "}()\n\n"
+    exitBlock(ctx)
 
     return result
 }
 
-function compile(module) {
-    const ctx = {
-        module,
-        spaces: "",
-    }
-
-    return parseProgram(ctx, module.program)
-}
-
 export function compiler(module, modules) {
-    let result = "window.modules = {}\n\n"
+    let result = "const __modules__ = {}\n\n"
 
     const modulesToCompile = Object.values(modules).sort((a, b) => a.order - b.order)
     for (const module of modulesToCompile) {
-        result += compile(module)
+        result += compile(module, modules)
     }
 
-    result += compile(module)
+    result += compile(module, modules, true)
 
     return result
 }
