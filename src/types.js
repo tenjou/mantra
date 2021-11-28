@@ -61,7 +61,7 @@ export function createObject(name, members = {}) {
     return { type, flags: 0 }
 }
 
-export function createFunction(args, returnType = null) {
+export function createFunction(name, args, returnType = null) {
     let argsMin = 0
     let argsMax = 0
 
@@ -77,7 +77,7 @@ export function createFunction(args, returnType = null) {
 
     const type = { name: "function", kind: TypeKind.function, args, argsMin, argsMax, returnType }
 
-    return { type, flags: 0 }
+    return { name, type, flags: 0 }
 }
 
 export function createArg(name, kind) {

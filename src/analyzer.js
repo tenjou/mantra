@@ -43,7 +43,7 @@ function handleFunctionDeclaration(ctx, node) {
     }
 
     const returnType = handleType(ctx, node.returnType)
-    const ref = createFunction([], returnType)
+    const ref = createFunction(node.id.value, [], returnType)
     const func = {
         ref,
         scope: createScope(ctx.scopeCurr),
@@ -84,16 +84,26 @@ function handleFunctionDeclaration(ctx, node) {
 
     ctx.scopeCurr = ctx.scopeCurr.parent
     ctx.scopeCurr.funcDecls.push(func)
+
+    return func.ref
 }
 
 function handleImportDeclaration(ctx, node) {
+    const fileExt = path.extname(node.source.value) || ".ts"
+    const filePath = path.resolve(path.dirname(ctx.filePath), node.source.value + fileExt)
+
+    if (!ctx.modulesExports[filePath]) {
+        analyze(ctx.modules[filePath], ctx.modules, filePath)
+    }
+
     for (const entry of node.specifiers) {
         declareVar(ctx, entry.imported.value, entry.imported)
     }
 }
 
 function handleExportNamedDeclaration(ctx, node) {
-    handle[node.declaration.kind](ctx, node.declaration)
+    const exportRef = handle[node.declaration.kind](ctx, node.declaration)
+    ctx.exports[exportRef.name] = exportRef.type
 }
 
 function handleType(ctx, type = null, name = "") {
@@ -627,10 +637,13 @@ function raiseTypeError(ctx, start, leftType, rightType) {
     raiseAt(ctx, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
 }
 
-export function analyze({ program, modules, filePath }) {
+export function analyze(module, modules, filePath) {
     const scope = createScope(null)
     const ctx = {
         modules,
+        modulesExports: {},
+        exports: {},
+        input: module.input,
         filePath,
         scope,
         scopeCurr: scope,
@@ -643,13 +656,15 @@ export function analyze({ program, modules, filePath }) {
     scope.vars["Infinity"] = coreTypeRefs.number
     scope.vars["NaN"] = coreTypeRefs.number
     scope.vars["console"] = createObject("Console", {
-        log: createFunction([createArg("msg", TypeKind.args)]),
+        log: createFunction("console", [createArg("msg", TypeKind.args)]),
     })
     scope.vars["Error"] = createObject("Error", {
         message: createVar(coreTypeAliases.string),
     })
 
-    handleStatements(ctx, program.body)
+    handleStatements(ctx, module.program.body)
+
+    return ctx.exports
 }
 
 const handle = {

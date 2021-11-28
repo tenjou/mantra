@@ -907,18 +907,16 @@ function parseImport(ctx) {
 
     const source = parseExpressionAtom(ctx)
     if (source.value.charCodeAt(0) === 46) {
-        const fileDir = path.dirname(ctx.filePath)
-        const fileExt = path.extname(source.value)
-        const sourceFileName = fileExt ? source.value : `${source.value}.ts`
-        const filePath = path.resolve(fileDir, sourceFileName)
+        const fileExt = path.extname(source.value) || ".ts"
+        const filePath = path.resolve(path.dirname(ctx.filePath), source.value + fileExt)
         if (!fs.existsSync(filePath)) {
             raise(ctx, node, `Cannot find module '${sourceFileName}' or its corresponding type declarations`)
         }
 
         if (!ctx.modules[filePath]) {
             const input = fs.readFileSync(filePath, "utf-8")
-            const program = parser(filePath, input, ctx.modules)
-            ctx.modules[filePath] = program
+            const module = parser(filePath, input, ctx.modules)
+            ctx.modules[filePath] = module
         }
     }
 
@@ -1251,6 +1249,10 @@ export function parser(filePath, input, modules = {}) {
 
     nextToken(ctx)
 
-    const result = parseTopLevel(ctx)
-    return result
+    const program = parseTopLevel(ctx)
+
+    return {
+        program,
+        input,
+    }
 }
