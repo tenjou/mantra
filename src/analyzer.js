@@ -92,13 +92,21 @@ function handleFunctionDeclaration(ctx, node) {
 function handleImportDeclaration(ctx, node) {
     const filePath = getFilePath(ctx, node.source.value)
 
-    if (!ctx.modulesExports[filePath]) {
+    let moduleExports = ctx.modulesExports[filePath]
+    if (!moduleExports) {
         const module = ctx.modules[filePath]
-        analyze(module, ctx.modules, filePath)
         module.order = ctx.module.order + 1
+
+        moduleExports = analyze(module, ctx.modules, filePath)
+        ctx.modulesExports[filePath] = moduleExports
     }
 
     for (const entry of node.specifiers) {
+        const entryId = entry.imported.value
+        if (!moduleExports[entryId]) {
+            raiseAt(ctx, entry.start, `Module '"${node.source.value}"' has no exported member '${entry.imported.value}'`)
+        }
+
         declareVar(ctx, entry.imported.value, entry.imported)
     }
 }

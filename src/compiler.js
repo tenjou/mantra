@@ -52,9 +52,20 @@ function parseDeclarations(ctx, decls) {
     return result
 }
 
+function getId(ctx, node) {
+    switch (node.kind) {
+        case "FunctionDeclaration":
+            return node.id.value
+
+        default:
+            raiseAt(ctx, node.start, "Unsupported feature")
+    }
+}
+
 function parseExportNamedDeclaration(ctx, node) {
+    const id = getId(ctx, node.declaration)
     const declaration = parse[node.declaration.kind](ctx, node.declaration)
-    const result = `__module__.isIdentifierChar = ${declaration}`
+    const result = `__module__.${id} = ${declaration}`
 
     return result
 }
