@@ -1,14 +1,19 @@
 import { getFilePath } from "./file.js"
+import { Flags } from "./types.js"
 
-function parseFunctionDeclaration(ctx, node) {
+function parseFunctionDeclaration(ctx, node, flags) {
     const params = parseFunctionParams(ctx, node.params)
     const body = parse[node.body.kind](ctx, node.body)
     const result = `function ${node.id.value}(${params}) ${body}\n`
 
+    if (flags & Flags.Exported) {
+        return `${result}${ctx.spaces}exports.${node.id.value} = ${node.id.value}\n`
+    }
+
     return result
 }
 
-function parseFunctionParams(ctx, params) {
+function parseFunctionParams(ctx, params, flags) {
     let result = ""
     let first = true
 
@@ -27,45 +32,50 @@ function parseFunctionParams(ctx, params) {
     return result
 }
 
-function parseVariableDeclaration(ctx, node) {
-    const decls = parseDeclarations(ctx, node.declarations)
-    const result = `${node.keyword} ${decls}`
+function parseVariableDeclaration(ctx, node, flags) {
+    const decls = parseDeclarations(ctx, node.declarations, flags)
 
+    if (flags & Flags.Exported) {
+        return decls
+    }
+
+    const result = `${node.keyword} ${decls}`
     return result
 }
 
-function parseDeclarations(ctx, decls) {
+function parseDeclarations(ctx, decls, flags) {
     let first = true
-
     let result = ""
-    for (const decl of decls) {
-        const init = decl.init ? ` = ${parse[decl.init.kind](ctx, decl.init)}` : ""
 
-        if (first) {
-            first = false
-            result = `${decl.id.value}${init}`
-        } else {
-            result += `, ${decl.id.value}${init}`
+    if (flags & Flags.Exported) {
+        for (const decl of decls) {
+            const init = decl.init ? ` = ${parse[decl.init.kind](ctx, decl.init)}` : ""
+
+            if (first) {
+                first = false
+                result = `exports.${decl.id.value}${init}`
+            } else {
+                result += `, exports.${decl.id.value}${init}`
+            }
+        }
+    } else {
+        for (const decl of decls) {
+            const init = decl.init ? ` = ${parse[decl.init.kind](ctx, decl.init)}` : ""
+
+            if (first) {
+                first = false
+                result = `${decl.id.value}${init}`
+            } else {
+                result += `, ${decl.id.value}${init}`
+            }
         }
     }
 
     return result
 }
 
-function getId(ctx, node) {
-    switch (node.kind) {
-        case "FunctionDeclaration":
-            return node.id.value
-
-        default:
-            raiseAt(ctx, node.start, "Unsupported feature")
-    }
-}
-
 function parseExportNamedDeclaration(ctx, node) {
-    const id = getId(ctx, node.declaration)
-    const declaration = parse[node.declaration.kind](ctx, node.declaration)
-    const result = `__module__.${id} = ${declaration}`
+    const result = parse[node.declaration.kind](ctx, node.declaration, Flags.Exported)
 
     return result
 }
@@ -475,7 +485,7 @@ function compile(module, modules, indexModule = false) {
 
     let result = `;(function() {`
     if (!indexModule) {
-        result += `\n${ctx.spaces}const __module__ = {}\n`
+        result += `\n${ctx.spaces}const exports = {}\n`
     }
 
     for (const node of module.program.body) {
@@ -485,7 +495,7 @@ function compile(module, modules, indexModule = false) {
         }
     }
 
-    result += indexModule ? `})()\n\n` : `\n${ctx.spaces}__modules__[${module.alias}] = __module__\n})()\n\n`
+    result += indexModule ? `})()\n\n` : `\n\n${ctx.spaces}__modules__[${module.alias}] = exports\n})()\n\n`
 
     exitBlock(ctx)
 

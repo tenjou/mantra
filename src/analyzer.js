@@ -28,17 +28,23 @@ function handleVariableDeclarator(ctx, node, flags) {
             raiseTypeError(ctx, node.init.start, varRef.type, initRef.type)
         }
     }
+
+    if (flags & Flags.Exported) {
+        ctx.exports[varRef.name] = varRef
+    }
 }
 
-function handleVariableDeclaration(ctx, node) {
-    const flags = node.keyword === "const" ? Flags.Const : 0
+function handleVariableDeclaration(ctx, node, flags) {
+    if (node.keyword === "const") {
+        flags |= Flags.Const
+    }
 
     for (const decl of node.declarations) {
         handleVariableDeclarator(ctx, decl, flags)
     }
 }
 
-function handleFunctionDeclaration(ctx, node) {
+function handleFunctionDeclaration(ctx, node, flags) {
     if (getVar(ctx, node.id.value)) {
         raise(ctx, node.id, `Duplicate function implementation '${node.id.value}'`)
     }
@@ -86,6 +92,10 @@ function handleFunctionDeclaration(ctx, node) {
     ctx.scopeCurr = ctx.scopeCurr.parent
     ctx.scopeCurr.funcDecls.push(func)
 
+    if (flags & Flags.Exported) {
+        ctx.exports[func.ref.name] = func.ref
+    }
+
     return func.ref
 }
 
@@ -112,8 +122,7 @@ function handleImportDeclaration(ctx, node) {
 }
 
 function handleExportNamedDeclaration(ctx, node) {
-    const exportRef = handle[node.declaration.kind](ctx, node.declaration)
-    ctx.exports[exportRef.name] = exportRef.type
+    handle[node.declaration.kind](ctx, node.declaration, Flags.Exported)
 }
 
 function handleType(ctx, type = null, name = "") {
