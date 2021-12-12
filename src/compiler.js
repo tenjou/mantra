@@ -5,14 +5,10 @@ import { Flags } from "./types.js"
 
 const mantrLibFileName = "./__mantra__.js"
 
-function parseFunctionDeclaration(ctx, node, flags) {
+function parseFunctionDeclaration(ctx, node) {
     const params = parseFunctionParams(ctx, node.params)
     const body = parse[node.body.kind](ctx, node.body)
     const result = `function ${node.id.value}(${params}) ${body}\n`
-
-    if (flags & Flags.Exported) {
-        return `${result}${ctx.spaces}exports.${node.id.value} = ${node.id.value}\n`
-    }
 
     return result
 }
@@ -36,42 +32,22 @@ function parseFunctionParams(ctx, params) {
     return result
 }
 
-function parseVariableDeclaration(ctx, node, flags) {
-    const decls = parseDeclarations(ctx, node.declarations, flags)
-
-    if (flags & Flags.Exported) {
-        return decls
-    }
-
+function parseVariableDeclaration(ctx, node) {
+    const decls = parseDeclarations(ctx, node.declarations)
     const result = `${node.keyword} ${decls}`
+
     return result
 }
 
-function parseDeclarations(ctx, decls, flags) {
-    let first = true
+function parseDeclarations(ctx, decls) {
     let result = ""
+    for (const decl of decls) {
+        const init = decl.init ? ` = ${parse[decl.init.kind](ctx, decl.init)}` : ""
 
-    if (flags & Flags.Exported) {
-        for (const decl of decls) {
-            const init = decl.init ? ` = ${parse[decl.init.kind](ctx, decl.init)}` : ""
-
-            if (first) {
-                first = false
-                result = `exports.${decl.id.value}${init}`
-            } else {
-                result += `, exports.${decl.id.value}${init}`
-            }
-        }
-    } else {
-        for (const decl of decls) {
-            const init = decl.init ? ` = ${parse[decl.init.kind](ctx, decl.init)}` : ""
-
-            if (first) {
-                first = false
-                result = `${decl.id.value}${init}`
-            } else {
-                result += `, ${decl.id.value}${init}`
-            }
+        if (result) {
+            result += `, ${decl.id.value}${init}`
+        } else {
+            result = `${decl.id.value}${init}`
         }
     }
 
@@ -79,35 +55,10 @@ function parseDeclarations(ctx, decls, flags) {
 }
 
 function parseExportNamedDeclaration(ctx, node) {
-    const result = parse[node.declaration.kind](ctx, node.declaration, Flags.Exported)
+    const declaration = parse[node.declaration.kind](ctx, node.declaration)
+    const result = `export ${declaration}`
 
     return result
-}
-
-function parseImportSpecifiers(specifiers) {
-    let resultDefault = ""
-    let result = ""
-
-    for (const specifier of specifiers) {
-        if (specifier.kind === "ImportDefaultSpecifier") {
-            resultDefault = specifier.imported.value
-            continue
-        }
-
-        const specifierResult = specifier.local ? `${specifier.imported.value} as ${specifier.local.value}` : specifier.imported.value
-
-        if (result) {
-            result += `, ${specifierResult}`
-        } else {
-            result = specifierResult
-        }
-    }
-
-    if (resultDefault && result) {
-        return `${resultDefault}, { ${result} }`
-    }
-
-    return resultDefault || `{ ${result} }`
 }
 
 function parseImportClause(_ctx, importClause) {
