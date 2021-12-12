@@ -95,6 +95,16 @@ export function createArray(elementType) {
     return { type, flags: 0 }
 }
 
+export function createModule(program, input, filePath, alias) {
+    return {
+        program,
+        input,
+        filePath,
+        alias,
+        order: 0,
+    }
+}
+
 export function isValidType(leftType, rightType) {
     if (leftType.kind === TypeKind.union) {
         for (const type of leftType.types) {

@@ -1,8 +1,11 @@
 import path from "path"
 
 export function getFilePath(ctx, sourcePath) {
-    const fileExt = path.extname(sourcePath) || ".ts"
-    const filePath = path.resolve(path.dirname(ctx.module.filePath), sourcePath + fileExt)
+    if (sourcePath.charCodeAt(0) === 46) {
+        const fileExt = path.extname(sourcePath) || ".ts"
+        const filePath = path.resolve(path.dirname(ctx.module.filePath), sourcePath + fileExt)
+        return filePath
+    }
 
-    return filePath
+    return sourcePath
 }

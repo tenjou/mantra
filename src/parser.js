@@ -1,6 +1,7 @@
 import fs from "fs"
 import path from "path"
 import { raise, unexpected } from "./error.js"
+import { createModule } from "./types.js"
 import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer.js"
 
 let aliasCounter = 0
@@ -825,56 +826,6 @@ function parseEmptyStatement(ctx) {
     return node
 }
 
-function parseImportSpecifiers(ctx) {
-    const nodes = []
-
-    if (ctx.kind === kinds.name) {
-        const start = ctx.start
-        const end = ctx.end
-        const imported = parseIdentifier(ctx)
-
-        checkLValue(ctx, imported)
-
-        const node = {
-            kind: "ImportDefaultSpecifier",
-            start,
-            end,
-            imported,
-        }
-        nodes.push(node)
-
-        if (!eat(ctx, kinds.comma)) {
-            return nodes
-        }
-    }
-
-    let first = true
-
-    expect(ctx, kinds.braceL)
-
-    while (!eat(ctx, kinds.braceR)) {
-        if (first) {
-            first = false
-        } else {
-            expect(ctx, kinds.comma)
-        }
-
-        const start = ctx.start
-        const imported = parseIdentifier(ctx)
-
-        nodes.push({
-            kind: "ImportSpecifier",
-            start,
-            end: ctx.end,
-            imported,
-
-            local: null,
-        })
-    }
-
-    return nodes
-}
-
 function parseExport(ctx) {
     const start = ctx.start
 
@@ -898,12 +849,78 @@ function parseExport(ctx) {
     }
 }
 
+function parseImportSpecifiers(ctx) {
+    const specifiers = []
+
+    let first = true
+
+    expect(ctx, kinds.braceL)
+
+    while (!eat(ctx, kinds.braceR)) {
+        if (first) {
+            first = false
+        } else {
+            expect(ctx, kinds.comma)
+        }
+
+        const start = ctx.start
+        const imported = parseIdentifier(ctx)
+
+        specifiers.push({
+            kind: "ImportSpecifier",
+            start,
+            end: ctx.end,
+            imported,
+            local: null,
+        })
+    }
+
+    return specifiers
+}
+
+function parseImportClause(ctx) {
+    const start = ctx.start
+
+    switch (ctx.kind) {
+        case kinds.star: {
+            nextToken(ctx)
+            expectContextual(ctx, "as")
+
+            const name = parseIdentifier(ctx)
+            return {
+                kind: "NamespaceImport",
+                start,
+                end: ctx.end,
+                name,
+            }
+        }
+
+        case kinds.braceL: {
+            const specifiers = parseImportSpecifiers(ctx)
+
+            return {
+                kind: "NamedImports",
+                start,
+                end: ctx.end,
+                specifiers,
+            }
+        }
+    }
+}
+
 function parseImport(ctx) {
     const start = ctx.start
 
     nextToken(ctx)
 
-    const specifiers = parseImportSpecifiers(ctx)
+    let name = null
+
+    if (ctx.kind === kinds.name) {
+        name = parseIdentifier(ctx)
+        eat(ctx, kinds.comma)
+    }
+
+    const importClause = parseImportClause(ctx)
 
     expectContextual(ctx, "from")
 
@@ -926,7 +943,8 @@ function parseImport(ctx) {
         kind: "ImportDeclaration",
         start,
         end: ctx.end,
-        specifiers,
+        importClause,
+        name,
         source,
     }
 }
@@ -1254,11 +1272,5 @@ export function parser(filePath, input, modules = {}) {
     const program = parseTopLevel(ctx)
     const alias = aliasCounter++
 
-    return {
-        program,
-        input,
-        filePath,
-        alias,
-        order: 0,
-    }
+    return createModule(program, input, filePath, alias)
 }

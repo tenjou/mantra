@@ -13,7 +13,7 @@ function parseFunctionDeclaration(ctx, node, flags) {
     return result
 }
 
-function parseFunctionParams(ctx, params, flags) {
+function parseFunctionParams(ctx, params) {
     let result = ""
     let first = true
 
@@ -106,13 +106,37 @@ function parseImportSpecifiers(specifiers) {
     return resultDefault || `{ ${result} }`
 }
 
+function parseImportClause(_ctx, importClause) {
+    let result = ""
+
+    switch (importClause.kind) {
+        case "NamedImports": {
+            for (const specifier of importClause.specifiers) {
+                const specifierResult = specifier.local ? `${specifier.imported.value}: ${specifier.local.value}` : specifier.imported.value
+                if (result) {
+                    result += `, ${specifierResult}`
+                } else {
+                    result = specifierResult
+                }
+            }
+            return `{ ${result} }`
+        }
+    }
+
+    return result
+}
+
 function parseImportDeclaration(ctx, node) {
-    const specifiers = parseImportSpecifiers(node.specifiers)
+    const specifiers = parseImportClause(ctx, node.importClause)
     const filePath = getFilePath(ctx, node.source.value)
+
     const module = ctx.modules[filePath]
+    if (!module.program) {
+        const result = `import ${specifiers} from "${module.alias}"\n`
+        return result
+    }
 
     const result = `const ${specifiers} = __modules__[${module.alias}]\n`
-
     return result
 }
 
@@ -506,8 +530,11 @@ export function compiler(module, modules) {
     let result = "const __modules__ = {}\n\n"
 
     const modulesToCompile = Object.values(modules).sort((a, b) => a.order - b.order)
-    for (const module of modulesToCompile) {
-        result += compile(module, modules)
+    for (const moduleToCompile of modulesToCompile) {
+        if (!moduleToCompile.program) {
+            continue
+        }
+        result += compile(moduleToCompile, modules)
     }
 
     result += compile(module, modules, true)

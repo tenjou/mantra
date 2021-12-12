@@ -7,6 +7,7 @@ import {
     createArg,
     createArray,
     createFunction,
+    createModule,
     createObject,
     createRef,
     createUnion,
@@ -99,6 +100,21 @@ function handleFunctionDeclaration(ctx, node, flags) {
     return func.ref
 }
 
+function handleImportClause(ctx, node, moduleExports) {
+    if (node.kind === "NamedImports") {
+        for (const entry of node.specifiers) {
+            const entryId = entry.imported.value
+            const exportedRef = moduleExports[entryId]
+            if (!exportedRef) {
+                raiseAt(ctx, entry.start, `Module '"${node.source.value}"' has no exported member '${entry.imported.value}'`)
+            }
+
+            const importedRef = moduleExports[entry.imported.value]
+            importVar(ctx, entry.imported.value, importedRef)
+        }
+    }
+}
+
 function handleImportDeclaration(ctx, node) {
     const filePath = getFilePath(ctx, node.source.value)
 
@@ -106,18 +122,18 @@ function handleImportDeclaration(ctx, node) {
     if (!moduleExports) {
         const module = ctx.modules[filePath]
         module.order = ctx.module.order + 1
-
         moduleExports = analyze(module, ctx.modules, filePath)
         ctx.modulesExports[filePath] = moduleExports
     }
 
-    for (const entry of node.specifiers) {
-        const entryId = entry.imported.value
-        if (!moduleExports[entryId]) {
-            raiseAt(ctx, entry.start, `Module '"${node.source.value}"' has no exported member '${entry.imported.value}'`)
+    if (node.name) {
+        if (!moduleExports.defauls) {
+            raiseAt(ctx, node.name, `Module '"${filePath}"' has no default export.`)
         }
+    }
 
-        declareVar(ctx, entry.imported.value, entry.imported)
+    if (node.importClause) {
+        handleImportClause(ctx, node.importClause, moduleExports)
     }
 }
 
@@ -607,6 +623,15 @@ function getVar(ctx, value, isObject) {
     return null
 }
 
+function importVar(ctx, name, ref) {
+    const prevVar = getVar(ctx, name, false)
+    if (prevVar) {
+        raise(ctx, node, `Duplicate identifier '${name}'`)
+    }
+
+    ctx.scopeCurr.vars[name] = ref
+}
+
 function declareVar(ctx, name, node, flags = 0, isObject = false) {
     const prevVar = getVar(ctx, name, isObject)
     if (prevVar) {
@@ -656,6 +681,11 @@ function raiseTypeError(ctx, start, leftType, rightType) {
     raiseAt(ctx, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
 }
 
+function declareModule(ctx, alias, refs) {
+    ctx.modules[alias] = createModule(null, "", "", alias)
+    ctx.modulesExports[alias] = refs
+}
+
 export function analyze(module, modules) {
     const scope = createScope(null)
     const ctx = {
@@ -678,6 +708,10 @@ export function analyze(module, modules) {
     })
     scope.vars["Error"] = createObject("Error", {
         message: createVar(coreTypeAliases.string),
+    })
+
+    declareModule(ctx, "fs", {
+        readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),
     })
 
     handleStatements(ctx, module.program.body)
