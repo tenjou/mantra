@@ -3,6 +3,8 @@ import * as path from "path"
 import { getFilePath } from "./file.js"
 import { Flags } from "./types.js"
 
+const mantrLibFileName = "./__mantra__.js"
+
 function parseFunctionDeclaration(ctx, node, flags) {
     const params = parseFunctionParams(ctx, node.params)
     const body = parse[node.body.kind](ctx, node.body)
@@ -507,25 +509,23 @@ function compile(module, modules, config, indexModule = false) {
         spaces: "",
     }
 
-    enterBlock(ctx)
-
-    let result = `;(function() {`
-    if (!indexModule) {
-        result += `\n${ctx.spaces}const exports = {}\n`
-    }
+    let result = indexModule ? `import "${mantrLibFileName}"\n\n` : ""
 
     for (const node of module.program.body) {
         const statementResult = parse[node.kind](ctx, node)
         if (statementResult) {
-            result += `\n${ctx.spaces}${statementResult}`
+            result += `${ctx.spaces}${statementResult}`
         }
     }
 
-    result += indexModule ? `})()\n\n` : `\n\n${ctx.spaces}__modules__[${module.alias}] = exports\n})()\n\n`
+    const fileName = path.parse(module.filePath).name
+    const dirName = path.dirname(module.filePath)
+    const pathRelative = path.relative(config.rootDir, `${dirName}/${fileName}.js`)
+    const targetPath = path.resolve(config.outDir, pathRelative)
 
     exitBlock(ctx)
 
-    return result
+    fs.writeFileSync(targetPath, result)
 }
 
 export function compiler(module, modules, config) {
@@ -535,19 +535,19 @@ export function compiler(module, modules, config) {
     }
     fs.mkdirSync(outPath, { recursive: true })
 
-    let result = "const __modules__ = {}\n\n"
+    const mantraLibResult = "global.__modules__ = {}\n\n"
+    const mantraLibFilePath = path.resolve(config.outDir, mantrLibFileName)
+    fs.writeFileSync(mantraLibFilePath, mantraLibResult)
 
     const modulesToCompile = Object.values(modules).sort((a, b) => a.order - b.order)
     for (const moduleToCompile of modulesToCompile) {
         if (!moduleToCompile.program) {
             continue
         }
-        result += compile(moduleToCompile, modules, config, false)
+        compile(moduleToCompile, modules, config, false)
     }
 
-    result += compile(module, modules, config, true)
-
-    return result
+    compile(module, modules, config, true)
 }
 
 function enterBlock(ctx) {
