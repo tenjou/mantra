@@ -455,7 +455,7 @@ function compile(module, modules, config, indexModule = false) {
         spaces: "",
     }
 
-    let result = indexModule ? `import "${mantrLibFileName}"\n\n` : ""
+    let result = indexModule ? `"use strict"\n\nimport "${mantrLibFileName}"\n\n` : `"use strict"\n\n`
 
     for (const node of module.program.body) {
         const statementResult = parse[node.kind](ctx, node)
