@@ -117,13 +117,13 @@ function handleImportClause(ctx, node, moduleExports) {
 }
 
 function handleImportDeclaration(ctx, node) {
-    const filePath = getFilePath(ctx, node.source.value)
+    const filePath = getFilePath(ctx.module.fileDir, node.source.value)
 
     let moduleExports = ctx.modulesExports[filePath]
     if (!moduleExports) {
         const module = ctx.modules[filePath]
         module.order = ctx.module.order + 1
-        moduleExports = analyze(module, ctx.modules, filePath)
+        moduleExports = analyze(ctx.config, module, ctx.modules)
         ctx.modulesExports[filePath] = moduleExports
     }
 
@@ -685,13 +685,14 @@ function raiseTypeError(ctx, start, leftType, rightType) {
 }
 
 function declareModule(ctx, alias, refs) {
-    ctx.modules[alias] = createModule(null, "", "", alias)
+    ctx.modules[alias] = createModule(null, "", "", "", alias)
     ctx.modulesExports[alias] = refs
 }
 
-export function analyze(module, modules) {
+export function analyze(config, module, modules) {
     const scope = createScope(null)
     const ctx = {
+        config,
         module,
         modules,
         modulesExports: {},

@@ -83,9 +83,10 @@ function parseImportClause(_ctx, importClause) {
 
 function parseImportDeclaration(ctx, node) {
     const specifiers = parseImportClause(ctx, node.importClause)
-    const filePath = getFilePath(ctx, node.source.value)
+    const filePath = getFilePath(ctx.module.fileDir, node.source.value)
     const module = ctx.modules[filePath]
-    const result = `import ${specifiers} from "${module.alias}"\n`
+    const importPath = module.program ? `${node.source.value}.js` : filePath
+    const result = `import ${specifiers} from "${importPath}"\n`
 
     return result
 }
@@ -448,7 +449,7 @@ function parseBlock(ctx, body) {
     return result
 }
 
-function compile(module, modules, config, indexModule = false) {
+function compile(config, module, modules, indexModule = false) {
     const ctx = {
         module,
         modules,
@@ -464,17 +465,14 @@ function compile(module, modules, config, indexModule = false) {
         }
     }
 
-    const fileName = path.parse(module.filePath).name
-    const dirName = path.dirname(module.filePath)
-    const pathRelative = path.relative(config.rootDir, `${dirName}/${fileName}.js`)
-    const targetPath = path.resolve(config.outDir, pathRelative)
+    const fileName = path.parse(module.fileName).name
+    const targetPath = path.resolve(config.outDir, `${fileName}.js`)
+    fs.writeFileSync(targetPath, result)
 
     exitBlock(ctx)
-
-    fs.writeFileSync(targetPath, result)
 }
 
-export function compiler(module, modules, config) {
+export function compiler(config, module, modules) {
     const outPath = path.resolve("./", config.outDir)
     if (fs.existsSync(outPath)) {
         fs.rmdirSync(outPath, { recursive: true })
@@ -490,10 +488,10 @@ export function compiler(module, modules, config) {
         if (!moduleToCompile.program) {
             continue
         }
-        compile(moduleToCompile, modules, config, false)
+        compile(config, moduleToCompile, modules, false)
     }
 
-    compile(module, modules, config, true)
+    compile(config, module, modules, true)
 }
 
 function enterBlock(ctx) {

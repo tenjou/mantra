@@ -96,11 +96,12 @@ export function createArray(elementType) {
     return { type, flags: 0 }
 }
 
-export function createModule(program, input, filePath, alias) {
+export function createModule(program, fileDir, fileName, input, alias) {
     return {
         program,
+        fileDir,
+        fileName,
         input,
-        filePath,
         alias,
         order: 0,
     }

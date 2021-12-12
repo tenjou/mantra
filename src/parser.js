@@ -927,15 +927,15 @@ function parseImport(ctx) {
     const source = parseExpressionAtom(ctx)
     if (source.value.charCodeAt(0) === 46) {
         const fileExt = path.extname(source.value) || ".ts"
-        const filePath = path.resolve(path.dirname(ctx.filePath), source.value + fileExt)
-        if (!fs.existsSync(filePath)) {
-            raise(ctx, node, `Cannot find module '${sourceFileName}' or its corresponding type declarations`)
+        const filePath = path.relative("./", `${source.value}${fileExt}`)
+        const fullFilePath = path.resolve(ctx.config.rootDir, filePath)
+        if (!fs.existsSync(fullFilePath)) {
+            raise(ctx, node, `Cannot find module '${fullFilePath}' or its corresponding type declarations`)
         }
 
         if (!ctx.modules[filePath]) {
-            const input = fs.readFileSync(filePath, "utf-8")
-            const module = parser(filePath, input, ctx.modules)
-            ctx.modules[filePath] = module
+            const module = parser(ctx.config, filePath, ctx.modules)
+            ctx.modules[module.fileName] = module
         }
     }
 
@@ -1247,9 +1247,16 @@ function canExportStatement(ctx) {
     return ctx.kind === kinds.function || ctx.kind === kinds.const || ctx.kind === kinds.let
 }
 
-export function parser(filePath, input, modules = {}) {
+export function parser(config, srcFileName, modules = {}) {
+    const fileDir = path.relative("./", path.dirname(srcFileName))
+    const fileName = path.relative("./", srcFileName)
+    const filePath = path.resolve(`${config.rootDir}/${fileDir}`, fileName)
+    const input = fs.readFileSync(filePath, "utf8")
+
     const ctx = {
-        filePath,
+        config,
+        fileDir,
+        fileName,
         input,
         pos: 0,
         start: 0,
@@ -1272,5 +1279,5 @@ export function parser(filePath, input, modules = {}) {
     const program = parseTopLevel(ctx)
     const alias = aliasCounter++
 
-    return createModule(program, input, filePath, alias)
+    return createModule(program, fileDir, fileName, input, alias)
 }
