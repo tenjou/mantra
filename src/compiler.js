@@ -1,3 +1,5 @@
+import * as fs from "fs"
+import * as path from "path"
 import { getFilePath } from "./file.js"
 import { Flags } from "./types.js"
 
@@ -498,7 +500,7 @@ function parseBlock(ctx, body) {
     return result
 }
 
-function compile(module, modules, indexModule = false) {
+function compile(module, modules, config, indexModule = false) {
     const ctx = {
         module,
         modules,
@@ -526,7 +528,13 @@ function compile(module, modules, indexModule = false) {
     return result
 }
 
-export function compiler(module, modules) {
+export function compiler(module, modules, config) {
+    const outPath = path.resolve("./", config.outDir)
+    if (fs.existsSync(outPath)) {
+        fs.rmdirSync(outPath, { recursive: true })
+    }
+    fs.mkdirSync(outPath, { recursive: true })
+
     let result = "const __modules__ = {}\n\n"
 
     const modulesToCompile = Object.values(modules).sort((a, b) => a.order - b.order)
@@ -534,10 +542,10 @@ export function compiler(module, modules) {
         if (!moduleToCompile.program) {
             continue
         }
-        result += compile(moduleToCompile, modules)
+        result += compile(moduleToCompile, modules, config, false)
     }
 
-    result += compile(module, modules, true)
+    result += compile(module, modules, config, true)
 
     return result
 }
