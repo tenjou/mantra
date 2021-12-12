@@ -133,14 +133,9 @@ function parseImportClause(_ctx, importClause) {
 function parseImportDeclaration(ctx, node) {
     const specifiers = parseImportClause(ctx, node.importClause)
     const filePath = getFilePath(ctx, node.source.value)
-
     const module = ctx.modules[filePath]
-    if (!module.program) {
-        const result = `import ${specifiers} from "${module.alias}"\n`
-        return result
-    }
+    const result = `import ${specifiers} from "${module.alias}"\n`
 
-    const result = `const ${specifiers} = __modules__[${module.alias}]\n`
     return result
 }
 

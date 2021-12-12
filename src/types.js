@@ -36,6 +36,7 @@ export const coreTypeRefs = {
     string: { type: coreTypeAliases.string, flags: 0 },
     boolean: { type: coreTypeAliases.boolean, flags: 0 },
     void: { type: coreTypeAliases.void, flags: 0 },
+    args: { type: coreTypeAliases.args, flags: 0 },
 }
 
 export function createType(name, kind) {
@@ -81,8 +82,8 @@ export function createFunction(name, args, returnType = null) {
     return { name, type, flags: 0 }
 }
 
-export function createArg(name, kind) {
-    return { name, kind }
+export function createArg(name, type) {
+    return { name, type, flags: 0 }
 }
 
 export function createUnion(name, types) {

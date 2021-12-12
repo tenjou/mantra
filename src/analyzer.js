@@ -64,8 +64,9 @@ function handleFunctionDeclaration(ctx, node, flags) {
         switch (param.kind) {
             case "Identifier": {
                 const argRef = declareVar(ctx, param.value, param, 0)
-                ref.type.args.push(argRef.type)
+                ref.type.args.push(argRef)
                 ref.type.argsMin++
+                ref.type.argsMax++
                 break
             }
 
@@ -75,7 +76,7 @@ function handleFunctionDeclaration(ctx, node, flags) {
                 if (argVar.type.kind !== rightType.kind) {
                     raiseTypeError(ctx, param.right.start, argVar.type, rightType)
                 }
-                type.args.push(argVar.type)
+                type.args.push(argVar)
                 break
             }
 
@@ -303,9 +304,9 @@ function handleReturnStatement(ctx, node) {
         returnRef = coreTypeRefs.void
     }
 
-    if (!ctx.currFuncType.returnType.kind) {
-        ctx.currFuncType.returnType = returnRef.type
-    } else if (ctx.currFuncType.returnType.kind !== returnRef.type.kind) {
+    if (!ctx.currFuncType.returnType.type.kind) {
+        ctx.currFuncType.returnType = returnRef
+    } else if (ctx.currFuncType.returnType.type.kind !== returnRef.type.kind) {
         raiseTypeError(ctx, node.start, ctx.currFuncType.returnType, returnRef.type)
     }
 }
@@ -437,13 +438,15 @@ function handleCallExpression(ctx, node) {
         const arg = node.arguments[n]
         const argRef = handle[arg.kind](ctx, arg)
         const funcArgType = typeRef.type.args[n]
-        if (funcArgType.kind !== argRef.type.kind) {
-            if (funcArgType.kind === TypeKind.args) {
+        if (funcArgType.type.kind !== argRef.type.kind) {
+            if (funcArgType.type.kind === TypeKind.args) {
                 break
             }
             raiseTypeError(ctx, arg.start, funcArgType, argRef.type)
         }
     }
+
+    return typeRef.type.returnType
 }
 
 function handleArrayExpression(ctx, node) {
@@ -704,7 +707,7 @@ export function analyze(module, modules) {
     scope.vars["Infinity"] = coreTypeRefs.number
     scope.vars["NaN"] = coreTypeRefs.number
     scope.vars["console"] = createObject("Console", {
-        log: createFunction("console", [createArg("msg", TypeKind.args)]),
+        log: createFunction("console", [createArg("msg", coreTypeAliases.args)]),
     })
     scope.vars["Error"] = createObject("Error", {
         message: createVar(coreTypeAliases.string),
