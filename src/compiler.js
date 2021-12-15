@@ -40,7 +40,15 @@ function parseEnumDeclaration(ctx, node) {
     let members = ""
 
     switch (node.type) {
-        case TypeKind.number: {
+        case TypeKind.string: {
+            for (const member of node.members) {
+                const memberName = parseIdentifier(ctx, member.name)
+                members += `${ctx.spaces}${memberName}: "${member.initializer.value}",\n`
+            }
+            break
+        }
+
+        default: {
             let index = 0
             for (const member of node.members) {
                 const memberName = parseIdentifier(ctx, member.name)
@@ -50,10 +58,6 @@ function parseEnumDeclaration(ctx, node) {
                 members += `${ctx.spaces}${memberName}: ${index},\n`
                 index++
             }
-            break
-        }
-
-        default: {
             break
         }
     }
@@ -494,7 +498,7 @@ function compile(config, module, modules, indexModule = false) {
     for (const node of module.program.body) {
         const statementResult = parse[node.kind](ctx, node)
         if (statementResult) {
-            result += `${ctx.spaces}${statementResult}`
+            result += `${ctx.spaces}${statementResult}\n`
         }
     }
 

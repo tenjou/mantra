@@ -202,8 +202,10 @@ function getEnumType(ctx, members) {
         switch (member.initializer.kind) {
             case "NumericLiteral":
                 return TypeKind.number
-            case "StringLiteral":
+
+            case "Literal":
                 return TypeKind.string
+
             default:
                 raiseAt(ctx.module, member.initializer.start, `Enums can only have numeric or string values`)
         }
@@ -217,6 +219,14 @@ function handleEnumDeclaration(ctx, node) {
 
     switch (node.type) {
         case TypeKind.string:
+            for (const member of node.members) {
+                if (!member.initializer) {
+                    raiseAt(ctx.module, member.start, `Enum member must have initializer`)
+                }
+                if (member.initializer.kind !== "Literal") {
+                    raiseAt(ctx.module, member.initializer.start, `String literal enums can only have literal values`)
+                }
+            }
             break
 
         default: {
