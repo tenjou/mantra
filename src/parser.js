@@ -1,8 +1,8 @@
 import fs from "fs"
 import path from "path"
 import { raise, unexpected } from "./error.js"
-import { createModule } from "./types.js"
 import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer.js"
+import { createModule, TypeKind } from "./types.js"
 
 let aliasCounter = 0
 
@@ -432,6 +432,8 @@ function parseStatement(ctx) {
             return parseImport(ctx)
         case kinds.type:
             return parseTypeAliasDeclaration(ctx)
+        case kinds.enum:
+            return parseEnum(ctx)
     }
 
     const startKind = ctx.kind
@@ -1040,6 +1042,46 @@ function parseTypeAliasDeclaration(ctx) {
     }
 }
 
+function parseEnumMember(ctx) {
+    const start = ctx.start
+    const name = parseIdentifier(ctx)
+    const initializer = eat(ctx, kinds.assign) ? parseExpressionAtom(ctx) : null
+
+    return {
+        kind: "EnumMember",
+        start,
+        end: ctx.end,
+        name,
+        initializer,
+    }
+}
+
+function parseEnum(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+    const name = parseIdentifier(ctx)
+
+    expect(ctx, kinds.braceL)
+
+    const members = []
+    while (!eat(ctx, kinds.braceR)) {
+        const member = parseEnumMember(ctx)
+        members.push(member)
+
+        expect(ctx, kinds.comma)
+    }
+
+    return {
+        kind: "EnumDeclaration",
+        start,
+        end: ctx.end,
+        name,
+        members,
+        type: TypeKind.unknown,
+    }
+}
+
 function parseThrowStatement(ctx) {
     const start = ctx.start
 
@@ -1244,7 +1286,7 @@ function checkLValue(ctx, node) {
 }
 
 function canExportStatement(ctx) {
-    return ctx.kind === kinds.function || ctx.kind === kinds.const || ctx.kind === kinds.let
+    return ctx.kind === kinds.function || ctx.kind === kinds.const || ctx.kind === kinds.let || ctx.kind === kinds.enum
 }
 
 export function parser(config, srcFileName, modules = {}) {

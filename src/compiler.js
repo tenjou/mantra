@@ -1,7 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
+import { TypeKind } from "./types.js"
 import { getFilePath } from "./file.js"
-import { Flags } from "./types.js"
 
 const mantrLibFileName = "./__mantra__.js"
 
@@ -28,6 +28,39 @@ function parseFunctionParams(ctx, params) {
 
         result += `, ${paramResult}`
     }
+
+    return result
+}
+
+function parseEnumDeclaration(ctx, node) {
+    const name = parseIdentifier(ctx, node.name)
+
+    enterBlock(ctx)
+
+    let members = ""
+
+    switch (node.type) {
+        case TypeKind.number: {
+            let index = 0
+            for (const member of node.members) {
+                const memberName = parseIdentifier(ctx, member.name)
+                if (member.initializer) {
+                    index = parseInt(member.initializer.value, 10)
+                }
+                members += `${ctx.spaces}${memberName}: ${index},\n`
+                index++
+            }
+            break
+        }
+
+        default: {
+            break
+        }
+    }
+
+    exitBlock(ctx)
+
+    const result = `const ${name} = {\n${members}}`
 
     return result
 }
@@ -103,8 +136,8 @@ function parseIfStatement(ctx, node) {
     const test = parse[node.test.kind](ctx, node.test)
     const consequent = parse[node.consequent.kind](ctx, node.consequent)
     const alternate = node.alternate ? parse[node.alternate.kind](ctx, node.alternate) : null
-    let result = `if(${test}) ${consequent}`
 
+    let result = `if(${test}) ${consequent}`
     if (alternate) {
         result += ` else ${alternate}`
     }
@@ -504,6 +537,7 @@ function exitBlock(ctx) {
 
 const parse = {
     TypeAliasDeclaration: parseNoop,
+    EnumDeclaration: parseEnumDeclaration,
     VariableDeclaration: parseVariableDeclaration,
     FunctionDeclaration: parseFunctionDeclaration,
     ExportNamedDeclaration: parseExportNamedDeclaration,

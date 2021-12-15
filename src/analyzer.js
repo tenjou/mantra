@@ -191,6 +191,48 @@ function handleType(ctx, type = null, name = "") {
     }
 }
 
+function getEnumType(ctx, members) {
+    let enumType = TypeKind.unknown
+
+    for (const member of members) {
+        if (!member.initializer) {
+            continue
+        }
+
+        switch (member.initializer.kind) {
+            case "NumericLiteral":
+                return TypeKind.number
+            case "StringLiteral":
+                return TypeKind.string
+            default:
+                raiseAt(ctx.module, member.initializer.start, `Enums can only have numeric or string values`)
+        }
+    }
+
+    return enumType || TypeKind.number
+}
+
+function handleEnumDeclaration(ctx, node) {
+    node.type = getEnumType(ctx, node.members)
+
+    switch (node.type) {
+        case TypeKind.string:
+            break
+
+        default: {
+            for (const member of node.members) {
+                if (!member.initializer) {
+                    continue
+                }
+                if (member.initializer.kind !== "NumericLiteral") {
+                    raiseAt(ctx.module, member.initializer.start, `Numeric enums can only have numeric values`)
+                }
+            }
+            break
+        }
+    }
+}
+
 function handleTypeAliasDeclaration(ctx, node) {
     if (ctx.typeAliases[node.id]) {
         raise(ctx, node, `Type alias name cannot be '${node.id}'`)
@@ -724,6 +766,7 @@ export function analyze(config, module, modules) {
 }
 
 const handle = {
+    EnumDeclaration: handleEnumDeclaration,
     TypeAliasDeclaration: handleTypeAliasDeclaration,
     VariableDeclaration: handleVariableDeclaration,
     FunctionDeclaration: handleFunctionDeclaration,

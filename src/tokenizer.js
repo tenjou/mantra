@@ -507,4 +507,5 @@ export const kinds = {
     import: createKeyword("import"),
     export: createKeyword("export"),
     type: createKeyword("type"),
+    enum: createKeyword("enum"),
 }
