@@ -183,7 +183,7 @@ function handleType(ctx, type = null, name = "") {
         default: {
             const coreType = ctx.typeAliases[type.name]
             if (!coreType) {
-                raise(ctx, type.start, `Cannot find name '${type.name}'`)
+                raiseAt(ctx.module, type.start, `Cannot find name '${type.name}'`)
             }
 
             return coreType
@@ -217,6 +217,10 @@ function getEnumType(ctx, members) {
 function handleEnumDeclaration(ctx, node) {
     node.type = getEnumType(ctx, node.members)
 
+    ctx.scopeCurr = createScope(ctx.scopeCurr, node)
+
+    const members = {}
+
     switch (node.type) {
         case TypeKind.string:
             for (const member of node.members) {
@@ -226,21 +230,34 @@ function handleEnumDeclaration(ctx, node) {
                 if (member.initializer.kind !== "Literal") {
                     raiseAt(ctx.module, member.initializer.start, `String literal enums can only have literal values`)
                 }
+
+                if (members[member.name.value]) {
+                    raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
+                }
+
+                members[member.name.value] = createRef(TypeKind.string, member.name.value)
             }
             break
 
         default: {
             for (const member of node.members) {
-                if (!member.initializer) {
-                    continue
+                if (member.initializer) {
+                    if (member.initializer.kind !== "NumericLiteral") {
+                        raiseAt(ctx.module, member.initializer.start, `Numeric enums can only have numeric values`)
+                    }
                 }
-                if (member.initializer.kind !== "NumericLiteral") {
-                    raiseAt(ctx.module, member.initializer.start, `Numeric enums can only have numeric values`)
+
+                if (members[member.name.value]) {
+                    raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
                 }
+
+                members[member.name.value] = createRef(TypeKind.number, member.name.value)
             }
             break
         }
     }
+
+    ctx.scope.vars[node.name.value] = createObject(node.name.value, members)
 }
 
 function handleTypeAliasDeclaration(ctx, node) {
@@ -596,7 +613,7 @@ function handleObjectExpression(ctx, node, type = null) {
 function handleIdentifier(ctx, node) {
     const identifier = getVar(ctx, node.value)
     if (!identifier) {
-        raise(ctx, node, `Cannot find name '${node.value}'`)
+        raiseAt(ctx.module, node.start, `Cannot find name '${node.value}'`)
     }
 
     return identifier
@@ -764,6 +781,9 @@ export function analyze(config, module, modules) {
     })
     scope.vars["Error"] = createObject("Error", {
         message: createVar(coreTypeAliases.string),
+    })
+    scope.vars["Object"] = createObject("Object", {
+        keys: createFunction("keys", [createArg("o", coreTypeAliases.object)], createArray(coreTypeAliases.string)),
     })
 
     declareModule(ctx, "fs", {

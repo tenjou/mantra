@@ -27,6 +27,7 @@ export const coreTypeAliases = {
     string: createType("string", TypeKind.string),
     boolean: createType("boolean", TypeKind.boolean),
     void: createType("void", TypeKind.void),
+    object: createType("object", TypeKind.object),
     args: createType("args", TypeKind.args),
 }
 
