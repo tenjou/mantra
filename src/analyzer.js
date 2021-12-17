@@ -257,7 +257,9 @@ function handleEnumDeclaration(ctx, node) {
         }
     }
 
-    ctx.scope.vars[node.name.value] = createObject(node.name.value, members)
+    const enumVar = createObject(node.name.value, members)
+    ctx.scope.vars[node.name.value] = enumVar
+    ctx.typeAliases[enumVar.type.name] = enumVar.type
 }
 
 function handleTypeAliasDeclaration(ctx, node) {

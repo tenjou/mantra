@@ -961,31 +961,40 @@ function parseTypeAnnotationEntry(ctx) {
     }
 
     const start = ctx.start
-
-    let kind
-    switch (ctx.value) {
-        case "number":
-            kind = "NumberKeyword"
-            break
-        case "string":
-            kind = "StringKeyword"
-            break
-        case "boolean":
-            kind = "BooleanKeyword"
-            break
-        default:
-            unexpected(ctx)
-    }
-
-    const node = {
-        kind,
-        start,
-        end: ctx.end,
-    }
+    const value = ctx.value
 
     nextToken(ctx)
 
-    return node
+    switch (value) {
+        case "number":
+            return {
+                kind: value,
+                start,
+                end: ctx.endLast,
+            }
+
+        case "string":
+            return {
+                kind: "StringKeyword",
+                start,
+                end: ctx.endLast,
+            }
+
+        case "boolean":
+            return {
+                kind: "BooleanKeyword",
+                start,
+                end: ctx.endLast,
+            }
+
+        default:
+            return {
+                kind: "TypeReference",
+                start,
+                end: ctx.endLast,
+                name: value,
+            }
+    }
 }
 
 function parseTypeAnnotation(ctx) {
