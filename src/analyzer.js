@@ -52,13 +52,10 @@ function handleFunctionDeclaration(ctx, node, flags) {
 
     const returnType = handleType(ctx, node.returnType)
     const ref = createFunction(node.id.value, [], returnType)
-    const func = {
-        ref,
-        scope: createScope(ctx.scopeCurr),
-        node,
-    }
-    ctx.scopeCurr.vars[node.id.value] = func
-    ctx.scopeCurr = func.scope
+    const scope = createScope(ctx.scopeCurr)
+
+    ctx.scopeCurr.vars[node.id.value] = ref
+    ctx.scopeCurr = scope
 
     for (const param of node.params) {
         switch (param.kind) {
@@ -92,13 +89,17 @@ function handleFunctionDeclaration(ctx, node, flags) {
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent
-    ctx.scopeCurr.funcDecls.push(func)
+    ctx.scopeCurr.funcDecls.push({
+        ref,
+        scope,
+        node,
+    })
 
     if (flags & Flags.Exported) {
-        ctx.exports[func.ref.name] = func.ref
+        ctx.exports[ref.name] = ref
     }
 
-    return func.ref
+    return ref
 }
 
 function handleImportClause(ctx, node, moduleExports) {
