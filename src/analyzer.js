@@ -521,7 +521,7 @@ function handleCallExpression(ctx, node) {
         const funcArgRef = typeRef.type.args[n]
 
         if (funcArgRef.type.kind === TypeKind.enum) {
-            if (argRef.type.kind === TypeKind.args) {
+            if (funcArgRef.type.kind === TypeKind.args) {
                 break
             }
             if (funcArgRef.type.enumType !== argRef.type.kind) {
@@ -533,7 +533,7 @@ function handleCallExpression(ctx, node) {
                 raiseAt(ctx.module, arg.start, `Argument '${value}' is not assignable to parameter of type '${typeRef.name}'`)
             }
         } else if (funcArgRef.type.kind !== argRef.kind) {
-            if (argRef.type.kind === TypeKind.args) {
+            if (funcArgRef.type.kind === TypeKind.args) {
                 break
             }
             raiseTypeError(ctx, arg.start, funcArgRef.type, argRef.type)
