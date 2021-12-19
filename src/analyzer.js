@@ -6,6 +6,7 @@ import {
     coreTypeRefs,
     createArg,
     createArray,
+    createEnum,
     createFunction,
     createModule,
     createObject,
@@ -216,13 +217,14 @@ function getEnumType(ctx, members) {
 }
 
 function handleEnumDeclaration(ctx, node) {
-    node.type = getEnumType(ctx, node.members)
+    const contentType = getEnumType(ctx, node.members)
 
     ctx.scopeCurr = createScope(ctx.scopeCurr, node)
 
     const members = {}
+    const values = {}
 
-    switch (node.type) {
+    switch (contentType) {
         case TypeKind.string:
             for (const member of node.members) {
                 if (!member.initializer) {
@@ -236,11 +238,13 @@ function handleEnumDeclaration(ctx, node) {
                     raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
                 }
 
-                members[member.name.value] = createRef(TypeKind.string, member.name.value)
+                members[member.name.value] = createRef(coreTypeAliases.string, member.name.value)
+                values[member.initializer.value] = true
             }
             break
 
         default: {
+            let index = 0
             for (const member of node.members) {
                 if (member.initializer) {
                     if (member.initializer.kind !== "NumericLiteral") {
@@ -252,13 +256,18 @@ function handleEnumDeclaration(ctx, node) {
                     raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
                 }
 
-                members[member.name.value] = createRef(TypeKind.number, member.name.value)
+                if (member.initializer) {
+                    index = member.initializer.value
+                }
+
+                members[member.name.value] = createRef(coreTypeAliases.number, member.name.value)
+                values[index++] = true
             }
             break
         }
     }
 
-    const enumVar = createObject(node.name.value, members)
+    const enumVar = createEnum(node.name.value, contentType, members, values)
     ctx.scope.vars[node.name.value] = enumVar
     ctx.typeAliases[enumVar.type.name] = enumVar.type
 }
@@ -465,17 +474,17 @@ function handleBinaryExpression(ctx, node) {
 
 function handleMemberExpression(ctx, node) {
     const typeRef = handle[node.object.kind](ctx, node.object)
-    if (typeRef.type.kind !== TypeKind.object) {
+    if (typeRef.type.kind !== TypeKind.object && typeRef.type.kind !== TypeKind.enum) {
         if (typeRef.type.kind === TypeKind.unknown) {
-            raiseAt(ctx, node.object.start, `'${node.object.value}' is of type 'unknown'`)
+            raiseAt(ctx.module, node.object.start, `'${node.object.value}' is of type 'unknown'`)
         }
-        raiseAt(ctx, node.object.start, `'${node.object.value}' is not an object`)
+        raiseAt(ctx.module, node.object.start, `'${node.object.value}' is not an object`)
     }
 
     if (!node.computed) {
         const propRef = typeRef.type.members[node.property.value]
         if (!propRef) {
-            raiseAt(ctx, node.property.start, `Property '${node.property.value}' does not exist on type '${propRef.type.name}'`)
+            raiseAt(ctx.module, node.property.start, `Property '${node.property.value}' does not exist on type '${propRef.type.name}'`)
         }
         return propRef
     }
@@ -484,13 +493,13 @@ function handleMemberExpression(ctx, node) {
         case "Literal": {
             const prop = type.props[node.property.value]
             if (!prop) {
-                raiseAt(ctx, node.property.start, `Property '${node.property.value}' does not exist on type '${type.name}'`)
+                raiseAt(ctx.module, node.property.start, `Property '${node.property.value}' does not exist on type '${type.name}'`)
             }
             return prop
         }
     }
 
-    raiseAt(ctx, node.property.start, "Unsupported object property access")
+    raiseAt(ctx.module, node.property.start, "Unsupported object property access")
 }
 
 function handleCallExpression(ctx, node) {
@@ -509,12 +518,25 @@ function handleCallExpression(ctx, node) {
     for (let n = 0; n < node.arguments.length; n++) {
         const arg = node.arguments[n]
         const argRef = handle[arg.kind](ctx, arg)
-        const funcArgType = typeRef.type.args[n]
-        if (funcArgType.type.kind !== argRef.type.kind) {
-            if (funcArgType.type.kind === TypeKind.args) {
+        const funcArgRef = typeRef.type.args[n]
+
+        if (funcArgRef.type.kind === TypeKind.enum) {
+            if (argRef.type.kind === TypeKind.args) {
                 break
             }
-            raiseTypeError(ctx, arg.start, funcArgType, argRef.type)
+            if (funcArgRef.type.enumType !== argRef.type.kind) {
+                raiseTypeError(ctx, arg.start, funcArgRef.type, argRef.type)
+            }
+
+            const value = getArgValue(arg)
+            if (!funcArgRef.type.values[value]) {
+                raiseAt(ctx.module, arg.start, `Argument '${value}' is not assignable to parameter of type '${typeRef.name}'`)
+            }
+        } else if (funcArgRef.type.kind !== argRef.kind) {
+            if (argRef.type.kind === TypeKind.args) {
+                break
+            }
+            raiseTypeError(ctx, arg.start, funcArgRef.type, argRef.type)
         }
     }
 
@@ -713,8 +735,8 @@ function declareVar(ctx, name, node, flags = 0, isObject = false) {
         raise(ctx, node, `Duplicate identifier '${name}'`)
     }
 
-    const varRef = handleType(ctx, node.type, name)
-    varRef.flags = flags
+    const varType = handleType(ctx, node.type, name)
+    const varRef = { name, type: varType, flags }
 
     ctx.scopeCurr.vars[name] = varRef
 
@@ -752,8 +774,18 @@ function getTypeName(type) {
     return type.name
 }
 
+function getArgValue(node) {
+    switch (node.kind) {
+        case "Literal":
+        case "NumericLiteral":
+            return node.value
+    }
+
+    raiseAt(ctx.module, node.start, `Unsupported argument value`)
+}
+
 function raiseTypeError(ctx, start, leftType, rightType) {
-    raiseAt(ctx, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
+    raiseAt(ctx.module, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
 }
 
 function declareModule(ctx, alias, refs) {

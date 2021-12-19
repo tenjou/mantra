@@ -10,6 +10,7 @@ export const TypeKind = {
     union: 8,
     void: 9,
     args: 10,
+    enum: 11,
 }
 
 export const TypeKindNamed = Object.keys(TypeKind)
@@ -60,6 +61,12 @@ export function createRef(type, name = null) {
 
 export function createObject(name, members = {}) {
     const type = { name: name || "{}", kind: TypeKind.object, members }
+
+    return { type, flags: 0 }
+}
+
+export function createEnum(name, enumType, members = {}, values = {}) {
+    const type = { name: name || "enum", kind: TypeKind.enum, enumType, members, values }
 
     return { type, flags: 0 }
 }
