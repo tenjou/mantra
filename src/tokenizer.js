@@ -126,6 +126,13 @@ function readEquality(ctx, charCode) {
     if (nextCharCode === 61) {
         size++
     }
+    if (nextCharCode === 62) {
+        ctx.kind = kinds.arrow
+        ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
+        ctx.pos += 2
+        return
+    }
+
     nextCharCode = ctx.input.charCodeAt(ctx.pos + 2)
     if (nextCharCode === 61) {
         size++
@@ -472,6 +479,7 @@ export const kinds = {
     bracketL: createToken("["),
     bracketR: createToken("]"),
     dollarBraceL: createToken("${"),
+    arrow: createToken("=>"),
     eof: createToken("eof"),
     name: createToken("name"),
     num: createToken("num"),
