@@ -955,6 +955,9 @@ function parseTypeAnnotationEntry(ctx) {
     if (ctx.kind === kinds.braceL) {
         return parseTypeLiteral(ctx)
     }
+    if (ctx.kind === kinds.parenthesisL) {
+        return parseFunctionType(ctx)
+    }
 
     if (ctx.kind !== kinds.name) {
         unexpected(ctx)
@@ -970,21 +973,28 @@ function parseTypeAnnotationEntry(ctx) {
             return {
                 kind: value,
                 start,
-                end: ctx.endLast,
+                end: ctx.end,
             }
 
         case "string":
             return {
                 kind: "StringKeyword",
                 start,
-                end: ctx.endLast,
+                end: ctx.end,
             }
 
         case "boolean":
             return {
                 kind: "BooleanKeyword",
                 start,
-                end: ctx.endLast,
+                end: ctx.end,
+            }
+
+        case "void":
+            return {
+                kind: "VoidKeyword",
+                start,
+                end: ctx.end,
             }
 
         default:
@@ -1047,6 +1057,23 @@ function parseTypeAliasDeclaration(ctx) {
         start,
         end: ctx.end,
         id,
+        type,
+    }
+}
+
+function parseFunctionType(ctx) {
+    const start = ctx.start
+
+    nextToken(ctx)
+    expect(ctx, kinds.parenthesisR)
+    expect(ctx, kinds.arrow)
+
+    const type = parseTypeAnnotationEntry(ctx)
+
+    return {
+        kind: "FunctionType",
+        start,
+        end: ctx.end,
         type,
     }
 }

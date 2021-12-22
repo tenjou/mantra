@@ -163,6 +163,9 @@ function handleType(ctx, type = null, name = "") {
         case "ArrayType":
             return createArray(handleType(ctx, type.elementType))
 
+        case "FunctionType":
+            return
+
         case "TypeLiteral": {
             const members = new Array(type.members.length)
             for (let n = 0; n < type.members.length; n++) {
@@ -181,6 +184,9 @@ function handleType(ctx, type = null, name = "") {
 
         case "BooleanKeyword":
             return name ? createRef(coreTypeAliases.boolean, name) : coreTypeRefs.boolean
+
+        case "VoidKeyword":
+            return name ? createRef(coreTypeAliases.void, name) : coreTypeRefs.void
 
         default: {
             const coreType = ctx.typeAliases[type.name]
