@@ -16,6 +16,7 @@ function parseIdentifier(ctx) {
         start: ctx.start,
         end: ctx.end,
         value: ctx.value,
+        type: null,
     }
 
     nextToken(ctx)
@@ -1063,9 +1064,8 @@ function parseTypeAliasDeclaration(ctx) {
 
 function parseFunctionType(ctx) {
     const start = ctx.start
+    const params = parseFunctionParams(ctx)
 
-    nextToken(ctx)
-    expect(ctx, kinds.parenthesisR)
     expect(ctx, kinds.arrow)
 
     const type = parseTypeAnnotationEntry(ctx)
@@ -1075,6 +1075,7 @@ function parseFunctionType(ctx) {
         start,
         end: ctx.end,
         type,
+        params,
     }
 }
 

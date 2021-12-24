@@ -163,8 +163,14 @@ function handleType(ctx, type = null, name = "") {
         case "ArrayType":
             return createArray(handleType(ctx, type.elementType))
 
-        case "FunctionType":
+        case "FunctionType": {
+            for (const param of type.params) {
+                if (!param.type) {
+                    raiseAt(ctx.module, type.start, `Parameter '${param.value}' implicitly has an 'any' type.`)
+                }
+            }
             return
+        }
 
         case "TypeLiteral": {
             const members = new Array(type.members.length)
