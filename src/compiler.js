@@ -128,6 +128,13 @@ function parseImportDeclaration(ctx, node) {
     return result
 }
 
+function parseArrowFunction(ctx, node) {
+    const body = parse[node.body.kind](ctx, node.body)
+    const result = `() => ${body}`
+
+    return result
+}
+
 function parseLabeledStatement(ctx, node) {
     const label = parse[node.label.kind](ctx, node.label)
     const body = parse[node.body.kind](ctx, node.body)
@@ -546,6 +553,7 @@ const parse = {
     FunctionDeclaration: parseFunctionDeclaration,
     ExportNamedDeclaration: parseExportNamedDeclaration,
     ImportDeclaration: parseImportDeclaration,
+    ArrowFunction: parseArrowFunction,
     LabeledStatement: parseLabeledStatement,
     IfStatement: parseIfStatement,
     SwitchStatement: parseSwitchStatement,

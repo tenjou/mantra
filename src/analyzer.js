@@ -429,6 +429,12 @@ function handleBlockStatement(ctx, node) {
     ctx.scopeCurr = ctx.scopeCurr.parent
 }
 
+function handleArrowFunction(ctx, node) {
+    handle[node.body.kind](ctx, node.body)
+
+    return coreTypeRefs.unknown
+}
+
 function handleAssignmentExpression(ctx, node) {
     const leftType = handle[node.left.kind](ctx, node.left)
     if (leftType.flags & Flags.Const) {
@@ -864,6 +870,7 @@ const handle = {
     ThrowStatement: handleThrowStatement,
     TryStatement: handleTryStatement,
     BlockStatement: handleBlockStatement,
+    ArrowFunction: handleArrowFunction,
     AssignmentExpression: handleAssignmentExpression,
     UpdateExpression: handleUpdateExpression,
     UnaryExpression: handleUnaryExpression,

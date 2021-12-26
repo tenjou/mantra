@@ -670,11 +670,40 @@ function parseReturnStatement(ctx) {
     }
 }
 
+function parseArrowFunction(ctx, start, exprList) {
+    // let returnType = null
+    // if (ctx.kind === kinds.colon) {
+    //     nextToken(ctx)
+    //     returnType = parseTypeAnnotation(ctx)
+    // }
+
+    ctx.inFunction = true
+    const body = parseFunctionBody(ctx)
+    ctx.inFunction = false
+
+    return {
+        kind: "ArrowFunction",
+        start,
+        end: ctx.end,
+        body,
+    }
+}
+
 function parseParenthesisExpression(ctx) {
+    const start = ctx.start
+
     expect(ctx, kinds.parenthesisL)
-    const expression = parseExpression(ctx)
+
+    const exprList = []
+    while (ctx.kind !== kinds.parenthesisR) {}
+
     expect(ctx, kinds.parenthesisR)
 
+    if (eat(ctx, kinds.arrow)) {
+        return parseArrowFunction(ctx, start, exprList)
+    }
+
+    const expression = parseExpression(ctx)
     return expression
 }
 
