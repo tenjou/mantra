@@ -430,9 +430,19 @@ function handleBlockStatement(ctx, node) {
 }
 
 function handleArrowFunction(ctx, node) {
-    handle[node.body.kind](ctx, node.body)
+    const returnType = node.returnType ? handleType(ctx, node.returnType) : ctx.typeAliases.void
+    const ref = createFunction("", [], returnType)
 
-    return coreTypeRefs.unknown
+    const prevFuncType = ctx.currFuncType
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
+    ctx.currFuncType = ref.type
+
+    handleStatements(ctx, node.body.body)
+
+    ctx.scopeCurr = ctx.scopeCurr.parent
+    ctx.currFuncType = prevFuncType
+
+    return ref
 }
 
 function handleAssignmentExpression(ctx, node) {

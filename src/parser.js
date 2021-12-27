@@ -671,11 +671,11 @@ function parseReturnStatement(ctx) {
 }
 
 function parseArrowFunction(ctx, start, exprList) {
-    // let returnType = null
-    // if (ctx.kind === kinds.colon) {
-    //     nextToken(ctx)
-    //     returnType = parseTypeAnnotation(ctx)
-    // }
+    let returnType = null
+    if (ctx.kind === kinds.colon) {
+        nextToken(ctx)
+        returnType = parseTypeAnnotation(ctx)
+    }
 
     ctx.inFunction = true
     const body = parseFunctionBody(ctx)
@@ -686,6 +686,7 @@ function parseArrowFunction(ctx, start, exprList) {
         start,
         end: ctx.end,
         body,
+        returnType,
     }
 }
 
