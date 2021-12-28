@@ -46,25 +46,16 @@ function handleVariableDeclaration(ctx, node, flags) {
     }
 }
 
-function handleFunctionDeclaration(ctx, node, flags) {
-    if (getVar(ctx, node.id.value)) {
-        raise(ctx, node.id, `Duplicate function implementation '${node.id.value}'`)
-    }
-
-    const returnType = handleType(ctx, node.returnType)
-    const ref = createFunction(node.id.value, [], returnType)
-    const scope = createScope(ctx.scopeCurr)
-
-    ctx.scopeCurr.vars[node.id.value] = ref
+function handleParams(ctx, scope, params) {
     ctx.scopeCurr = scope
 
-    for (const param of node.params) {
+    for (const param of params) {
         switch (param.kind) {
             case "Identifier": {
                 const argRef = declareVar(ctx, param.value, param, 0)
-                ref.type.args.push(argRef)
-                ref.type.argsMin++
-                ref.type.argsMax++
+                ctx.currFuncType.args.push(argRef)
+                ctx.currFuncType.argsMin++
+                ctx.currFuncType.argsMax++
                 break
             }
 
@@ -74,7 +65,7 @@ function handleFunctionDeclaration(ctx, node, flags) {
                 if (argVar.type.kind !== rightType.kind) {
                     raiseTypeError(ctx, param.right.start, argVar.type, rightType)
                 }
-                type.args.push(argVar)
+                ctx.currFuncType.args.push(argVar)
                 break
             }
 
@@ -90,6 +81,21 @@ function handleFunctionDeclaration(ctx, node, flags) {
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent
+}
+
+function handleFunctionDeclaration(ctx, node, flags) {
+    if (getVar(ctx, node.id.value)) {
+        raise(ctx, node.id, `Duplicate function implementation '${node.id.value}'`)
+    }
+
+    const returnType = handleType(ctx, node.returnType)
+    const ref = createFunction(node.id.value, [], returnType)
+    const scope = createScope(ctx.scopeCurr)
+
+    ctx.scopeCurr.vars[node.id.value] = ref
+
+    handleParams(ctx, scope, node.params)
+
     ctx.scopeCurr.funcDecls.push({
         ref,
         scope,
@@ -434,12 +440,15 @@ function handleArrowFunction(ctx, node) {
     const ref = createFunction("", [], returnType)
 
     const prevFuncType = ctx.currFuncType
-    ctx.scopeCurr = createScope(ctx.scopeCurr)
+    const scope = createScope(ctx.scopeCurr)
+
     ctx.currFuncType = ref.type
+    handleParams(ctx, scope, node.params)
 
+    ctx.scopeCurr = scope
     handleStatements(ctx, node.body.body)
+    ctx.scopeCurr = scope.parent
 
-    ctx.scopeCurr = ctx.scopeCurr.parent
     ctx.currFuncType = prevFuncType
 
     return ref
@@ -560,7 +569,7 @@ function handleCallExpression(ctx, node) {
             if (!funcArgRef.type.values[value]) {
                 raiseAt(ctx.module, arg.start, `Argument '${value}' is not assignable to parameter of type '${typeRef.name}'`)
             }
-        } else if (funcArgRef.type.kind !== argRef.kind) {
+        } else if (funcArgRef.type.kind !== argRef.type.kind) {
             if (funcArgRef.type.kind === TypeKind.args) {
                 break
             }
@@ -763,9 +772,7 @@ function declareVar(ctx, name, node, flags = 0, isObject = false) {
         raise(ctx, node, `Duplicate identifier '${name}'`)
     }
 
-    const varType = handleType(ctx, node.type, name)
-    const varRef = { name, type: varType, flags }
-
+    const varRef = handleType(ctx, node.type, name)
     ctx.scopeCurr.vars[name] = varRef
 
     return varRef

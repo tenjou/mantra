@@ -381,13 +381,9 @@ function parseExpressionStatement(ctx, expression) {
 }
 
 function parseExpressionList(ctx, closeToken) {
-    let first = true
-
     const expressions = []
     while (!eat(ctx, closeToken)) {
-        if (first) {
-            first = false
-        } else {
+        if (expressions.length > 0) {
             expect(ctx, kinds.comma)
         }
 
@@ -670,7 +666,7 @@ function parseReturnStatement(ctx) {
     }
 }
 
-function parseArrowFunction(ctx, start, exprList) {
+function parseArrowFunction(ctx, start, params) {
     let returnType = null
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
@@ -686,22 +682,17 @@ function parseArrowFunction(ctx, start, exprList) {
         start,
         end: ctx.end,
         body,
+        params,
         returnType,
     }
 }
 
 function parseParenthesisExpression(ctx) {
     const start = ctx.start
-
-    expect(ctx, kinds.parenthesisL)
-
-    const exprList = []
-    while (ctx.kind !== kinds.parenthesisR) {}
-
-    expect(ctx, kinds.parenthesisR)
+    const params = parseFunctionParams(ctx)
 
     if (eat(ctx, kinds.arrow)) {
-        return parseArrowFunction(ctx, start, exprList)
+        return parseArrowFunction(ctx, start, params)
     }
 
     const expression = parseExpression(ctx)
@@ -1002,7 +993,7 @@ function parseTypeAnnotationEntry(ctx) {
     switch (value) {
         case "number":
             return {
-                kind: value,
+                kind: "NumberKeyword",
                 start,
                 end: ctx.end,
             }
@@ -1206,13 +1197,9 @@ function parseFunctionDeclaration(ctx) {
 function parseFunctionParams(ctx) {
     expect(ctx, kinds.parenthesisL)
 
-    let first = true
-
     const params = []
     while (!eat(ctx, kinds.parenthesisR)) {
-        if (first) {
-            first = false
-        } else {
+        if (params.length > 0) {
             expect(ctx, kinds.comma)
         }
 

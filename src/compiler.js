@@ -130,7 +130,8 @@ function parseImportDeclaration(ctx, node) {
 
 function parseArrowFunction(ctx, node) {
     const body = parse[node.body.kind](ctx, node.body)
-    const result = `() => ${body}`
+    const params = parseFunctionParams(ctx, node.params)
+    const result = `(${params}) => ${body}`
 
     return result
 }
