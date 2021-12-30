@@ -14,7 +14,6 @@ import {
     createUnion,
     createVar,
     Flags,
-    isValidType,
     loadCoreTypes,
     TypeKind,
 } from "./types.js"
@@ -26,7 +25,7 @@ function handleVariableDeclarator(ctx, node, flags) {
         const initRef = handle[node.init.kind](ctx, node.init, varRef.type)
         if (!varRef.type.kind) {
             varRef.type = initRef.type
-        } else if (!isValidType(varRef.type, initRef.type)) {
+        } else if (!isValidType(ctx, varRef.type, initRef.type, node.start)) {
             raiseTypeError(ctx, node.init.start, varRef.type, initRef.type)
         }
     }
@@ -49,23 +48,25 @@ function handleVariableDeclaration(ctx, node, flags) {
 function handleParams(ctx, scope, params) {
     ctx.scopeCurr = scope
 
-    for (const param of params) {
+    const typeRefs = new Array(params.length)
+
+    for (let nParam = 0; nParam < params.length; nParam++) {
+        const param = params[nParam]
+
         switch (param.kind) {
             case "Identifier": {
-                const argRef = declareVar(ctx, param.value, param, 0)
-                ctx.currFuncType.args.push(argRef)
-                ctx.currFuncType.argsMin++
-                ctx.currFuncType.argsMax++
+                const paramRef = declareVar(ctx, param.value, param, 0)
+                typeRefs[nParam] = paramRef.type
                 break
             }
 
             case "AssignPattern": {
-                const argVar = declareVar(ctx, param.left.value, param.left, 0)
+                const argRef = declareVar(ctx, param.left.value, param.left, 0)
                 const rightType = handle[param.right.kind](ctx, param.right)
-                if (argVar.type.kind !== rightType.kind) {
-                    raiseTypeError(ctx, param.right.start, argVar.type, rightType)
+                if (argRef.type.kind !== rightType.kind) {
+                    raiseTypeError(ctx, param.right.start, argRef.type, rightType)
                 }
-                ctx.currFuncType.args.push(argVar)
+                typeRefs[nParam] = argRef
                 break
             }
 
@@ -81,6 +82,8 @@ function handleParams(ctx, scope, params) {
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent
+
+    return typeRefs
 }
 
 function handleFunctionDeclaration(ctx, node, flags) {
@@ -170,12 +173,19 @@ function handleType(ctx, type = null, name = "") {
             return createArray(handleType(ctx, type.elementType))
 
         case "FunctionType": {
-            for (const param of type.params) {
-                if (!param.type) {
+            const paramsRefs = new Array(type.params)
+            for (let nParam = 0; nParam < type.params.length; nParam++) {
+                const param = type.params[nParam]
+                const typeRef = handleType(ctx, param.type, param.value)
+                if (!typeRef) {
                     raiseAt(ctx.module, type.start, `Parameter '${param.value}' implicitly has an 'any' type.`)
                 }
+
+                paramsRefs[nParam] = typeRef
             }
-            return
+
+            const returnRef = handleType(ctx, type.type)
+            return createFunction(name, paramsRefs, returnRef.type)
         }
 
         case "TypeLiteral": {
@@ -295,7 +305,8 @@ function handleTypeAliasDeclaration(ctx, node) {
         raise(ctx, node, `Type alias name cannot be '${node.id}'`)
     }
 
-    ctx.typeAliases[node.id] = handleType(ctx, node.type, node.id)
+    const type = handleType(ctx, node.type, node.id)
+    ctx.typeAliases[node.id] = type
 }
 
 function handleLabeledStatement(ctx, node) {
@@ -437,20 +448,20 @@ function handleBlockStatement(ctx, node) {
 
 function handleArrowFunction(ctx, node) {
     const returnType = node.returnType ? handleType(ctx, node.returnType) : ctx.typeAliases.void
-    const ref = createFunction("", [], returnType)
-
     const prevFuncType = ctx.currFuncType
     const scope = createScope(ctx.scopeCurr)
+    const params = handleParams(ctx, scope, node.params)
+    const funcType = createFunction("", params, returnType)
 
-    ctx.currFuncType = ref.type
-    handleParams(ctx, scope, node.params)
-
+    ctx.currFuncType = funcType
     ctx.scopeCurr = scope
-    handleStatements(ctx, node.body.body)
-    ctx.scopeCurr = scope.parent
 
+    handleStatements(ctx, node.body.body)
+
+    ctx.scopeCurr = scope.parent
     ctx.currFuncType = prevFuncType
 
+    const ref = { name: "", flags: 0, type: funcType }
     return ref
 }
 
@@ -772,10 +783,11 @@ function declareVar(ctx, name, node, flags = 0, isObject = false) {
         raise(ctx, node, `Duplicate identifier '${name}'`)
     }
 
-    const varRef = handleType(ctx, node.type, name)
-    ctx.scopeCurr.vars[name] = varRef
+    const type = handleType(ctx, node.type, name)
 
-    return varRef
+    ctx.scopeCurr.vars[name] = node
+
+    return { name, flags, type }
 }
 
 function redeclareVar(ctx, varRef, newType) {
@@ -806,6 +818,21 @@ function getTypeName(type) {
         return `${getTypeName(type.elementType)}[]`
     }
 
+    if (type.kind === TypeKind.function) {
+        const returnOutput = getTypeName(type.returnType)
+
+        let argsOutput = ""
+        for (const arg of type.args) {
+            if (argsOutput) {
+                argsOutput += `, ${arg.name}: ${arg.type.name}`
+            } else {
+                argsOutput = `${arg.name}: ${arg.type.name}`
+            }
+        }
+
+        return `(${argsOutput}) => ${returnOutput}`
+    }
+
     return type.name
 }
 
@@ -826,6 +853,48 @@ function raiseTypeError(ctx, start, leftType, rightType) {
 function declareModule(ctx, alias, refs) {
     ctx.modules[alias] = createModule(null, "", "", "", alias)
     ctx.modulesExports[alias] = refs
+}
+
+function isValidType(ctx, leftType, rightType, pos = 0) {
+    if (leftType.kind === TypeKind.union) {
+        for (const type of leftType.types) {
+            if (isValidType(type, rightType)) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    if (leftType.kind === TypeKind.function) {
+        const leftArgs = leftType.args
+        const rightArgs = rightType.args
+
+        if (rightArgs.length < leftArgs.length) {
+            return true
+        }
+
+        for (let nArg = 0; nArg < leftArgs.length; nArg++) {
+            const leftArg = leftArgs[nArg]
+            const rightArg = rightArgs[nArg]
+            if (leftArg.type.kind !== rightArg.type.kind) {
+                raiseTypeError(ctx, pos, leftType, rightType)
+            }
+            return true
+        }
+
+        return true
+    }
+
+    if (leftType.kind === TypeKind.array) {
+        if (rightType.kind !== TypeKind.array) {
+            return false
+        }
+
+        return isValidType(leftType.elementType, rightType.elementType)
+    }
+
+    return leftType === rightType
 }
 
 export function analyze(config, module, modules) {

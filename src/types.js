@@ -85,9 +85,8 @@ export function createFunction(name, args, returnType = null) {
         }
     }
 
-    const type = { name: "function", kind: TypeKind.function, args, argsMin, argsMax, returnType }
-
-    return { name, type, flags: 0 }
+    const type = { name, kind: TypeKind.function, args, argsMin, argsMax, returnType }
+    return type
 }
 
 export function createArg(name, type) {
@@ -113,26 +112,4 @@ export function createModule(program, fileDir, fileName, input, alias) {
         alias,
         order: 0,
     }
-}
-
-export function isValidType(leftType, rightType) {
-    if (leftType.kind === TypeKind.union) {
-        for (const type of leftType.types) {
-            if (isValidType(type, rightType)) {
-                return true
-            }
-        }
-
-        return false
-    }
-
-    if (leftType.kind === TypeKind.array) {
-        if (rightType.kind !== TypeKind.array) {
-            return false
-        }
-
-        return isValidType(leftType.elementType, rightType.elementType)
-    }
-
-    return leftType === rightType
 }
