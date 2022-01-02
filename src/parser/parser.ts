@@ -1,5 +1,6 @@
 import fs from "fs"
 import * as path from "path"
+import { Config } from "../config"
 import { raise, raiseAt, unexpected } from "../error"
 import { createModule, Module } from "../module"
 import { TypeKind } from "../types"
@@ -7,38 +8,33 @@ import * as Node from "./node"
 import {
     Any,
     ArrowFunction,
-    AssignPatternNode,
+    AssignPattern,
     BlockStatement,
-    BreakStatementNode,
+    BreakStatement,
     CatchClause,
-    ContinueStatementNode,
+    ContinueStatement,
     EmptyStatement,
-    ExpressionOpNode,
-    ExpressionStatementNode,
-    ForInStatementNode,
-    ForOfStatementNode,
-    ForStatementNode,
+    ExpressionOp,
+    ExpressionStatement,
+    ForInStatement,
+    ForOfStatement,
+    ForStatement,
     FunctionParams,
     Identifier,
-    IfStatementNode,
-    LabeledStatementNode,
+    IfStatement,
+    LabeledStatement,
     Property,
-    ReturnStatementNode,
+    ReturnStatement,
     SwitchCase,
     SwitchStatement,
     TemplateElement,
     TryStatement,
-    VariableDeclarationNode,
-    WhileStatementNode,
+    VariableDeclaration,
+    WhileStatement,
 } from "./node"
-import { Token } from "./tokenizer-types"
 import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer"
+import { Token } from "./tokenizer-types"
 import * as TypeNode from "./type-node"
-
-export interface Config {
-    rootDir: string
-    outDir: string
-}
 
 export interface ParserContext {
     config: Config
@@ -186,7 +182,7 @@ function parseTypeLiteral(ctx: ParserContext): TypeNode.Literal {
     }
 }
 
-function parseMaybeDefault(ctx: ParserContext): AssignPatternNode | Node.BindingAtom {
+function parseMaybeDefault(ctx: ParserContext): AssignPattern | Node.BindingAtom {
     const start = ctx.start
     const left = parseBindingAtom(ctx)
 
@@ -327,7 +323,7 @@ function parseExpressionOp(ctx: ParserContext, left: Any, minPrecedence: number)
 
         const expression = parseMaybeUnary(ctx)
         const right = parseExpressionOp(ctx, expression, precendence)
-        const node: ExpressionOpNode = {
+        const node: ExpressionOp = {
             kind: isLogical ? "LogicalExpression" : "BinaryExpression",
             start: left.start,
             end: ctx.end,
@@ -345,7 +341,7 @@ function parseExpressionOp(ctx: ParserContext, left: Any, minPrecedence: number)
 
 function parseMaybeConditional(ctx: ParserContext): Any {
     const start = ctx.start
-    const expression = parseExpressionOps(ctx)
+    const test = parseExpressionOps(ctx)
 
     if (eat(ctx, kinds.question)) {
         const consequent = parseMaybeAssign(ctx)
@@ -358,13 +354,13 @@ function parseMaybeConditional(ctx: ParserContext): Any {
             kind: "ConditionalExpression",
             start,
             end: ctx.end,
-            test: expression,
+            test,
             consequent,
             alternate,
         }
     }
 
-    return expression
+    return test
 }
 
 function parseMaybeAssign(ctx: ParserContext): Any {
@@ -414,7 +410,7 @@ function parseExpression(ctx: ParserContext): Any {
     return expression
 }
 
-function parseLabeledStatement(ctx: ParserContext, label: Any): LabeledStatementNode {
+function parseLabeledStatement(ctx: ParserContext, label: Node.Any): Node.LabeledStatement {
     const body = parseStatement(ctx)
 
     return {
@@ -426,7 +422,7 @@ function parseLabeledStatement(ctx: ParserContext, label: Any): LabeledStatement
     }
 }
 
-function parseExpressionStatement(ctx: ParserContext, expression: Any): ExpressionStatementNode {
+function parseExpressionStatement(ctx: ParserContext, expression: Node.Any): Node.ExpressionStatement {
     return {
         kind: "ExpressionStatement",
         start: expression.start,
@@ -435,7 +431,7 @@ function parseExpressionStatement(ctx: ParserContext, expression: Any): Expressi
     }
 }
 
-function parseExpressionList(ctx: ParserContext, closeToken: Token): Any[] {
+function parseExpressionList(ctx: ParserContext, closeToken: Token): Node.Any[] {
     const expressions = []
     while (!eat(ctx, closeToken)) {
         if (expressions.length > 0) {
@@ -498,8 +494,8 @@ function parseStatement(ctx: ParserContext): Any {
     return parseExpressionStatement(ctx, expression)
 }
 
-function parseVarStatement(ctx: ParserContext): VariableDeclarationNode {
-    const node: VariableDeclarationNode = {
+function parseVarStatement(ctx: ParserContext): VariableDeclaration {
+    const node: VariableDeclaration = {
         kind: "VariableDeclaration",
         start: ctx.start,
         end: 0,
@@ -523,7 +519,7 @@ function parseVarStatement(ctx: ParserContext): VariableDeclarationNode {
     return node
 }
 
-function parseBreakContinueStatement(ctx: ParserContext): ContinueStatementNode | BreakStatementNode {
+function parseBreakContinueStatement(ctx: ParserContext): ContinueStatement | BreakStatement {
     const start = ctx.start
     const kind = ctx.kind === kinds.continue ? "ContinueStatement" : "BreakStatement"
 
@@ -542,7 +538,7 @@ function parseBreakContinueStatement(ctx: ParserContext): ContinueStatementNode 
     }
 }
 
-function parseIfStatement(ctx: ParserContext): IfStatementNode {
+function parseIfStatement(ctx: ParserContext): IfStatement {
     const start = ctx.start
 
     nextToken(ctx)
@@ -613,7 +609,7 @@ function parseSwitchStatement(ctx: ParserContext): SwitchStatement {
     }
 }
 
-function parseWhileStatement(ctx: ParserContext): WhileStatementNode {
+function parseWhileStatement(ctx: ParserContext): WhileStatement {
     const start = ctx.start
 
     nextToken(ctx)
@@ -630,7 +626,7 @@ function parseWhileStatement(ctx: ParserContext): WhileStatementNode {
     }
 }
 
-function parseForInOf(ctx: ParserContext, left: Any, start: number): ForInStatementNode | ForOfStatementNode {
+function parseForInOf(ctx: ParserContext, left: Any, start: number): ForInStatement | ForOfStatement {
     const isForIn = ctx.kind === kinds.in
 
     nextToken(ctx)
@@ -651,7 +647,7 @@ function parseForInOf(ctx: ParserContext, left: Any, start: number): ForInStatem
     }
 }
 
-function parseForStatement(ctx: ParserContext): ForStatementNode | ForInStatementNode | ForOfStatementNode {
+function parseForStatement(ctx: ParserContext): ForStatement | ForInStatement | ForOfStatement {
     const start = ctx.start
     let init = null
 
@@ -686,7 +682,7 @@ function parseForStatement(ctx: ParserContext): ForStatementNode | ForInStatemen
     }
 }
 
-function parseReturnStatement(ctx: ParserContext): ReturnStatementNode {
+function parseReturnStatement(ctx: ParserContext): ReturnStatement {
     if (!ctx.inFunction) {
         raise(ctx, "Illegal return statement")
     }
@@ -1139,10 +1135,31 @@ function parseFunctionType(ctx: ParserContext): TypeNode.Function {
     }
 }
 
+function parseEnumInitializer(ctx: ParserContext): Node.Literal | Node.NumericLiteral | null {
+    if (!eat(ctx, kinds.assign)) {
+        return null
+    }
+
+    switch (ctx.kind) {
+        case kinds.num:
+            return parseNumericLiteral(ctx)
+
+        case kinds.text:
+        case kinds.true:
+        case kinds.false:
+        case kinds.null:
+        case kinds.break:
+        case kinds._undefined:
+            return parseLiteral(ctx)
+    }
+
+    return null
+}
+
 function parseEnumMember(ctx: ParserContext): Node.EnumMember {
     const start = ctx.start
     const name = parseIdentifier(ctx)
-    const initializer = eat(ctx, kinds.assign) ? parseExpressionAtom(ctx) : null
+    const initializer = parseEnumInitializer(ctx)
 
     return {
         kind: "EnumMember",

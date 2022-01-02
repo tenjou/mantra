@@ -1,7 +1,7 @@
 import * as Node from "./parser/node"
 
 export interface Module {
-    program: Node.Any
+    program: Node.Program
     fileDir: string
     fileName: string
     input: string
@@ -9,7 +9,7 @@ export interface Module {
     order: number
 }
 
-export function createModule(program: Node.Any, fileDir: string, fileName: string, input: string, alias: number): Module {
+export function createModule(program: Node.Program, fileDir: string, fileName: string, input: string, alias: number): Module {
     return {
         program,
         fileDir,

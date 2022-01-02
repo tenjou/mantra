@@ -1,27 +1,29 @@
 import * as fs from "fs"
 import * as path from "path"
-import { TypeKind } from "./types.js"
+import { Config } from "./config"
 import { getFilePath } from "./file"
+import { Module } from "./module"
+import { TypeKind } from "./types"
+import * as Node from "./parser/node"
 
 const mantrLibFileName = "./__mantra__.js"
 
-function parseFunctionDeclaration(ctx, node) {
+function parseFunctionDeclaration(ctx: CompilerContext, node: Node.FunctionDeclaration): string {
     const params = parseFunctionParams(ctx, node.params)
     const body = parse[node.body.kind](ctx, node.body)
-    const result = `function ${node.id.value}(${params}) ${body}\n`
+    const id = node.id ? node.id.value : ""
+    const result = `function ${id}(${params}) ${body}\n`
 
     return result
 }
 
-function parseFunctionParams(ctx, params) {
+function parseFunctionParams(ctx: CompilerContext, params: Node.FunctionParams): string {
     let result = ""
-    let first = true
 
     for (const param of params) {
         const paramResult = parse[param.kind](ctx, param)
 
-        if (first) {
-            first = false
+        if (!result) {
             result = paramResult
             continue
         }
@@ -32,7 +34,7 @@ function parseFunctionParams(ctx, params) {
     return result
 }
 
-function parseEnumDeclaration(ctx, node) {
+function parseEnumDeclaration(ctx: CompilerContext, node: Node.EnumDeclaration): string {
     const name = parseIdentifier(ctx, node.name)
 
     enterBlock(ctx)
@@ -43,7 +45,11 @@ function parseEnumDeclaration(ctx, node) {
         case TypeKind.string: {
             for (const member of node.members) {
                 const memberName = parseIdentifier(ctx, member.name)
-                members += `${ctx.spaces}${memberName}: "${member.initializer.value}",\n`
+                if (member.initializer) {
+                    members += `${ctx.spaces}${memberName}: "${member.initializer.value}",\n`
+                } else {
+                    members += `${ctx.spaces}${memberName}: undefined,\n`
+                }
             }
             break
         }
@@ -69,36 +75,47 @@ function parseEnumDeclaration(ctx, node) {
     return result
 }
 
-function parseVariableDeclaration(ctx, node) {
+function parseVariableDeclarator(ctx: CompilerContext, node: Node.VariableDeclarator): string {
+    const id = parse[node.id.kind](ctx, node.id)
+    if (!node.init) {
+        return id
+    }
+
+    const init = parse[node.init.kind](ctx, node.init)
+    const result = `${id} = ${init}`
+
+    return result
+}
+
+function parseDeclarations(ctx: CompilerContext, decls: Node.VariableDeclarator[]): string {
+    let result = ""
+    for (const decl of decls) {
+        if (!result) {
+            result = parseVariableDeclarator(ctx, decl)
+            continue
+        }
+
+        result += `, ${parseVariableDeclarator(ctx, decl)}`
+    }
+
+    return result
+}
+
+function parseVariableDeclaration(ctx: CompilerContext, node: Node.VariableDeclaration): string {
     const decls = parseDeclarations(ctx, node.declarations)
     const result = `${node.keyword} ${decls}`
 
     return result
 }
 
-function parseDeclarations(ctx, decls) {
-    let result = ""
-    for (const decl of decls) {
-        const init = decl.init ? ` = ${parse[decl.init.kind](ctx, decl.init)}` : ""
-
-        if (result) {
-            result += `, ${decl.id.value}${init}`
-        } else {
-            result = `${decl.id.value}${init}`
-        }
-    }
-
-    return result
-}
-
-function parseExportNamedDeclaration(ctx, node) {
+function parseExportNamedDeclaration(ctx: CompilerContext, node: Node.ExportNamedDeclaration): string {
     const declaration = parse[node.declaration.kind](ctx, node.declaration)
     const result = `export ${declaration}`
 
     return result
 }
 
-function parseImportClause(_ctx, importClause) {
+function parseImportClause(_ctx: CompilerContext, importClause: Node.NamespaceImport | Node.NamedImports): string {
     let result = ""
 
     switch (importClause.kind) {
@@ -111,6 +128,7 @@ function parseImportClause(_ctx, importClause) {
                     result = specifierResult
                 }
             }
+
             return `{ ${result} }`
         }
     }
@@ -118,7 +136,7 @@ function parseImportClause(_ctx, importClause) {
     return result
 }
 
-function parseImportDeclaration(ctx, node) {
+function parseImportDeclaration(ctx: CompilerContext, node: Node.ImportDeclaration): string {
     const specifiers = parseImportClause(ctx, node.importClause)
     const filePath = getFilePath(ctx.module.fileDir, node.source.value)
     const module = ctx.modules[filePath]
@@ -128,7 +146,7 @@ function parseImportDeclaration(ctx, node) {
     return result
 }
 
-function parseArrowFunction(ctx, node) {
+function parseArrowFunction(ctx: CompilerContext, node: Node.ArrowFunction): string {
     const body = parse[node.body.kind](ctx, node.body)
     const params = parseFunctionParams(ctx, node.params)
     const result = `(${params}) => ${body}`
@@ -136,7 +154,7 @@ function parseArrowFunction(ctx, node) {
     return result
 }
 
-function parseLabeledStatement(ctx, node) {
+function parseLabeledStatement(ctx: CompilerContext, node: Node.LabeledStatement): string {
     const label = parse[node.label.kind](ctx, node.label)
     const body = parse[node.body.kind](ctx, node.body)
     const result = `${label}: ${body}`
@@ -144,7 +162,7 @@ function parseLabeledStatement(ctx, node) {
     return result
 }
 
-function parseIfStatement(ctx, node) {
+function parseIfStatement(ctx: CompilerContext, node: Node.IfStatement): string {
     const test = parse[node.test.kind](ctx, node.test)
     const consequent = parse[node.consequent.kind](ctx, node.consequent)
     const alternate = node.alternate ? parse[node.alternate.kind](ctx, node.alternate) : null
@@ -157,7 +175,7 @@ function parseIfStatement(ctx, node) {
     return result
 }
 
-function parseSwitchStatement(ctx, node) {
+function parseSwitchStatement(ctx: CompilerContext, node: Node.SwitchStatement): string {
     const discriminant = parse[node.discriminant.kind](ctx, node.discriminant)
     const cases = parseBlock(ctx, node.cases)
     const result = `switch(${discriminant}) ${cases}`
@@ -165,7 +183,7 @@ function parseSwitchStatement(ctx, node) {
     return result
 }
 
-function parseSwitchCase(ctx, node) {
+function parseSwitchCase(ctx: CompilerContext, node: Node.SwitchCase): string {
     const test = node.test ? parse[node.test.kind](ctx, node.test) : null
     const consequent = node.consequent.length > 0 ? parseStatements(ctx, node.consequent) : ""
     const result = test ? `case ${test}:${consequent}` : `default:${consequent}`
@@ -173,15 +191,15 @@ function parseSwitchCase(ctx, node) {
     return result
 }
 
-function parseWhileStatement(ctx, node) {
+function parseWhileStatement(ctx: CompilerContext, node: Node.WhileStatement): string {
     const test = parse[node.test.kind](ctx, node.test)
-    const body = parseBlockStatement(ctx, node.body)
+    const body = parse[node.body.kind](ctx, node.body)
     const result = `while(${test}) ${body}${ctx.spaces}`
 
     return result
 }
 
-function parseForStatement(ctx, node) {
+function parseForStatement(ctx: CompilerContext, node: Node.ForStatement): string {
     const init = node.init ? parse[node.init.kind](ctx, node.init) : ""
     const test = node.test ? parse[node.test.kind](ctx, node.test) : ""
     const update = node.update ? parse[node.update.kind](ctx, node.update) : ""
@@ -191,7 +209,7 @@ function parseForStatement(ctx, node) {
     return result
 }
 
-function parseForInStatement(ctx, node) {
+function parseForInStatement(ctx: CompilerContext, node: Node.ForInStatement): string {
     const left = parse[node.left.kind](ctx, node.left)
     const right = parse[node.right.kind](ctx, node.right)
     const body = parse[node.body.kind](ctx, node.body)
@@ -200,7 +218,7 @@ function parseForInStatement(ctx, node) {
     return result
 }
 
-function parseForOfStatement(ctx, node) {
+function parseForOfStatement(ctx: CompilerContext, node: Node.ForOfStatement): string {
     const left = parse[node.left.kind](ctx, node.left)
     const right = parse[node.right.kind](ctx, node.right)
     const body = parse[node.body.kind](ctx, node.body)
@@ -209,14 +227,14 @@ function parseForOfStatement(ctx, node) {
     return result
 }
 
-function parseReturnStatement(ctx, node) {
+function parseReturnStatement(ctx: CompilerContext, node: Node.ReturnStatement): string {
     const argument = node.argument ? parse[node.argument.kind](ctx, node.argument) : ""
     const result = `return ${argument}`
 
     return result
 }
 
-function parseBreakStatement(_ctx, node) {
+function parseBreakStatement(_ctx: CompilerContext, node: Node.BreakStatement): string {
     if (node.label) {
         return `break ${node.label.value}`
     }
@@ -224,7 +242,7 @@ function parseBreakStatement(_ctx, node) {
     return "break"
 }
 
-function parseContinueStatement(_ctx, node) {
+function parseContinueStatement(_ctx: CompilerContext, node: Node.ContinueStatement): string {
     if (node.label) {
         return `continue ${node.label.value}`
     }
@@ -232,13 +250,13 @@ function parseContinueStatement(_ctx, node) {
     return "continue"
 }
 
-function parseExpressionStatement(ctx, node) {
+function parseExpressionStatement(ctx: CompilerContext, node: Node.ExpressionStatement): string {
     const result = parse[node.expression.kind](ctx, node.expression)
 
     return result
 }
 
-function parseCatchClause(ctx, node) {
+function parseCatchClause(ctx: CompilerContext, node: Node.CatchClause): string {
     const param = parse[node.param.kind](ctx, node.param)
     const block = parse[node.body.kind](ctx, node.body)
     const result = `catch(${param}) ${block}`
@@ -246,7 +264,7 @@ function parseCatchClause(ctx, node) {
     return result
 }
 
-function parseTryStatement(ctx, node) {
+function parseTryStatement(ctx: CompilerContext, node: Node.TryStatement): string {
     const block = parse[node.block.kind](ctx, node.block)
     const handler = node.handler ? ` ${parseCatchClause(ctx, node.handler)}` : ""
     const finalizer = node.finalizer ? ` finally ${parseBlockStatement(ctx, node.finalizer)}` : ""
@@ -255,36 +273,44 @@ function parseTryStatement(ctx, node) {
     return result
 }
 
-function parseThrowStatement(ctx, node) {
+function parseThrowStatement(ctx: CompilerContext, node: Node.ThrowStatement): string {
     const argument = parse[node.argument.kind](ctx, node.argument)
     const result = `throw ${argument}`
 
     return result
 }
 
-function parseEmptyStatement(ctx, node) {
+function parseEmptyStatement(_ctx: CompilerContext, _node: Node.EmptyStatement): string {
     return ""
 }
 
-function parseSequenceExpression(ctx, node) {
+function parseSequenceExpression(ctx: CompilerContext, node: Node.SequenceExpression): string {
     let result = ""
-    let first = true
 
     for (const expression of node.expressions) {
         const parsedExpression = parse[expression.kind](ctx, expression)
 
-        if (first) {
-            first = false
+        if (result) {
             result = parsedExpression
-        } else {
-            result += `, ${parsedExpression}`
+            continue
         }
+
+        result += `, ${parsedExpression}`
     }
 
     return result
 }
 
-function parseBinaryExpression(ctx, node, depth = 0) {
+function parseConditionalExpression(ctx: CompilerContext, node: Node.ConditionalExpression): string {
+    const test = parse[node.test.kind](ctx, node.test)
+    const consequent = parse[node.consequent.kind](ctx, node.consequent)
+    const alternate = parse[node.alternate.kind](ctx, node.alternate)
+    const result = `${test} ? ${consequent} : ${alternate}`
+
+    return result
+}
+
+function parseBinaryExpression(ctx: CompilerContext, node: Node.ExpressionOp, depth = 0): string {
     const left = parse[node.left.kind](ctx, node.left, depth + 1)
     const right = parse[node.right.kind](ctx, node.right, depth + 1)
 
@@ -295,7 +321,7 @@ function parseBinaryExpression(ctx, node, depth = 0) {
     return `${left} ${node.operator} ${right}`
 }
 
-function parseAssignmentExpression(ctx, node) {
+function parseAssignmentExpression(ctx: CompilerContext, node: Node.AssignmentExpression): string {
     const left = parse[node.left.kind](ctx, node.left)
     const right = parse[node.right.kind](ctx, node.right)
     const result = `${left} ${node.operator} ${right}`
@@ -303,14 +329,14 @@ function parseAssignmentExpression(ctx, node) {
     return result
 }
 
-function parseUpdateExpression(ctx, node) {
+function parseUpdateExpression(ctx: CompilerContext, node: Node.UpdateExpression): string {
     const argument = parse[node.argument.kind](ctx, node.argument)
     const result = node.prefix ? `${node.operator}${argument}` : `${argument}${node.operator}`
 
     return result
 }
 
-function parseMemberExpression(ctx, node) {
+function parseMemberExpression(ctx: CompilerContext, node: Node.MemberExpression): string {
     const object = parse[node.object.kind](ctx, node.object)
     const property = parse[node.property.kind](ctx, node.property)
 
@@ -323,7 +349,7 @@ function parseMemberExpression(ctx, node) {
     return result
 }
 
-function parseCallExpression(ctx, node) {
+function parseCallExpression(ctx: CompilerContext, node: Node.CallExpression): string {
     const callee = parse[node.callee.kind](ctx, node.callee)
     const args = parseArgs(ctx, node.arguments)
     const result = `${callee}(${args})`
@@ -331,7 +357,7 @@ function parseCallExpression(ctx, node) {
     return result
 }
 
-function parseConditionExpression(ctx, node) {
+function parseConditionExpression(ctx: CompilerContext, node: Node.ConditionalExpression): string {
     const test = parse[node.test.kind](ctx, node.test)
     const consequent = parse[node.consequent.kind](ctx, node.consequent)
     const alternate = parse[node.alternate.kind](ctx, node.alternate)
@@ -340,30 +366,29 @@ function parseConditionExpression(ctx, node) {
     return result
 }
 
-function parseExpressionList(ctx, elements) {
+function parseExpressionList(ctx: CompilerContext, elements: Node.Any[]): string {
     let result = ""
-    let first = true
 
     for (const element of elements) {
-        if (first) {
-            first = false
+        if (result) {
             result = parse[element.kind](ctx, element)
-        } else {
-            result += `, ${parse[element.kind](ctx, element)}`
+            continue
         }
+
+        result += `, ${parse[element.kind](ctx, element)}`
     }
 
     return result
 }
 
-function parseArrayExpression(ctx, node) {
+function parseArrayExpression(ctx: CompilerContext, node: Node.ArrayExpression): string {
     const elements = parseExpressionList(ctx, node.elements)
     const result = `[${elements}]`
 
     return result
 }
 
-function parseObjectExpression(ctx, node) {
+function parseObjectExpression(ctx: CompilerContext, node: Node.ObjectExpression): string {
     if (node.properties.length === 0) {
         return "{}"
     }
@@ -384,7 +409,7 @@ function parseObjectExpression(ctx, node) {
     return result
 }
 
-function parseProperty(ctx, node) {
+function parseProperty(ctx: CompilerContext, node: Node.Property): string {
     const key = node.computed ? `[${parse[node.key.kind](ctx, node.key)}]` : parse[node.key.kind](ctx, node.key)
 
     if (node.value) {
@@ -397,7 +422,7 @@ function parseProperty(ctx, node) {
     return result
 }
 
-function parseArgs(ctx, args) {
+function parseArgs(ctx: CompilerContext, args: Node.Any[]) {
     let result = ""
     let first = true
 
@@ -413,7 +438,7 @@ function parseArgs(ctx, args) {
     return result
 }
 
-function parseStatements(ctx, statements) {
+function parseStatements(ctx: CompilerContext, statements: Node.Any[]): string {
     enterBlock(ctx)
 
     let result = ""
@@ -430,19 +455,19 @@ function parseStatements(ctx, statements) {
     return result
 }
 
-function parseIdentifier(_ctx, node) {
+function parseIdentifier(_ctx: CompilerContext, node: Node.Identifier): string {
     return node.value
 }
 
-function parseNumericLiteral(_ctx, node) {
+function parseNumericLiteral(_ctx: CompilerContext, node: Node.NumericLiteral): string {
     return node.value
 }
 
-function parseLiteral(_ctx, node) {
+function parseLiteral(_ctx: CompilerContext, node: Node.Literal): string {
     return node.raw
 }
 
-function parseTemplateLiteral(ctx, node) {
+function parseTemplateLiteral(ctx: CompilerContext, node: Node.TemplateLiteral): string {
     let result = ""
 
     for (let n = 0; n < node.quasis.length; n++) {
@@ -459,7 +484,7 @@ function parseTemplateLiteral(ctx, node) {
     return `\`${result}\``
 }
 
-function parseAssignParam(ctx, node) {
+function parseAssignParam(ctx: CompilerContext, node: Node.AssignPattern): string {
     const left = parse[node.left.kind](ctx, node.left)
     const right = parse[node.right.kind](ctx, node.right)
     const result = `${left} = ${right}`
@@ -467,15 +492,15 @@ function parseAssignParam(ctx, node) {
     return result
 }
 
-function parseNoop(_ctx, _node) {
+function parseNoop(_ctx: CompilerContext, _node: Node.Any): string {
     return ""
 }
 
-function parseBlockStatement(ctx, node) {
+function parseBlockStatement(ctx: CompilerContext, node: Node.BlockStatement): string {
     return parseBlock(ctx, node.body)
 }
 
-function parseBlock(ctx, body) {
+function parseBlock(ctx: CompilerContext, body: Node.Any[] | Node.SwitchCase[]): string {
     let result = `{`
 
     enterBlock(ctx)
@@ -494,8 +519,14 @@ function parseBlock(ctx, body) {
     return result
 }
 
-function compile(config, module, modules, indexModule = false) {
-    const ctx = {
+interface CompilerContext {
+    module: Module
+    modules: Record<string, Module>
+    spaces: string
+}
+
+function compile(config: Config, module: Module, modules: Record<string, Module>, indexModule = false) {
+    const ctx: CompilerContext = {
         module,
         modules,
         spaces: "",
@@ -517,7 +548,7 @@ function compile(config, module, modules, indexModule = false) {
     exitBlock(ctx)
 }
 
-export function compiler(config, module, modules) {
+export function compiler(config: Config, module: Module, modules: Record<string, Module>) {
     const outPath = path.resolve("./", config.outDir)
     if (fs.existsSync(outPath)) {
         fs.rmdirSync(outPath, { recursive: true })
@@ -539,21 +570,24 @@ export function compiler(config, module, modules) {
     compile(config, module, modules, true)
 }
 
-function enterBlock(ctx) {
+function enterBlock(ctx: CompilerContext): void {
     ctx.spaces += "  "
 }
 
-function exitBlock(ctx) {
-    ctx.spaces = ctx.spaces.substr(0, ctx.spaces.length - 2)
+function exitBlock(ctx: CompilerContext): void {
+    ctx.spaces = ctx.spaces.substring(0, ctx.spaces.length - 2)
 }
 
-const parse = {
+type NodeParserFunc = (ctx: CompilerContext, node: any, depth?: number) => string
+
+const parse: Record<string, NodeParserFunc> = {
     TypeAliasDeclaration: parseNoop,
     EnumDeclaration: parseEnumDeclaration,
     VariableDeclaration: parseVariableDeclaration,
     FunctionDeclaration: parseFunctionDeclaration,
     ExportNamedDeclaration: parseExportNamedDeclaration,
     ImportDeclaration: parseImportDeclaration,
+    VariableDeclarator: parseVariableDeclarator,
     ArrowFunction: parseArrowFunction,
     LabeledStatement: parseLabeledStatement,
     IfStatement: parseIfStatement,
@@ -572,6 +606,7 @@ const parse = {
     BlockStatement: parseBlockStatement,
     EmptyStatement: parseEmptyStatement,
     SequenceExpression: parseSequenceExpression,
+    ConditionalExpression: parseConditionalExpression,
     BinaryExpression: parseBinaryExpression,
     LogicalExpression: parseBinaryExpression,
     AssignmentExpression: parseAssignmentExpression,
