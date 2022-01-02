@@ -1,31 +1,70 @@
 import fs from "fs"
-import path from "path"
-import { raise, unexpected } from "./error.js"
-import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer.js"
-import { createModule, TypeKind } from "./types.js"
+import * as path from "path"
+import { raise, raiseAt, unexpected } from "../error"
+import { createModule, Module } from "../module"
+import { TypeKind } from "../types"
+import * as Node from "./node"
+import {
+    Any,
+    ArrowFunction,
+    AssignPatternNode,
+    BlockStatement,
+    BreakStatementNode,
+    CatchClause,
+    ContinueStatementNode,
+    EmptyStatement,
+    ExpressionOpNode,
+    ExpressionStatementNode,
+    ForInStatementNode,
+    ForOfStatementNode,
+    ForStatementNode,
+    FunctionParams,
+    Identifier,
+    IfStatementNode,
+    LabeledStatementNode,
+    Property,
+    ReturnStatementNode,
+    SwitchCase,
+    SwitchStatement,
+    TemplateElement,
+    TryStatement,
+    VariableDeclarationNode,
+    WhileStatementNode,
+} from "./node"
+import { Token } from "./tokenizer-types"
+import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer"
+import * as TypeNode from "./type-node"
+
+export interface Config {
+    rootDir: string
+    outDir: string
+}
+
+export interface ParserContext {
+    config: Config
+    fileDir: string
+    fileName: string
+    input: string
+    pos: number
+    start: number
+    end: number
+    startLast: number
+    endLast: number
+
+    inFunction: boolean
+
+    value: string
+    raw: string
+    kind: Token
+
+    types: {}
+    modules: Record<string, Module>
+}
 
 let aliasCounter = 0
 
-function parseIdentifier(ctx) {
-    if (ctx.kind !== kinds.name && !ctx.kind.keyword) {
-        unexpected(ctx)
-    }
-
-    const node = {
-        kind: "Identifier",
-        start: ctx.start,
-        end: ctx.end,
-        value: ctx.value,
-        type: null,
-    }
-
-    nextToken(ctx)
-
-    return node
-}
-
-function parseNumericLiteral(ctx) {
-    const node = {
+function parseNumericLiteral(ctx: ParserContext): Node.NumericLiteral {
+    const node: Node.NumericLiteral = {
         kind: "NumericLiteral",
         start: ctx.start,
         end: ctx.end,
@@ -37,8 +76,8 @@ function parseNumericLiteral(ctx) {
     return node
 }
 
-function parseLiteral(ctx) {
-    const node = {
+function parseLiteral(ctx: ParserContext): Node.Literal {
+    const node: Node.Literal = {
         kind: "Literal",
         start: ctx.start,
         end: ctx.end,
@@ -51,7 +90,25 @@ function parseLiteral(ctx) {
     return node
 }
 
-function parseExpressionAtom(ctx) {
+function parseIdentifier(ctx: ParserContext): Node.Identifier {
+    if (ctx.kind !== kinds.name && !ctx.kind.keyword) {
+        unexpected(ctx)
+    }
+
+    const node: Node.Identifier = {
+        kind: "Identifier",
+        start: ctx.start,
+        end: ctx.end,
+        value: ctx.value,
+        type: null,
+    }
+
+    nextToken(ctx)
+
+    return node
+}
+
+function parseExpressionAtom(ctx: ParserContext): Node.Any {
     switch (ctx.kind) {
         case kinds.name:
             return parseIdentifier(ctx)
@@ -81,13 +138,12 @@ function parseExpressionAtom(ctx) {
 
         case kinds.backQuote:
             return parseTemplate(ctx)
-
-        default:
-            unexpected(ctx)
     }
+
+    unexpected(ctx)
 }
 
-function parseBindingAtom(ctx) {
+function parseBindingAtom(ctx: ParserContext): Node.BindingAtom {
     if (ctx.kind === kinds.braceL) {
         return parseObjectExpression(ctx)
     }
@@ -95,12 +151,12 @@ function parseBindingAtom(ctx) {
     return parseIdentifier(ctx)
 }
 
-function parseTypeLiteral(ctx) {
+function parseTypeLiteral(ctx: ParserContext): TypeNode.Literal {
     const start = ctx.start
 
     expect(ctx, kinds.braceL)
 
-    const members = []
+    const members: TypeNode.PropertySignature[] = []
 
     while (!eat(ctx, kinds.braceR)) {
         const start = ctx.start
@@ -130,7 +186,7 @@ function parseTypeLiteral(ctx) {
     }
 }
 
-function parseMaybeDefault(ctx) {
+function parseMaybeDefault(ctx: ParserContext): AssignPatternNode | Node.BindingAtom {
     const start = ctx.start
     const left = parseBindingAtom(ctx)
 
@@ -154,7 +210,7 @@ function parseMaybeDefault(ctx) {
     }
 }
 
-function parseMaybeUnary(ctx) {
+function parseMaybeUnary(ctx: ParserContext): Any {
     const start = ctx.start
 
     if (ctx.kind.prefix) {
@@ -196,13 +252,13 @@ function parseMaybeUnary(ctx) {
     return expr
 }
 
-function parseSubscript(ctx, base) {
+function parseSubscript(ctx: ParserContext, base: Any): Any {
     const computed = eat(ctx, kinds.bracketL)
 
     if (computed || eat(ctx, kinds.dot)) {
         const object = parseSubscript(ctx, base)
 
-        let property
+        let property: Any
         if (computed) {
             property = parseExpression(ctx)
             expect(ctx, kinds.bracketR)
@@ -223,20 +279,19 @@ function parseSubscript(ctx, base) {
     }
 
     const start = ctx.start
-    const callee = base
     const args = parseExpressionList(ctx, kinds.parenthesisR)
 
     return {
         kind: "CallExpression",
         start,
         end: ctx.end,
-        callee,
+        callee: base,
         arguments: args,
         optional: false,
     }
 }
 
-function parseSubscripts(ctx, base) {
+function parseSubscripts(ctx: ParserContext, base: Any): Any {
     while (true) {
         const subscript = parseSubscript(ctx, base)
         if (base === subscript) {
@@ -249,19 +304,19 @@ function parseSubscripts(ctx, base) {
     return base
 }
 
-function parseExpressionSubscripts(ctx) {
+function parseExpressionSubscripts(ctx: ParserContext): Any {
     const expression = parseExpressionAtom(ctx)
 
     return parseSubscripts(ctx, expression)
 }
 
-function parseExpressionOps(ctx) {
+function parseExpressionOps(ctx: ParserContext): Any {
     const expression = parseMaybeUnary(ctx)
 
     return parseExpressionOp(ctx, expression, -1)
 }
 
-function parseExpressionOp(ctx, left, minPrecedence) {
+function parseExpressionOp(ctx: ParserContext, left: Any, minPrecedence: number): Any {
     const precendence = ctx.kind.binop
     if (precendence !== 0 && precendence > minPrecedence) {
         const operator = ctx.value
@@ -272,7 +327,7 @@ function parseExpressionOp(ctx, left, minPrecedence) {
 
         const expression = parseMaybeUnary(ctx)
         const right = parseExpressionOp(ctx, expression, precendence)
-        const node = {
+        const node: ExpressionOpNode = {
             kind: isLogical ? "LogicalExpression" : "BinaryExpression",
             start: left.start,
             end: ctx.end,
@@ -288,7 +343,7 @@ function parseExpressionOp(ctx, left, minPrecedence) {
     return left
 }
 
-function parseMaybeConditional(ctx) {
+function parseMaybeConditional(ctx: ParserContext): Any {
     const start = ctx.start
     const expression = parseExpressionOps(ctx)
 
@@ -300,7 +355,7 @@ function parseMaybeConditional(ctx) {
         const alternate = parseMaybeAssign(ctx)
 
         return {
-            kind: "ConditionExpression",
+            kind: "ConditionalExpression",
             start,
             end: ctx.end,
             test: expression,
@@ -312,7 +367,7 @@ function parseMaybeConditional(ctx) {
     return expression
 }
 
-function parseMaybeAssign(ctx) {
+function parseMaybeAssign(ctx: ParserContext): Any {
     const left = parseMaybeConditional(ctx)
     if (ctx.kind.isAssign) {
         checkLValue(ctx, left)
@@ -337,7 +392,7 @@ function parseMaybeAssign(ctx) {
     return left
 }
 
-function parseExpression(ctx) {
+function parseExpression(ctx: ParserContext): Any {
     const start = ctx.start
     const expression = parseMaybeAssign(ctx)
 
@@ -359,7 +414,7 @@ function parseExpression(ctx) {
     return expression
 }
 
-function parseLabeledStatement(ctx, label) {
+function parseLabeledStatement(ctx: ParserContext, label: Any): LabeledStatementNode {
     const body = parseStatement(ctx)
 
     return {
@@ -371,7 +426,7 @@ function parseLabeledStatement(ctx, label) {
     }
 }
 
-function parseExpressionStatement(ctx, expression) {
+function parseExpressionStatement(ctx: ParserContext, expression: Any): ExpressionStatementNode {
     return {
         kind: "ExpressionStatement",
         start: expression.start,
@@ -380,7 +435,7 @@ function parseExpressionStatement(ctx, expression) {
     }
 }
 
-function parseExpressionList(ctx, closeToken) {
+function parseExpressionList(ctx: ParserContext, closeToken: Token): Any[] {
     const expressions = []
     while (!eat(ctx, closeToken)) {
         if (expressions.length > 0) {
@@ -394,7 +449,7 @@ function parseExpressionList(ctx, closeToken) {
     return expressions
 }
 
-function parseStatement(ctx) {
+function parseStatement(ctx: ParserContext): Any {
     switch (ctx.kind) {
         case kinds.var:
         case kinds.let:
@@ -443,8 +498,8 @@ function parseStatement(ctx) {
     return parseExpressionStatement(ctx, expression)
 }
 
-function parseVarStatement(ctx) {
-    const node = {
+function parseVarStatement(ctx: ParserContext): VariableDeclarationNode {
+    const node: VariableDeclarationNode = {
         kind: "VariableDeclaration",
         start: ctx.start,
         end: 0,
@@ -455,7 +510,7 @@ function parseVarStatement(ctx) {
     nextToken(ctx)
 
     for (;;) {
-        const decl = parseVar(ctx, node.kind)
+        const decl = parseVar(ctx, node.keyword)
         node.declarations.push(decl)
 
         if (!eat(ctx, kinds.comma)) {
@@ -468,20 +523,7 @@ function parseVarStatement(ctx) {
     return node
 }
 
-function parseBreakStatement(ctx) {
-    const start = ctx.start
-
-    nextToken(ctx)
-
-    return {
-        kind: "BreakStatement",
-        start,
-        end: ctx.endLast,
-        label: null,
-    }
-}
-
-function parseBreakContinueStatement(ctx) {
+function parseBreakContinueStatement(ctx: ParserContext): ContinueStatementNode | BreakStatementNode {
     const start = ctx.start
     const kind = ctx.kind === kinds.continue ? "ContinueStatement" : "BreakStatement"
 
@@ -500,7 +542,7 @@ function parseBreakContinueStatement(ctx) {
     }
 }
 
-function parseIfStatement(ctx) {
+function parseIfStatement(ctx: ParserContext): IfStatementNode {
     const start = ctx.start
 
     nextToken(ctx)
@@ -519,17 +561,17 @@ function parseIfStatement(ctx) {
     }
 }
 
-function parseSwitchStatement(ctx) {
+function parseSwitchStatement(ctx: ParserContext): SwitchStatement {
     const start = ctx.start
 
     nextToken(ctx)
 
     const discriminant = parseParenthesisExpression(ctx)
-    const cases = []
+    const cases: SwitchCase[] = []
 
     expect(ctx, kinds.braceL)
 
-    let currCase = null
+    let currCase: SwitchCase | null = null
     while (ctx.kind !== kinds.braceR) {
         if (ctx.kind === kinds.case || ctx.kind === kinds.default) {
             const nodeStart = ctx.start
@@ -545,8 +587,8 @@ function parseSwitchStatement(ctx) {
                 kind: "SwitchCase",
                 start: nodeStart,
                 end: ctx.end,
-                consequent: [],
                 test,
+                consequent: [],
             }
             cases.push(currCase)
             continue
@@ -571,13 +613,13 @@ function parseSwitchStatement(ctx) {
     }
 }
 
-function parseWhileStatement(ctx) {
+function parseWhileStatement(ctx: ParserContext): WhileStatementNode {
     const start = ctx.start
 
     nextToken(ctx)
 
     const test = parseParenthesisExpression(ctx)
-    const body = parseBlock(ctx)
+    const body = parseStatement(ctx)
 
     return {
         kind: "WhileStatement",
@@ -588,7 +630,7 @@ function parseWhileStatement(ctx) {
     }
 }
 
-function parseForInOf(ctx, left, start) {
+function parseForInOf(ctx: ParserContext, left: Any, start: number): ForInStatementNode | ForOfStatementNode {
     const isForIn = ctx.kind === kinds.in
 
     nextToken(ctx)
@@ -609,7 +651,7 @@ function parseForInOf(ctx, left, start) {
     }
 }
 
-function parseForStatement(ctx) {
+function parseForStatement(ctx: ParserContext): ForStatementNode | ForInStatementNode | ForOfStatementNode {
     const start = ctx.start
     let init = null
 
@@ -644,7 +686,7 @@ function parseForStatement(ctx) {
     }
 }
 
-function parseReturnStatement(ctx) {
+function parseReturnStatement(ctx: ParserContext): ReturnStatementNode {
     if (!ctx.inFunction) {
         raise(ctx, "Illegal return statement")
     }
@@ -666,7 +708,7 @@ function parseReturnStatement(ctx) {
     }
 }
 
-function parseArrowFunction(ctx, start, params) {
+function parseArrowFunction(ctx: ParserContext, start: number, params: FunctionParams): ArrowFunction {
     let returnType = null
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
@@ -687,7 +729,7 @@ function parseArrowFunction(ctx, start, params) {
     }
 }
 
-function parseParenthesisExpression(ctx) {
+function parseParenthesisExpression(ctx: ParserContext): Any {
     const start = ctx.start
     const params = parseFunctionParams(ctx)
 
@@ -699,7 +741,7 @@ function parseParenthesisExpression(ctx) {
     return expression
 }
 
-function parseProperty(ctx) {
+function parseProperty(ctx: ParserContext): Property {
     const start = ctx.start
 
     let key
@@ -731,17 +773,14 @@ function parseProperty(ctx) {
     }
 }
 
-function parseObjectExpression(ctx) {
+function parseObjectExpression(ctx: ParserContext): Node.ObjectExpression {
     const start = ctx.start
-    const properties = []
-    let first = true
+    const properties: Property[] = []
 
     nextToken(ctx)
 
     while (!eat(ctx, kinds.braceR)) {
-        if (first) {
-            first = false
-        } else {
+        if (properties.length > 0) {
             expect(ctx, kinds.comma)
 
             if (ctx.kind === kinds.braceR) {
@@ -758,11 +797,12 @@ function parseObjectExpression(ctx) {
         kind: "ObjectExpression",
         start,
         end: ctx.end,
+        type: null,
         properties,
     }
 }
 
-function parseArrayExpression(ctx) {
+function parseArrayExpression(ctx: ParserContext): Node.ArrayExpression {
     const start = ctx.start
 
     nextToken(ctx)
@@ -777,7 +817,7 @@ function parseArrayExpression(ctx) {
     }
 }
 
-function parseNew(ctx) {
+function parseNew(ctx: ParserContext): Node.NewExpression {
     const start = ctx.start
 
     nextToken(ctx)
@@ -795,7 +835,7 @@ function parseNew(ctx) {
     }
 }
 
-function parseTemplateElement(ctx) {
+function parseTemplateElement(ctx: ParserContext): Node.TemplateElement {
     nextTemplateToken(ctx)
 
     return {
@@ -806,11 +846,11 @@ function parseTemplateElement(ctx) {
     }
 }
 
-function parseTemplate(ctx) {
+function parseTemplate(ctx: ParserContext): Node.TemplateLiteral {
     const start = ctx.start
     const element = parseTemplateElement(ctx)
-    const expressions = []
-    const quasis = [element]
+    const expressions: Any[] = []
+    const quasis: TemplateElement[] = [element]
 
     while (ctx.kind !== kinds.backQuote) {
         nextTemplateToken(ctx)
@@ -838,8 +878,8 @@ function parseTemplate(ctx) {
     }
 }
 
-function parseEmptyStatement(ctx) {
-    const node = {
+function parseEmptyStatement(ctx: ParserContext): EmptyStatement {
+    const node: EmptyStatement = {
         kind: "EmptyStatement",
         start: ctx.start,
         end: ctx.end,
@@ -850,7 +890,7 @@ function parseEmptyStatement(ctx) {
     return node
 }
 
-function parseExport(ctx) {
+function parseExport(ctx: ParserContext): Node.ExportNamedDeclaration {
     const start = ctx.start
 
     nextToken(ctx)
@@ -860,7 +900,7 @@ function parseExport(ctx) {
     }
 
     const declaration = parseStatement(ctx)
-    const specifiers = []
+    const specifiers: Any[] = []
     const source = null
 
     return {
@@ -873,17 +913,13 @@ function parseExport(ctx) {
     }
 }
 
-function parseImportSpecifiers(ctx) {
-    const specifiers = []
-
-    let first = true
+function parseImportSpecifiers(ctx: ParserContext): Node.ImportSpecifier[] {
+    const specifiers: Node.ImportSpecifier[] = []
 
     expect(ctx, kinds.braceL)
 
     while (!eat(ctx, kinds.braceR)) {
-        if (first) {
-            first = false
-        } else {
+        if (specifiers.length > 0) {
             expect(ctx, kinds.comma)
         }
 
@@ -902,7 +938,7 @@ function parseImportSpecifiers(ctx) {
     return specifiers
 }
 
-function parseImportClause(ctx) {
+function parseImportClause(ctx: ParserContext): Node.NamespaceImport | Node.NamedImports {
     const start = ctx.start
 
     switch (ctx.kind) {
@@ -929,15 +965,18 @@ function parseImportClause(ctx) {
                 specifiers,
             }
         }
+
+        default:
+            unexpected(ctx)
     }
 }
 
-function parseImport(ctx) {
+function parseImport(ctx: ParserContext): Node.ImportDeclaration {
     const start = ctx.start
 
     nextToken(ctx)
 
-    let name = null
+    let name: Identifier | null = null
 
     if (ctx.kind === kinds.name) {
         name = parseIdentifier(ctx)
@@ -948,13 +987,13 @@ function parseImport(ctx) {
 
     expectContextual(ctx, "from")
 
-    const source = parseExpressionAtom(ctx)
+    const source = parseIdentifier(ctx)
     if (source.value.charCodeAt(0) === 46) {
         const fileExt = path.extname(source.value) || ".ts"
         const filePath = path.relative("./", `${source.value}${fileExt}`)
         const fullFilePath = path.resolve(ctx.config.rootDir, filePath)
         if (!fs.existsSync(fullFilePath)) {
-            raise(ctx, node, `Cannot find module '${fullFilePath}' or its corresponding type declarations`)
+            raiseAt(ctx, source.start, `Cannot find module '${fullFilePath}' or its corresponding type declarations`)
         }
 
         if (!ctx.modules[filePath]) {
@@ -973,7 +1012,7 @@ function parseImport(ctx) {
     }
 }
 
-function parseTypeAnnotationEntry(ctx) {
+function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
     if (ctx.kind === kinds.braceL) {
         return parseTypeLiteral(ctx)
     }
@@ -1029,7 +1068,7 @@ function parseTypeAnnotationEntry(ctx) {
     }
 }
 
-function parseTypeAnnotation(ctx) {
+function parseTypeAnnotation(ctx: ParserContext): TypeNode.Any {
     eat(ctx, kinds.bitwiseOr)
 
     const type = parseTypeAnnotationEntry(ctx)
@@ -1063,7 +1102,7 @@ function parseTypeAnnotation(ctx) {
     return type
 }
 
-function parseTypeAliasDeclaration(ctx) {
+function parseTypeAliasDeclaration(ctx: ParserContext): Node.TypeAliasDeclaration {
     const start = ctx.start
     nextToken(ctx)
 
@@ -1083,7 +1122,7 @@ function parseTypeAliasDeclaration(ctx) {
     }
 }
 
-function parseFunctionType(ctx) {
+function parseFunctionType(ctx: ParserContext): TypeNode.Function {
     const start = ctx.start
     const params = parseFunctionParams(ctx)
 
@@ -1100,7 +1139,7 @@ function parseFunctionType(ctx) {
     }
 }
 
-function parseEnumMember(ctx) {
+function parseEnumMember(ctx: ParserContext): Node.EnumMember {
     const start = ctx.start
     const name = parseIdentifier(ctx)
     const initializer = eat(ctx, kinds.assign) ? parseExpressionAtom(ctx) : null
@@ -1114,7 +1153,7 @@ function parseEnumMember(ctx) {
     }
 }
 
-function parseEnum(ctx) {
+function parseEnum(ctx: ParserContext): Node.EnumDeclaration {
     const start = ctx.start
 
     nextToken(ctx)
@@ -1122,7 +1161,7 @@ function parseEnum(ctx) {
 
     expect(ctx, kinds.braceL)
 
-    const members = []
+    const members: Node.EnumMember[] = []
     while (!eat(ctx, kinds.braceR)) {
         const member = parseEnumMember(ctx)
         members.push(member)
@@ -1140,7 +1179,7 @@ function parseEnum(ctx) {
     }
 }
 
-function parseThrowStatement(ctx) {
+function parseThrowStatement(ctx: ParserContext): Node.ThrowStatement {
     const start = ctx.start
 
     nextToken(ctx)
@@ -1155,18 +1194,18 @@ function parseThrowStatement(ctx) {
     }
 }
 
-function parseFunctionStatement(ctx) {
+function parseFunctionStatement(ctx: ParserContext): Node.FunctionDeclaration {
     nextToken(ctx)
 
     return parseFunctionDeclaration(ctx)
 }
 
-function parseFunctionDeclaration(ctx) {
+function parseFunctionDeclaration(ctx: ParserContext): Node.FunctionDeclaration {
     const start = ctx.startLast
     const id = ctx.kind === kinds.name ? parseIdentifier(ctx) : null
     const params = parseFunctionParams(ctx)
 
-    let returnType = null
+    let returnType: TypeNode.Any | null = null
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
         returnType = parseTypeAnnotation(ctx)
@@ -1194,7 +1233,7 @@ function parseFunctionDeclaration(ctx) {
     }
 }
 
-function parseFunctionParams(ctx) {
+function parseFunctionParams(ctx: ParserContext): FunctionParams {
     expect(ctx, kinds.parenthesisL)
 
     const params = []
@@ -1210,18 +1249,18 @@ function parseFunctionParams(ctx) {
     return params
 }
 
-function parseFunctionBody(ctx) {
+function parseFunctionBody(ctx: ParserContext): BlockStatement {
     return parseBlock(ctx)
 }
 
-function parseTryStatement(ctx) {
+function parseTryStatement(ctx: ParserContext): TryStatement {
     const start = ctx.start
 
     nextToken(ctx)
 
     const block = parseBlock(ctx)
-    let handler = null
-    let finalizer = null
+    let handler: CatchClause | null = null
+    let finalizer: BlockStatement | null = null
 
     if (ctx.kind === kinds.catch) {
         const startClause = ctx.start
@@ -1260,7 +1299,7 @@ function parseTryStatement(ctx) {
     }
 }
 
-function parseBlock(ctx) {
+function parseBlock(ctx: ParserContext): Node.BlockStatement {
     const start = ctx.start
 
     expect(ctx, kinds.braceL)
@@ -1283,35 +1322,34 @@ function parseBlock(ctx) {
     }
 }
 
-function parseVar(ctx, kind) {
-    const node = {
-        kind: "VariableDeclarator",
-        start: ctx.start,
-        end: 0,
-        id: null,
-        init: null,
-        type: null,
-    }
+function parseVar(ctx: ParserContext, kind: string): Node.VariableDeclarator {
+    const start = ctx.start
+    const id = parseBindingAtom(ctx)
 
-    node.id = parseBindingAtom(ctx)
-
+    let type: TypeNode.Any | null = null
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
-        node.type = parseTypeAnnotation(ctx)
+        type = parseTypeAnnotation(ctx)
     }
 
+    let init: Any | null = null
     if (eat(ctx, kinds.assign)) {
-        node.init = parseMaybeAssign(ctx)
+        init = parseMaybeAssign(ctx)
     } else if (kind === "const" && ctx.kind !== kinds.in && ctx.kind !== kinds.of) {
         raise(ctx, "Missing initializer in const declaration.")
     }
 
-    node.end = ctx.end
-
-    return node
+    return {
+        kind: "VariableDeclarator",
+        start: start,
+        end: ctx.end,
+        id,
+        init,
+        type,
+    }
 }
 
-function parseTopLevel(ctx) {
+function parseTopLevel(ctx: ParserContext): Node.Program {
     const start = ctx.start
     const body = []
 
@@ -1328,7 +1366,7 @@ function parseTopLevel(ctx) {
     }
 }
 
-function checkLValue(ctx, node) {
+function checkLValue(ctx: ParserContext, node: Any): void {
     switch (node.kind) {
         case "Identifier":
         case "MemberExpression":
@@ -1339,17 +1377,17 @@ function checkLValue(ctx, node) {
     }
 }
 
-function canExportStatement(ctx) {
+function canExportStatement(ctx: ParserContext): boolean {
     return ctx.kind === kinds.function || ctx.kind === kinds.const || ctx.kind === kinds.let || ctx.kind === kinds.enum
 }
 
-export function parser(config, srcFileName, modules = {}) {
+export function parser(config: Config, srcFileName: string, modules = {}) {
     const fileDir = path.relative("./", path.dirname(srcFileName))
     const fileName = path.relative("./", srcFileName)
     const filePath = path.resolve(`${config.rootDir}/${fileDir}`, fileName)
     const input = fs.readFileSync(filePath, "utf8")
 
-    const ctx = {
+    const ctx: ParserContext = {
         config,
         fileDir,
         fileName,
@@ -1362,9 +1400,9 @@ export function parser(config, srcFileName, modules = {}) {
 
         inFunction: false,
 
-        value: undefined,
-        raw: undefined,
-        kind: null,
+        value: "",
+        raw: "",
+        kind: kinds.eof,
 
         types: {},
         modules,

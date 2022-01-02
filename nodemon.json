@@ -1,8 +1,12 @@
 {
-    "events": {
-        "start": "cls"
+    "restartable": "rs",
+    "ignore": [".git", "node_modules/", "dist/", "coverage/"],
+    "watch": ["src/", "input/", "../shared/src"],
+    "execMap": {
+        "ts": "node -r ts-node/register"
     },
-    "watch": ["src", "test"],
-    "ext": "js,ts,json",
-    "delay": "100"
+    "env": {
+        "NODE_ENV": "development"
+    },
+    "ext": "js,json,ts"
 }

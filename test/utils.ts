@@ -1,4 +1,4 @@
-export function isIdentifierStart(charCode) {
+export function isIdentifierStart(charCode: number) {
     if (charCode < 65) {
         return charCode === 36 // $
     }
@@ -15,7 +15,7 @@ export function isIdentifierStart(charCode) {
     return false
 }
 
-export function isIdentifierChar(charCode) {
+export function isIdentifierChar(charCode: number) {
     if (charCode < 48) {
         return charCode === 36 // $
     }
@@ -38,6 +38,6 @@ export function isIdentifierChar(charCode) {
     return false
 }
 
-export function isNewLine(charCode) {
+export function isNewLine(charCode: number) {
     return charCode === 10 || charCode === 13
 }

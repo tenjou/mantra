@@ -1,6 +1,6 @@
 import path from "path"
 import { getLineInfo, raiseAt } from "./error.js"
-import { getFilePath } from "./file.js"
+import { getFilePath } from "./file"
 import {
     coreTypeAliases,
     coreTypeRefs,

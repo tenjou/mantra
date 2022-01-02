@@ -1,25 +1,24 @@
-export const TypeKind = {
-    unknown: 0,
-    number: 1,
-    string: 2,
-    boolean: 3,
-    function: 4,
-    array: 5,
-    object: 6,
-    type: 7,
-    union: 8,
-    void: 9,
-    args: 10,
-    enum: 11,
+export enum TypeKind {
+    unknown,
+    number,
+    string,
+    boolean,
+    function,
+    array,
+    object,
+    type,
+    union,
+    void,
+    args,
 }
 
 export const TypeKindNamed = Object.keys(TypeKind)
 
-export const Flags = {
-    None: 0,
-    Checked: 1,
-    Const: 2,
-    Exported: 4,
+export enum Flags {
+    None,
+    Checked,
+    Const,
+    Exported,
 }
 
 export const coreTypeAliases = {
@@ -28,7 +27,6 @@ export const coreTypeAliases = {
     string: createType("string", TypeKind.string),
     boolean: createType("boolean", TypeKind.boolean),
     void: createType("void", TypeKind.void),
-    object: createType("object", TypeKind.object),
     args: createType("args", TypeKind.args),
 }
 
@@ -65,12 +63,6 @@ export function createObject(name, members = {}) {
     return { type, flags: 0 }
 }
 
-export function createEnum(name, enumType, members = {}, values = {}) {
-    const type = { name: name || "enum", kind: TypeKind.enum, enumType, members, values }
-
-    return { type, flags: 0 }
-}
-
 export function createFunction(name, args, returnType = null) {
     let argsMin = 0
     let argsMax = 0
@@ -85,8 +77,9 @@ export function createFunction(name, args, returnType = null) {
         }
     }
 
-    const type = { name, kind: TypeKind.function, args, argsMin, argsMax, returnType }
-    return type
+    const type = { name: "function", kind: TypeKind.function, args, argsMin, argsMax, returnType }
+
+    return { name, type, flags: 0 }
 }
 
 export function createArg(name, type) {
@@ -112,4 +105,26 @@ export function createModule(program, fileDir, fileName, input, alias) {
         alias,
         order: 0,
     }
+}
+
+export function isValidType(leftType, rightType) {
+    if (leftType.kind === TypeKind.union) {
+        for (const type of leftType.types) {
+            if (isValidType(type, rightType)) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    if (leftType.kind === TypeKind.array) {
+        if (rightType.kind !== TypeKind.array) {
+            return false
+        }
+
+        return isValidType(leftType.elementType, rightType.elementType)
+    }
+
+    return leftType === rightType
 }

@@ -1,7 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { TypeKind } from "./types.js"
-import { getFilePath } from "./file.js"
+import { getFilePath } from "./file"
 
 const mantrLibFileName = "./__mantra__.js"
 

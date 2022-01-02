@@ -5,12 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "pwa-node",
-            "request": "launch",
-            "name": "Launch Program",
-            "skipFiles": ["<node_internals>/**"],
-            "program": "${workspaceFolder}\\src\\index.js",
-            "outFiles": ["${workspaceFolder}/**/*.js"]
+            "type": "node",
+            "request": "attach",
+            "name": "Attach",
+            "restart": true,
+            "processId": "${command:PickProcess}"
         }
     ]
 }

@@ -1,7 +1,9 @@
-import { raise, unexpected } from "./error.js"
-import { isIdentifierChar, isNewLine, isIdentifierStart } from "./utils.js"
+import { raise, unexpected } from "../error"
+import { ParserContext } from "./parser"
+import { Token } from "./tokenizer-types"
+import { isIdentifierChar, isIdentifierStart, isNewLine } from "./utils"
 
-function skipSpace(ctx) {
+function skipSpace(ctx: ParserContext): void {
     while (ctx.pos < ctx.input.length) {
         const charCode = ctx.input.charCodeAt(ctx.pos)
         switch (charCode) {
@@ -20,7 +22,7 @@ function skipSpace(ctx) {
     }
 }
 
-function skipLineComment(ctx) {
+function skipLineComment(ctx: ParserContext): void {
     ctx.pos += 2
 
     let charCode = ctx.input.charCodeAt(ctx.pos)
@@ -30,7 +32,7 @@ function skipLineComment(ctx) {
     }
 }
 
-function readWord(ctx) {
+function readWord(ctx: ParserContext): void {
     while (ctx.pos < ctx.input.length) {
         const charCode = ctx.input.charCodeAt(ctx.pos)
         if (!isIdentifierChar(charCode)) {
@@ -51,7 +53,7 @@ function readWord(ctx) {
     }
 }
 
-function readText(ctx, quote) {
+function readText(ctx: ParserContext, quote: number): void {
     const start = ctx.pos++
 
     for (;;) {
@@ -72,7 +74,7 @@ function readText(ctx, quote) {
     ctx.value = ctx.input.slice(start + 1, ctx.pos - 1)
 }
 
-function readNumber(ctx) {
+function readNumber(ctx: ParserContext): void {
     for (; ctx.pos < Infinity; ctx.pos++) {
         const charCode = ctx.input.charCodeAt(ctx.pos)
         if (charCode < 48 || charCode > 57 || isNaN(charCode)) {
@@ -84,7 +86,7 @@ function readNumber(ctx) {
     ctx.value = ctx.input.slice(ctx.start, ctx.pos)
 }
 
-function readPlusMinus(ctx, charCode) {
+function readPlusMinus(ctx: ParserContext, charCode: number): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === charCode) {
         ctx.kind = kinds.incrementDecrement
@@ -105,7 +107,7 @@ function readPlusMinus(ctx, charCode) {
     ctx.pos++
 }
 
-function finishTokenAssign(ctx, kind) {
+function finishTokenAssign(ctx: ParserContext, kind: Token): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
         ctx.kind = kinds.assign
@@ -119,7 +121,7 @@ function finishTokenAssign(ctx, kind) {
     ctx.pos++
 }
 
-function readEquality(ctx, charCode) {
+function readEquality(ctx: ParserContext, charCode: number): void {
     let size = 1
 
     let nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
@@ -147,7 +149,7 @@ function readEquality(ctx, charCode) {
     ctx.pos += size
 }
 
-function readGreaterThan(ctx) {
+function readGreaterThan(ctx: ParserContext): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
@@ -161,7 +163,7 @@ function readGreaterThan(ctx) {
     ctx.pos++
 }
 
-function readLessThan(ctx) {
+function readLessThan(ctx: ParserContext): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
@@ -175,7 +177,7 @@ function readLessThan(ctx) {
     ctx.pos++
 }
 
-function readLogicalOr(ctx) {
+function readLogicalOr(ctx: ParserContext): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 124) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
@@ -189,7 +191,7 @@ function readLogicalOr(ctx) {
     ctx.pos += 1
 }
 
-function readLogicalAnd(ctx) {
+function readLogicalAnd(ctx: ParserContext): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 38) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
@@ -203,13 +205,13 @@ function readLogicalAnd(ctx) {
     ctx.pos += 1
 }
 
-function finishToken(ctx, kind) {
+function finishToken(ctx: ParserContext, kind: Token): void {
     ctx.kind = kind
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
 }
 
-function getTokenFromCode(ctx, charCode) {
+function getTokenFromCode(ctx: ParserContext, charCode: number): void {
     switch (charCode) {
         case 33:
         case 61: // '! ='
@@ -306,7 +308,7 @@ function getTokenFromCode(ctx, charCode) {
     raise(ctx, "Unsupported feature")
 }
 
-function readTemplateToken(ctx) {
+function readTemplateToken(ctx: ParserContext): void {
     let output = ""
     let chunkStart = ctx.pos
 
@@ -352,7 +354,7 @@ function readTemplateToken(ctx) {
     }
 }
 
-export function nextToken(ctx) {
+export function nextToken(ctx: ParserContext): void {
     skipSpace(ctx)
 
     if (ctx.pos >= ctx.input.length) {
@@ -375,7 +377,7 @@ export function nextToken(ctx) {
     ctx.end = ctx.pos
 }
 
-export function nextTemplateToken(ctx) {
+export function nextTemplateToken(ctx: ParserContext): void {
     ctx.startLast = ctx.start
     ctx.start = ctx.pos
 
@@ -385,7 +387,7 @@ export function nextTemplateToken(ctx) {
     ctx.end = ctx.pos
 }
 
-export function eat(ctx, kind) {
+export function eat(ctx: ParserContext, kind: Token): boolean {
     if (ctx.kind === kind) {
         nextToken(ctx)
         return true
@@ -394,11 +396,11 @@ export function eat(ctx, kind) {
     return false
 }
 
-export function expect(ctx, kind) {
+export function expect(ctx: ParserContext, kind: Token): void {
     eat(ctx, kind) || unexpected(ctx)
 }
 
-function eatContextual(ctx, str) {
+function eatContextual(ctx: ParserContext, str: string): boolean {
     if (ctx.kind === kinds.name && ctx.value === str) {
         nextToken(ctx)
         return true
@@ -407,11 +409,11 @@ function eatContextual(ctx, str) {
     return false
 }
 
-export function expectContextual(ctx, str) {
+export function expectContextual(ctx: ParserContext, str: string): void {
     eatContextual(ctx, str) || unexpected(ctx)
 }
 
-export function canInsertSemicolon(ctx) {
+export function canInsertSemicolon(ctx: ParserContext): boolean {
     for (let n = ctx.endLast; n < ctx.pos; n++) {
         const charCode = ctx.input.charCodeAt(n)
         if (charCode === 10) {
@@ -422,7 +424,7 @@ export function canInsertSemicolon(ctx) {
     return false
 }
 
-function createToken(label, options = {}) {
+function createToken(label: string, options: Partial<Token> = {}): Token {
     return {
         label,
         keyword: options.keyword || false,
@@ -434,7 +436,7 @@ function createToken(label, options = {}) {
     }
 }
 
-function createKeyword(name, options = {}) {
+function createKeyword(name: string, options: Partial<Token> = {}): Token {
     options.keyword = true
 
     const keywordToken = createToken(name, options)
@@ -443,13 +445,13 @@ function createKeyword(name, options = {}) {
     return keywordToken
 }
 
-function createBinop(name, binop, isComparison = false) {
+function createBinop(name: string, binop: number, isComparison = false): Token {
     return createToken(name, { binop, isComparison })
 }
 
-const keywords = {}
+const keywords: Record<string, Token> = {}
 
-export const kinds = {
+export const kinds: Record<string, Token> = {
     assign: createToken("=", { isAssign: true }),
     incrementDecrement: createToken("++/--", { prefix: true, postfix: true }),
     prefix: createToken("!", { prefix: true }),

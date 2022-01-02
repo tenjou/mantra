@@ -1,20 +1,32 @@
-import { isNewLine } from "./utils.js"
+import { isNewLine } from "./parser/utils"
 
-export function raiseAt(ctx, pos, error) {
+interface Context {
+    input: string
+    start: number
+    fileDir: string
+    fileName: string
+}
+
+interface LineInfo {
+    line: number
+    pos: number
+}
+
+export function raiseAt(ctx: Context, pos: number, error: string): never {
     const lineInfo = getLineInfo(ctx.input, pos)
     const fileName = `./${ctx.fileDir}${ctx.fileName}`
     throw new SyntaxError(`${error}. ${fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 }
 
-export function raise(ctx, error) {
+export function raise(ctx: Context, error: string): never {
     raiseAt(ctx, ctx.start, error)
 }
 
-export function unexpected(ctx) {
+export function unexpected(ctx: Context): never {
     raise(ctx, "Unexpected token")
 }
 
-export function getLineInfo(input, offset) {
+export function getLineInfo(input: string, offset: number): LineInfo {
     let line = 1
     let pos = 0
 
