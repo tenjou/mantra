@@ -1,4 +1,4 @@
-import path from "path"
+import * as path from "path"
 
 export function getFilePath(fileDir: string, sourcePath: string): string {
     if (sourcePath.charCodeAt(0) === 46) {
