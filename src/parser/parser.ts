@@ -69,7 +69,6 @@ function parseIdentifier(ctx: ParserContext): Node.Identifier {
         start: ctx.start,
         end: ctx.end,
         value: ctx.value,
-        type: null,
     }
 
     nextToken(ctx)
@@ -159,9 +158,10 @@ function parseMaybeDefault(ctx: ParserContext): Node.AssignPattern | Node.Bindin
     const start = ctx.start
     const left = parseBindingAtom(ctx)
 
+    let type: TypeNode.Any | null = null
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
-        left.type = parseTypeAnnotation(ctx)
+        type = parseTypeAnnotation(ctx)
     }
 
     if (!eat(ctx, kinds.assign)) {
@@ -176,6 +176,7 @@ function parseMaybeDefault(ctx: ParserContext): Node.AssignPattern | Node.Bindin
         end: ctx.end,
         left,
         right,
+        type,
     }
 }
 

@@ -150,10 +150,6 @@ interface Context {
 //     }
 // }
 
-// function handleExportNamedDeclaration(ctx: Context, node: Node.ExportNamedDeclaration): void {
-//     handle[node.declaration.kind](ctx, node.declaration, Flags.Exported)
-// }
-
 // function getEnumType(ctx: Context, members: Node.EnumMember[]): TypeKind {
 //     let enumType = TypeKind.unknown
 
@@ -653,10 +649,6 @@ interface Context {
 //     return coreTypeRefs.string
 // }
 
-function handleNumericLiteral(_ctx: Context, _node: Node.NumericLiteral): Type.Any {
-    return Type.coreAliases.number
-}
-
 // function haveLabel(ctx: Context, label: Node.LabeledStatement): boolean {
 //     let scope = ctx.scopeCurr
 
@@ -700,8 +692,12 @@ function handleNumericLiteral(_ctx: Context, _node: Node.NumericLiteral): Type.A
 //     ctx.modulesExports[alias] = refs
 // }
 
+function handleNumericLiteral(_ctx: Context, _node: Node.NumericLiteral): Type.Any {
+    return Type.coreAliases.number
+}
+
 function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, flags: number = 0): void {
-    const varRef = declareVar(ctx, node.id, flags)
+    const varRef = declareVar(ctx, node, flags)
 
     if (node.init) {
         const initType = handle[node.init.kind](ctx, node.init, flags)
@@ -725,6 +721,10 @@ function handleVariableDeclaration(ctx: Context, node: Node.VariableDeclaration,
     for (const decl of node.declarations) {
         handleVariableDeclarator(ctx, decl, flags)
     }
+}
+
+function handleExportNamedDeclaration(ctx: Context, node: Node.ExportNamedDeclaration): void {
+    return handle[node.declaration.kind](ctx, node.declaration, Flags.Exported)
 }
 
 function handleStatements(ctx: Context, body: Node.Any[]): void {
@@ -937,14 +937,14 @@ function getVar(ctx: Context, value: string, isObject: boolean): Type.Reference 
     return null
 }
 
-function declareVar(ctx: Context, node: Node.Identifier, flags = 0, isObject = false): Type.Reference {
-    const name = node.value
+function declareVar(ctx: Context, node: Node.VariableDeclarator, flags = 0, isObject = false): Type.Reference {
+    const name = node.id.value
     const prevVar = getVar(ctx, name, isObject)
     if (prevVar) {
         raiseAt(ctx.module, node.start, `Duplicate identifier '${name}'`)
     }
 
-    const type = handleType(ctx, node.type, node.value)
+    const type = handleType(ctx, node.type, node.id.value)
     const ref = Type.createRef(name, type, flags)
 
     ctx.scopeCurr.vars[name] = ref
@@ -1006,10 +1006,11 @@ const handle: Record<string, HandleFunc> = {
     // VariableDeclarator: handleVariableDeclarator,
     // EnumDeclaration: handleEnumDeclaration,
     // TypeAliasDeclaration: handleTypeAliasDeclaration,
+    NumericLiteral: handleNumericLiteral,
     VariableDeclaration: handleVariableDeclaration,
+    ExportNamedDeclaration: handleExportNamedDeclaration,
     // FunctionDeclaration: handleFunctionDeclaration,
     // ImportDeclaration: handleImportDeclaration,
-    // ExportNamedDeclaration: handleExportNamedDeclaration,
     // LabeledStatement: handleLabeledStatement,
     // ExpressionStatement: handleExpressionStatement,
     // ConditionalExpression: handleConditionalExpression,
@@ -1042,5 +1043,4 @@ const handle: Record<string, HandleFunc> = {
     // Identifier: handleIdentifier,
     // TemplateLiteral: handleTemplateLiteral,
     // Literal: handleLiteral,
-    NumericLiteral: handleNumericLiteral,
 }

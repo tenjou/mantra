@@ -49,7 +49,6 @@ export type Kind = Any["kind"]
 export interface Identifier extends Node {
     kind: "Identifier"
     value: string
-    type: TypeNode.Any | null
 }
 
 export interface Literal extends Node {
@@ -312,6 +311,7 @@ export interface AssignPattern extends Node {
     kind: "AssignPattern"
     left: Any
     right: Any
+    type: TypeNode.Any | null
 }
 
 export interface CallExpression extends Node {
