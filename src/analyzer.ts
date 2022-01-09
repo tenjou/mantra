@@ -653,9 +653,9 @@ interface Context {
 //     return coreTypeRefs.string
 // }
 
-// function handleNumericLiteral(_ctx, _node) {
-//     return { type: coreTypeAliases.number, flags: 0 }
-// }
+function handleNumericLiteral(_ctx: Context, _node: Node.NumericLiteral): Type.Any {
+    return Type.coreAliases.number
+}
 
 // function haveLabel(ctx: Context, label: Node.LabeledStatement): boolean {
 //     let scope = ctx.scopeCurr
@@ -705,7 +705,7 @@ function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, f
 
     if (node.init) {
         const initType = handle[node.init.kind](ctx, node.init, flags)
-        if (!initType.kind) {
+        if (varRef.type.kind === Type.Kind.unknown) {
             varRef.type = initType
         } else if (!isValidType(ctx, varRef.type, initType, node.start)) {
             raiseTypeError(ctx, node.init.start, varRef.type, initType)
@@ -1042,5 +1042,5 @@ const handle: Record<string, HandleFunc> = {
     // Identifier: handleIdentifier,
     // TemplateLiteral: handleTemplateLiteral,
     // Literal: handleLiteral,
-    // NumericLiteral: handleNumericLiteral,
+    NumericLiteral: handleNumericLiteral,
 }
