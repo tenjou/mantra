@@ -3,7 +3,7 @@ import * as path from "path"
 import { Config } from "./config"
 import { getFilePath } from "./file"
 import { Module } from "./module"
-import { TypeKind } from "./types"
+import { Kind } from "./types"
 import * as Node from "./parser/node"
 
 const mantrLibFileName = "./__mantra__.js"
@@ -42,7 +42,7 @@ function parseEnumDeclaration(ctx: CompilerContext, node: Node.EnumDeclaration):
     let members = ""
 
     switch (node.type) {
-        case TypeKind.string: {
+        case Kind.string: {
             for (const member of node.members) {
                 const memberName = parseIdentifier(ctx, member.name)
                 if (member.initializer) {

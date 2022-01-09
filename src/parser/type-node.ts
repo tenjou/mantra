@@ -1,4 +1,4 @@
-import { FunctionParams } from "./node"
+import { Identifier } from "./node"
 
 export type Any =
     | NumberKeyword
@@ -23,10 +23,16 @@ export interface Union extends TypeNode {
     types: Any[]
 }
 
+export interface Parameter extends TypeNode {
+    kind: "Parameter"
+    name: Identifier
+    type: Any
+}
+
 export interface Function extends TypeNode {
     kind: "FunctionType"
     type: Any
-    params: FunctionParams
+    params: Parameter[]
 }
 
 export interface PropertySignature extends TypeNode {

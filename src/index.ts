@@ -1,14 +1,14 @@
-import { parser } from "./parser/parser"
-import { Config } from "./config"
-// import { analyze } from "./analyzer"
+import { analyze } from "./analyzer"
 import { compiler } from "./compiler"
+import { Config } from "./config"
+import { parser } from "./parser/parser"
 
 function compile(fileName: string, config: Config) {
     try {
         const modules = {}
         const module = parser(config, fileName, modules)
         // console.dir(module.program, { depth: null })
-        // analyze(config, module, modules)
+        analyze(config, module, modules)
         compiler(config, module, modules)
     } catch (err) {
         if (err instanceof Error) {

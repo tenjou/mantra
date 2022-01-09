@@ -1,9 +1,9 @@
 import fs from "fs"
 import * as path from "path"
 import { Config } from "../config"
-import { raise, raiseAt, unexpected } from "../error"
+import { raiseAt, unexpected } from "../error"
 import { createModule, Module } from "../module"
-import { TypeKind } from "../types"
+import { Kind } from "../types"
 import * as Node from "./node"
 import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer"
 import { Token } from "./tokenizer-types"
@@ -657,7 +657,7 @@ function parseForStatement(ctx: ParserContext): Node.ForStatement | Node.ForInSt
 
 function parseReturnStatement(ctx: ParserContext): Node.ReturnStatement {
     if (!ctx.inFunction) {
-        raise(ctx, "Illegal return statement")
+        raiseAt(ctx, ctx.pos, "Illegal return statement")
     }
 
     const start = ctx.start
@@ -1091,9 +1091,37 @@ function parseTypeAliasDeclaration(ctx: ParserContext): Node.TypeAliasDeclaratio
     }
 }
 
+function parseParamsType(ctx: ParserContext): TypeNode.Parameter[] {
+    expect(ctx, kinds.parenthesisL)
+
+    const params: TypeNode.Parameter[] = []
+    while (!eat(ctx, kinds.parenthesisR)) {
+        if (params.length > 0) {
+            expect(ctx, kinds.comma)
+        }
+
+        const start = ctx.start
+        const name = parseIdentifier(ctx)
+
+        expect(ctx, kinds.colon)
+
+        const type = parseTypeAnnotation(ctx)
+
+        params.push({
+            kind: "Parameter",
+            start,
+            end: ctx.end,
+            name,
+            type,
+        })
+    }
+
+    return params
+}
+
 function parseFunctionType(ctx: ParserContext): TypeNode.Function {
     const start = ctx.start
-    const params = parseFunctionParams(ctx)
+    const params = parseParamsType(ctx)
 
     expect(ctx, kinds.arrow)
 
@@ -1165,7 +1193,7 @@ function parseEnum(ctx: ParserContext): Node.EnumDeclaration {
         end: ctx.end,
         name,
         members,
-        type: TypeKind.unknown,
+        type: Kind.unknown,
     }
 }
 
@@ -1276,7 +1304,7 @@ function parseTryStatement(ctx: ParserContext): Node.TryStatement {
     finalizer = eat(ctx, kinds.finally) ? parseBlock(ctx) : null
 
     if (!handler && !finalizer) {
-        raise(ctx, "Missing catch or finally clause")
+        raiseAt(ctx, ctx.pos, "Missing catch or finally clause")
     }
 
     return {
@@ -1314,7 +1342,7 @@ function parseBlock(ctx: ParserContext): Node.BlockStatement {
 
 function parseVar(ctx: ParserContext, kind: string): Node.VariableDeclarator {
     const start = ctx.start
-    const id = parseBindingAtom(ctx)
+    const id = parseIdentifier(ctx)
 
     let type: TypeNode.Any | null = null
     if (ctx.kind === kinds.colon) {
@@ -1326,7 +1354,7 @@ function parseVar(ctx: ParserContext, kind: string): Node.VariableDeclarator {
     if (eat(ctx, kinds.assign)) {
         init = parseMaybeAssign(ctx)
     } else if (kind === "const" && ctx.kind !== kinds.in && ctx.kind !== kinds.of) {
-        raise(ctx, "Missing initializer in const declaration.")
+        raiseAt(ctx, ctx.pos, "Missing initializer in const declaration.")
     }
 
     return {
@@ -1363,7 +1391,7 @@ function checkLValue(ctx: ParserContext, node: Node.Any): void {
             break
 
         default:
-            raise(ctx, `Invalid left-hand side in assignment expression.`)
+            raiseAt(ctx, node.start, `Invalid left-hand side in assignment expression.`)
     }
 }
 

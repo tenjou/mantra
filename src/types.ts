@@ -1,4 +1,4 @@
-export enum TypeKind {
+export enum Kind {
     unknown,
     number,
     string,
@@ -13,78 +13,95 @@ export enum TypeKind {
     enum,
 }
 
-export const TypeKindNamed = Object.keys(TypeKind)
+type DefaultKind = Kind.unknown | Kind.number | Kind.string | Kind.boolean | Kind.void | Kind.args
 
-// interface BaseType {
-//     name: string
-//     kind: TypeKind
-// }
+export interface Default {
+    name: string
+    kind: DefaultKind
+}
 
-// interface ArrayType extends BaseType {}
+export interface Union {
+    name: string
+    kind: Kind.union
+    types: Any[]
+}
 
-// type Type = BaseType | ArrayType
+export interface Array {
+    name: string
+    kind: Kind.array
+    elementType: Any
+}
 
-// interface Reference {
-//     name: string | null
-//     flags: number
-//     type: Type
-// }
+export interface Function {
+    name: string
+    kind: Kind.function
+    params: Any[]
+    returnType: Any
+}
 
-// export const Flags = {
-//     None: 0,
-//     Checked: 1,
-//     Const: 2,
-//     Exported: 4,
-// }
+export interface Object {
+    name: string
+    kind: Kind.object
+    members: Any[]
+}
 
-// export const coreTypeAliases = {
-//     unknown: createType("unknown", TypeKind.unknown),
-//     number: createType("number", TypeKind.number),
-//     string: createType("string", TypeKind.string),
-//     boolean: createType("boolean", TypeKind.boolean),
-//     void: createType("void", TypeKind.void),
-//     object: createType("object", TypeKind.object),
-//     args: createType("args", TypeKind.args),
-// }
+export type Any = Default | Union | Array | Function | Object
 
-// export const coreTypeRefs = {
-//     unknown: { type: coreTypeAliases.unknown, flags: 0 },
-//     number: { type: coreTypeAliases.number, flags: 0 },
-//     string: { type: coreTypeAliases.string, flags: 0 },
-//     boolean: { type: coreTypeAliases.boolean, flags: 0 },
-//     void: { type: coreTypeAliases.void, flags: 0 },
-//     args: { type: coreTypeAliases.args, flags: 0 },
-// }
+export interface Reference {
+    name: string
+    type: Any
+    flags: number
+}
 
-// export function createType(name: string, kind: TypeKind) {
-//     return { name, kind }
-// }
+export const TypeKindNamed = Object.keys(Kind)
+
+export function createType(name: string, kind: DefaultKind): Default {
+    return { name, kind }
+}
+
+export function createUnion(name: string, types: Any[]): Union {
+    return { name, kind: Kind.union, types }
+}
+
+export function createArray(name: string, elementType: Any): Array {
+    return { name, kind: Kind.array, elementType }
+}
+
+export function createFunction(name: string, params: any[], returnType: Any): Function {
+    return { name, kind: Kind.function, params, returnType }
+}
+
+export function createObject(name: string, members: Any[]): Object {
+    return { name, kind: Kind.object, members }
+}
+
+export function createRef(name: string, type: Any, flags: number = 0): Reference {
+    return { name, type, flags }
+}
+
+export const coreAliases: Record<string, Any> = {
+    unknown: createType("unknown", Kind.unknown),
+    number: createType("number", Kind.number),
+    string: createType("string", Kind.string),
+    boolean: createType("boolean", Kind.boolean),
+    void: createType("void", Kind.void),
+    args: createType("args", Kind.args),
+    object: createObject("object", []),
+}
+
+export const coreRefs: Record<string, Reference> = {
+    unknown: createRef("unknown", coreAliases.unknown, 0),
+    number: createRef("number", coreAliases.number, 0),
+    string: createRef("string", coreAliases.string, 0),
+    boolean: createRef("boolean", coreAliases.boolean, 0),
+    void: createRef("void", coreAliases.void, 0),
+    args: createRef("args", coreAliases.args, 0),
+}
 
 // export function loadCoreTypes(ctx) {
 //     ctx.typeAliases = {
 //         ...coreTypeAliases,
 //     }
-// }
-
-// interface Type {
-//     type: TypeKind
-//     flags: number
-// }
-
-// interface Reference {
-//     type: Type
-//     flags: number
-//     name: string
-// }
-
-// export function createRef(type: Type, name: string = ""): Reference {
-//     return { type, flags: 0, name }
-// }
-
-// export function createObject(name, members = {}) {
-//     const type = { name: name || "{}", kind: TypeKind.object, members }
-
-//     return { type, flags: 0 }
 // }
 
 // export function createEnum(name, enumType, members = {}, values = {}) {
@@ -113,14 +130,4 @@ export const TypeKindNamed = Object.keys(TypeKind)
 
 // export function createArg(name, type) {
 //     return { name, type, flags: 0 }
-// }
-
-// export function createUnion(name, types) {
-//     return { name, kind: TypeKind.union, types }
-// }
-
-// export function createArray(elementType): Reference {
-//     const type: Type = { name: "array", kind: TypeKind.array, elementType }
-
-//     return { type, flags: 0 }
 // }

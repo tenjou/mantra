@@ -1,5 +1,5 @@
 import * as TypeNode from "./type-node"
-import { TypeKind } from "../types"
+import * as Type from "../types"
 
 export type Any =
     | BlockStatement
@@ -100,7 +100,7 @@ export interface VariableDeclaration extends Node {
 
 export interface VariableDeclarator extends Node {
     kind: "VariableDeclarator"
-    id: BindingAtom
+    id: Identifier
     init: Any | null
     type: TypeNode.Any | null
 }
@@ -147,7 +147,7 @@ export interface EnumDeclaration extends Node {
     kind: "EnumDeclaration"
     name: Identifier
     members: EnumMember[]
-    type: TypeKind
+    type: Type.Kind
 }
 
 export interface TypeAliasDeclaration extends Node {

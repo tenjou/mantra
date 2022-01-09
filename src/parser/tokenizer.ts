@@ -1,4 +1,4 @@
-import { raise, unexpected } from "../error"
+import { raiseAt, unexpected } from "../error"
 import { ParserContext } from "./parser"
 import { Token } from "./tokenizer-types"
 import { isIdentifierChar, isIdentifierStart, isNewLine } from "./utils"
@@ -58,7 +58,7 @@ function readText(ctx: ParserContext, quote: number): void {
 
     for (;;) {
         if (ctx.pos >= ctx.input.length) {
-            raise(ctx, "Unterminated string constant")
+            raiseAt(ctx, ctx.pos, "Unterminated string constant")
         }
 
         const charCode = ctx.input.charCodeAt(ctx.pos)
@@ -305,7 +305,7 @@ function getTokenFromCode(ctx: ParserContext, charCode: number): void {
             return
     }
 
-    raise(ctx, "Unsupported feature")
+    raiseAt(ctx, ctx.pos, "Unsupported feature")
 }
 
 function readTemplateToken(ctx: ParserContext): void {
@@ -314,7 +314,7 @@ function readTemplateToken(ctx: ParserContext): void {
 
     for (;;) {
         if (ctx.pos >= ctx.input.length) {
-            raise(ctx, "Unterminated template")
+            raiseAt(ctx, ctx.pos, "Unterminated template")
         }
 
         const charCode = ctx.input.charCodeAt(ctx.pos)

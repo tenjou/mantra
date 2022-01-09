@@ -2,7 +2,6 @@ import { isNewLine } from "./parser/utils"
 
 interface Context {
     input: string
-    start: number
     fileDir: string
     fileName: string
 }
@@ -18,12 +17,8 @@ export function raiseAt(ctx: Context, pos: number, error: string): never {
     throw new SyntaxError(`${error}. ${fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 }
 
-export function raise(ctx: Context, error: string): never {
-    raiseAt(ctx, ctx.start, error)
-}
-
 export function unexpected(ctx: Context): never {
-    raise(ctx, "Unexpected token")
+    raiseAt(ctx, 0, "Unexpected token")
 }
 
 export function getLineInfo(input: string, offset: number): LineInfo {
