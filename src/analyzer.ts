@@ -626,27 +626,10 @@ interface Context {
 
 // function handleAssignPattern(_ctx: Context, _node: Node.AssignPattern): void {}
 
-// function handleIdentifier(ctx: Context, node: Node.Identifier): Node.Identifier {
-//     const identifier = getVar(ctx, node.value)
-//     if (!identifier) {
-//         raiseAt(ctx.module, node.start, `Cannot find name '${node.value}'`)
-//     }
-
-//     return identifier
-// }
-
 // function handleTemplateLiteral(ctx: Context, node: Node.TemplateLiteral): void {
 //     for (const expression of node.expressions) {
 //         handle[expression.kind](ctx, expression)
 //     }
-// }
-
-// function handleLiteral(_ctx, node) {
-//     if (node.value === "true" || node.value === "false") {
-//         return coreTypeRefs.boolean
-//     }
-
-//     return coreTypeRefs.string
 // }
 
 // function haveLabel(ctx: Context, label: Node.LabeledStatement): boolean {
@@ -692,8 +675,25 @@ interface Context {
 //     ctx.modulesExports[alias] = refs
 // }
 
+function handleLiteral(_ctx: Context, node: Node.Literal): Type.Any {
+    if (node.value === "true" || node.value === "false") {
+        return Type.coreAliases.boolean
+    }
+
+    return Type.coreAliases.string
+}
+
 function handleNumericLiteral(_ctx: Context, _node: Node.NumericLiteral): Type.Any {
     return Type.coreAliases.number
+}
+
+function handleIdentifier(ctx: Context, node: Node.Identifier): Type.Any {
+    const identifier = getVar(ctx, node.value)
+    if (!identifier) {
+        raiseAt(ctx.module, node.start, `Cannot find name '${node.value}'`)
+    }
+
+    return identifier.type
 }
 
 function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, flags: number = 0): void {
@@ -916,7 +916,7 @@ function raiseTypeError(ctx: Context, start: number, leftType: Type.Any, rightTy
     raiseAt(ctx.module, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
 }
 
-function getVar(ctx: Context, value: string, isObject: boolean): Type.Reference | null {
+function getVar(ctx: Context, value: string, isObject: boolean = false): Type.Reference | null {
     if (isObject) {
         const item = ctx.scopeCurr.vars[value]
         if (item) {
@@ -1006,7 +1006,9 @@ const handle: Record<string, HandleFunc> = {
     // VariableDeclarator: handleVariableDeclarator,
     // EnumDeclaration: handleEnumDeclaration,
     // TypeAliasDeclaration: handleTypeAliasDeclaration,
+    Literal: handleLiteral,
     NumericLiteral: handleNumericLiteral,
+    Identifier: handleIdentifier,
     VariableDeclaration: handleVariableDeclaration,
     ExportNamedDeclaration: handleExportNamedDeclaration,
     // FunctionDeclaration: handleFunctionDeclaration,
@@ -1040,7 +1042,5 @@ const handle: Record<string, HandleFunc> = {
     // NewExpression: handleNewExpression,
     // SequenceExpression: handleSequenceExpression,
     // AssignPattern: handleAssignPattern,
-    // Identifier: handleIdentifier,
     // TemplateLiteral: handleTemplateLiteral,
-    // Literal: handleLiteral,
 }
