@@ -45,6 +45,19 @@ function parseNumericLiteral(ctx: ParserContext): Node.NumericLiteral {
     return node
 }
 
+function parseBooleanLiteral(ctx: ParserContext): Node.BooleanLiteral {
+    const node: Node.BooleanLiteral = {
+        kind: "BooleanLiteral",
+        start: ctx.start,
+        end: ctx.end,
+        value: ctx.value,
+    }
+
+    nextToken(ctx)
+
+    return node
+}
+
 function parseLiteral(ctx: ParserContext): Node.Literal {
     const node: Node.Literal = {
         kind: "Literal",
@@ -76,7 +89,7 @@ function parseIdentifier(ctx: ParserContext): Node.Identifier {
     return node
 }
 
-function parseExpressionAtom(ctx: ParserContext): Node.Any {
+function parseExpressionAtom(ctx: ParserContext): Node.Expression {
     switch (ctx.kind) {
         case kinds.name:
             return parseIdentifier(ctx)
@@ -84,22 +97,24 @@ function parseExpressionAtom(ctx: ParserContext): Node.Any {
         case kinds.num:
             return parseNumericLiteral(ctx)
 
-        case kinds.text:
         case kinds.true:
         case kinds.false:
+            return parseBooleanLiteral(ctx)
+
+        case kinds.text:
         case kinds.null:
         case kinds.break:
         case kinds._undefined:
             return parseLiteral(ctx)
 
+        case kinds.bracketL:
+            return parseArrayExpression(ctx)
+
         case kinds.parenthesisL:
-            return parseParenthesisExpression(ctx)
+            return parseArrowFunction(ctx)
 
         case kinds.braceL:
             return parseObjectExpression(ctx)
-
-        case kinds.bracketL:
-            return parseArrayExpression(ctx)
 
         case kinds.new:
             return parseNew(ctx)
@@ -180,7 +195,7 @@ function parseMaybeDefault(ctx: ParserContext): Node.AssignPattern | Node.Bindin
     }
 }
 
-function parseMaybeUnary(ctx: ParserContext): Node.Any {
+function parseMaybeUnary(ctx: ParserContext): Node.Expression {
     const start = ctx.start
 
     if (ctx.kind.prefix) {
@@ -222,13 +237,13 @@ function parseMaybeUnary(ctx: ParserContext): Node.Any {
     return expr
 }
 
-function parseSubscript(ctx: ParserContext, base: Node.Any): Node.Any {
+function parseSubscript(ctx: ParserContext, base: Node.Expression): Node.Expression {
     const computed = eat(ctx, kinds.bracketL)
 
     if (computed || eat(ctx, kinds.dot)) {
         const object = parseSubscript(ctx, base)
 
-        let property: Node.Any
+        let property: Node.Expression
         if (computed) {
             property = parseExpression(ctx)
             expect(ctx, kinds.bracketR)
@@ -261,7 +276,7 @@ function parseSubscript(ctx: ParserContext, base: Node.Any): Node.Any {
     }
 }
 
-function parseSubscripts(ctx: ParserContext, base: Node.Any): Node.Any {
+function parseSubscripts(ctx: ParserContext, base: Node.Expression): Node.Expression {
     while (true) {
         const subscript = parseSubscript(ctx, base)
         if (base === subscript) {
@@ -274,19 +289,19 @@ function parseSubscripts(ctx: ParserContext, base: Node.Any): Node.Any {
     return base
 }
 
-function parseExpressionSubscripts(ctx: ParserContext): Node.Any {
+function parseExpressionSubscripts(ctx: ParserContext): Node.Expression {
     const expression = parseExpressionAtom(ctx)
 
     return parseSubscripts(ctx, expression)
 }
 
-function parseExpressionOps(ctx: ParserContext): Node.Any {
+function parseExpressionOps(ctx: ParserContext): Node.Expression {
     const expression = parseMaybeUnary(ctx)
 
     return parseExpressionOp(ctx, expression, -1)
 }
 
-function parseExpressionOp(ctx: ParserContext, left: Node.Any, minPrecedence: number): Node.Any {
+function parseExpressionOp(ctx: ParserContext, left: Node.Expression, minPrecedence: number): Node.Expression {
     const precendence = ctx.kind.binop
     if (precendence !== 0 && precendence > minPrecedence) {
         const operator = ctx.value
@@ -297,7 +312,8 @@ function parseExpressionOp(ctx: ParserContext, left: Node.Any, minPrecedence: nu
 
         const expression = parseMaybeUnary(ctx)
         const right = parseExpressionOp(ctx, expression, precendence)
-        const node: Node.ExpressionOp = {
+
+        const node: Node.LogicalExpression | Node.BinaryExpression = {
             kind: isLogical ? "LogicalExpression" : "BinaryExpression",
             start: left.start,
             end: ctx.end,
@@ -313,7 +329,7 @@ function parseExpressionOp(ctx: ParserContext, left: Node.Any, minPrecedence: nu
     return left
 }
 
-function parseMaybeConditional(ctx: ParserContext): Node.Any {
+function parseMaybeConditional(ctx: ParserContext): Node.Expression {
     const start = ctx.start
     const test = parseExpressionOps(ctx)
 
@@ -337,7 +353,7 @@ function parseMaybeConditional(ctx: ParserContext): Node.Any {
     return test
 }
 
-function parseMaybeAssign(ctx: ParserContext): Node.Any {
+function parseMaybeAssign(ctx: ParserContext): Node.Expression {
     const left = parseMaybeConditional(ctx)
     if (ctx.kind.isAssign) {
         checkLValue(ctx, left)
@@ -362,7 +378,7 @@ function parseMaybeAssign(ctx: ParserContext): Node.Any {
     return left
 }
 
-function parseExpression(ctx: ParserContext): Node.Any {
+function parseExpression(ctx: ParserContext): Node.Expression {
     const start = ctx.start
     const expression = parseMaybeAssign(ctx)
 
@@ -396,7 +412,7 @@ function parseLabeledStatement(ctx: ParserContext, label: Node.Any): Node.Labele
     }
 }
 
-function parseExpressionStatement(ctx: ParserContext, expression: Node.Any): Node.ExpressionStatement {
+function parseExpressionStatement(ctx: ParserContext, expression: Node.Expression): Node.ExpressionStatement {
     return {
         kind: "ExpressionStatement",
         start: expression.start,
@@ -405,8 +421,9 @@ function parseExpressionStatement(ctx: ParserContext, expression: Node.Any): Nod
     }
 }
 
-function parseExpressionList(ctx: ParserContext, closeToken: Token): Node.Any[] {
-    const expressions = []
+function parseExpressionList(ctx: ParserContext, closeToken: Token): Node.Expression[] {
+    const expressions: Node.Expression[] = []
+
     while (!eat(ctx, closeToken)) {
         if (expressions.length > 0) {
             expect(ctx, kinds.comma)
@@ -419,7 +436,7 @@ function parseExpressionList(ctx: ParserContext, closeToken: Token): Node.Any[] 
     return expressions
 }
 
-function parseStatement(ctx: ParserContext): Node.Any {
+function parseStatement(ctx: ParserContext): Node.Statement {
     switch (ctx.kind) {
         case kinds.var:
         case kinds.let:
@@ -517,7 +534,7 @@ function parseIfStatement(ctx: ParserContext): Node.IfStatement {
 
     nextToken(ctx)
 
-    const test = parseParenthesisExpression(ctx)
+    const test = parseExpression(ctx)
     const consequent = parseStatement(ctx)
     const alternate = eat(ctx, kinds.else) ? parseStatement(ctx) : null
 
@@ -536,7 +553,7 @@ function parseSwitchStatement(ctx: ParserContext): Node.SwitchStatement {
 
     nextToken(ctx)
 
-    const discriminant = parseParenthesisExpression(ctx)
+    const discriminant = parseExpression(ctx)
     const cases: Node.SwitchCase[] = []
 
     expect(ctx, kinds.braceL)
@@ -588,7 +605,7 @@ function parseWhileStatement(ctx: ParserContext): Node.WhileStatement {
 
     nextToken(ctx)
 
-    const test = parseParenthesisExpression(ctx)
+    const test = parseExpression(ctx)
     const body = parseStatement(ctx)
 
     return {
@@ -600,7 +617,7 @@ function parseWhileStatement(ctx: ParserContext): Node.WhileStatement {
     }
 }
 
-function parseForInOf(ctx: ParserContext, left: Node.Any, start: number): Node.ForInStatement | Node.ForOfStatement {
+function parseForInOf(ctx: ParserContext, left: Node.VariableDeclaration, start: number): Node.ForInStatement | Node.ForOfStatement {
     const isForIn = ctx.kind === kinds.in
 
     nextToken(ctx)
@@ -623,7 +640,7 @@ function parseForInOf(ctx: ParserContext, left: Node.Any, start: number): Node.F
 
 function parseForStatement(ctx: ParserContext): Node.ForStatement | Node.ForInStatement | Node.ForOfStatement {
     const start = ctx.start
-    let init = null
+    let init: Node.VariableDeclaration | null = null
 
     nextToken(ctx)
 
@@ -665,7 +682,7 @@ function parseReturnStatement(ctx: ParserContext): Node.ReturnStatement {
 
     nextToken(ctx)
 
-    let argument = null
+    let argument: Node.Expression | null = null
     if (!canInsertSemicolon(ctx)) {
         argument = parseExpression(ctx)
     }
@@ -678,7 +695,12 @@ function parseReturnStatement(ctx: ParserContext): Node.ReturnStatement {
     }
 }
 
-function parseArrowFunction(ctx: ParserContext, start: number, params: Node.FunctionParams): Node.ArrowFunction {
+function parseArrowFunction(ctx: ParserContext): Node.ArrowFunction {
+    const start = ctx.start
+    const params = parseFunctionParams(ctx)
+
+    expect(ctx, kinds.arrow)
+
     let returnType = null
     if (ctx.kind === kinds.colon) {
         nextToken(ctx)
@@ -699,35 +721,23 @@ function parseArrowFunction(ctx: ParserContext, start: number, params: Node.Func
     }
 }
 
-function parseParenthesisExpression(ctx: ParserContext): Node.Any {
-    const start = ctx.start
-    const params = parseFunctionParams(ctx)
-
-    if (eat(ctx, kinds.arrow)) {
-        return parseArrowFunction(ctx, start, params)
-    }
-
-    const expression = parseExpression(ctx)
-    return expression
-}
-
 function parseProperty(ctx: ParserContext): Node.Property {
     const start = ctx.start
 
-    let key
+    let key: Node.Identifier
     let computed = false
 
-    if (eat(ctx, kinds.bracketL)) {
-        key = parseMaybeAssign(ctx)
-        computed = true
-        expect(ctx, kinds.bracketR)
-    } else if (ctx.kind === kinds.string || ctx.kind === kinds.number) {
-        key = parseExpressionAtom(ctx)
-    } else {
-        key = parseIdentifier(ctx)
-    }
+    // if (eat(ctx, kinds.bracketL)) {
+    //     key = parseMaybeAssign(ctx)
+    //     computed = true
+    //     expect(ctx, kinds.bracketR)
+    // } else if (ctx.kind === kinds.string || ctx.kind === kinds.number) {
+    //     key = parseExpressionAtom(ctx)
+    // } else {
+    key = parseIdentifier(ctx)
+    // }
 
-    let value = null
+    let value: Node.Expression | null = null
     if (eat(ctx, kinds.colon)) {
         value = parseMaybeAssign(ctx)
     }
@@ -819,7 +829,7 @@ function parseTemplateElement(ctx: ParserContext): Node.TemplateElement {
 function parseTemplate(ctx: ParserContext): Node.TemplateLiteral {
     const start = ctx.start
     const element = parseTemplateElement(ctx)
-    const expressions: Node.Any[] = []
+    const expressions: Node.Expression[] = []
     const quasis: Node.TemplateElement[] = [element]
 
     while (ctx.kind !== kinds.backQuote) {
@@ -1252,17 +1262,36 @@ function parseFunctionDeclaration(ctx: ParserContext): Node.FunctionDeclaration 
     }
 }
 
-function parseFunctionParams(ctx: ParserContext): Node.FunctionParams {
+function parseFunctionParams(ctx: ParserContext): Node.Parameter[] {
     expect(ctx, kinds.parenthesisL)
 
-    const params = []
+    const params: Node.Parameter[] = []
     while (!eat(ctx, kinds.parenthesisR)) {
         if (params.length > 0) {
             expect(ctx, kinds.comma)
         }
 
-        const left = parseMaybeDefault(ctx)
-        params.push(left)
+        const start = ctx.start
+        const name = parseIdentifier(ctx)
+
+        let type: TypeNode.Any | null = null
+        if (eat(ctx, kinds.colon)) {
+            type = parseTypeAnnotation(ctx)
+        }
+
+        let initializer: Node.Expression | null = null
+        if (eat(ctx, kinds.assign)) {
+            initializer = parseExpressionAtom(ctx)
+        }
+
+        params.push({
+            kind: "Parameter",
+            start,
+            end: ctx.end,
+            name,
+            initializer,
+            type,
+        })
     }
 
     return params
@@ -1351,7 +1380,7 @@ function parseVar(ctx: ParserContext, kind: string): Node.VariableDeclarator {
         type = parseTypeAnnotation(ctx)
     }
 
-    let init: Node.Any | null = null
+    let init: Node.Expression | null = null
     if (eat(ctx, kinds.assign)) {
         init = parseMaybeAssign(ctx)
     } else if (kind === "const" && ctx.kind !== kinds.in && ctx.kind !== kinds.of) {
@@ -1385,7 +1414,7 @@ function parseTopLevel(ctx: ParserContext): Node.Program {
     }
 }
 
-function checkLValue(ctx: ParserContext, node: Node.Any): void {
+function checkLValue(ctx: ParserContext, node: Node.Expression): void {
     switch (node.kind) {
         case "Identifier":
         case "MemberExpression":

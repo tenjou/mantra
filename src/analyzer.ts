@@ -24,12 +24,18 @@ import * as Node from "./parser/node"
 import * as TypeNode from "./parser/type-node"
 import * as Type from "./types"
 
+interface FunctionDecl {
+    funcType: Type.Function
+    scope: Scope
+    node: Node.FunctionDeclaration
+}
+
 interface Scope {
-    parent: Scope | null
+    parent: Scope
     node: Node.Any | null
     vars: Record<string, Type.Reference>
     types: Record<string, Type.Any>
-    funcDecls: []
+    funcDecls: FunctionDecl[]
     labels: []
 }
 
@@ -44,74 +50,6 @@ interface Context {
     currFuncType: null
     typeAliases: {}
 }
-
-// function handleParams(ctx: Context, scope: Scope, params: Node.FunctionParams): Reference[] {
-//     ctx.scopeCurr = scope
-
-//     const typeRefs = new Array(params.length)
-
-//     for (let nParam = 0; nParam < params.length; nParam++) {
-//         const param = params[nParam]
-
-//         switch (param.kind) {
-//             case "Identifier": {
-//                 const paramRef = declareVar(ctx, param, param.type, 0)
-//                 typeRefs[nParam] = paramRef.type
-//                 break
-//             }
-
-//             case "AssignPattern": {
-//                 handle[param.left.kind](ctx, param.left)
-//                 const argRef = declareVar(ctx, param.left.value, param.left, 0)
-//                 const rightType = handle[param.right.kind](ctx, param.right)
-//                 if (argRef.type.kind !== rightType.kind) {
-//                     raiseTypeError(ctx, param.right.start, argRef.type, rightType)
-//                 }
-//                 typeRefs[nParam] = argRef
-//                 break
-//             }
-
-//             case "ObjectExpression":
-//                 for (const property of param.properties) {
-//                     declareVar(ctx, property.key.value)
-//                 }
-//                 break
-
-//             default:
-//                 raise(ctx, param, "Unsupported feature")
-//         }
-//     }
-
-//     ctx.scopeCurr = ctx.scopeCurr.parent
-
-//     return typeRefs
-// }
-
-// function handleFunctionDeclaration(ctx, node, flags) {
-//     if (getVar(ctx, node.id.value)) {
-//         raise(ctx, node.id, `Duplicate function implementation '${node.id.value}'`)
-//     }
-
-//     const returnType = handleType(ctx, node.returnType)
-//     const ref = createFunction(node.id.value, [], returnType)
-//     const scope = createScope(ctx.scopeCurr)
-
-//     ctx.scopeCurr.vars[node.id.value] = ref
-
-//     handleParams(ctx, scope, node.params)
-
-//     ctx.scopeCurr.funcDecls.push({
-//         ref,
-//         scope,
-//         node,
-//     })
-
-//     if (flags & Flags.Exported) {
-//         ctx.exports[ref.name] = ref
-//     }
-
-//     return ref
-// }
 
 // function handleImportClause(ctx: Context, node, moduleExports) {
 //     if (node.kind === "NamedImports") {
@@ -724,14 +662,79 @@ function handleVariableDeclaration(ctx: Context, node: Node.VariableDeclaration,
 }
 
 function handleExportNamedDeclaration(ctx: Context, node: Node.ExportNamedDeclaration): void {
-    return handle[node.declaration.kind](ctx, node.declaration, Flags.Exported)
+    handle[node.declaration.kind](ctx, node.declaration, Flags.Exported)
 }
 
-function handleStatements(ctx: Context, body: Node.Any[]): void {
+function handleParams(ctx: Context, scope: Scope, params: Node.Parameter[]): void {
+    ctx.scopeCurr = scope
+
+    const typeRefs = new Array(params.length)
+
+    for (let nParam = 0; nParam < params.length; nParam++) {
+        const param = params[nParam]
+
+        // switch (param.kind) {
+        //     case "Identifier": {
+        //         const paramRef = declareVar(ctx, param, param.type, 0)
+        //         typeRefs[nParam] = paramRef.type
+        //         break
+        //     }
+
+        //     case "AssignPattern": {
+        //         handle[param.left.kind](ctx, param.left)
+        //         const argRef = declareVar(ctx, param.left.value, param.left, 0)
+        //         const rightType = handle[param.right.kind](ctx, param.right)
+        //         if (argRef.type.kind !== rightType.kind) {
+        //             raiseTypeError(ctx, param.right.start, argRef.type, rightType)
+        //         }
+        //         typeRefs[nParam] = argRef
+        //         break
+        //     }
+
+        //     case "ObjectExpression":
+        //         for (const property of param.properties) {
+        //             declareVar(ctx, property)
+        //         }
+        //         break
+        // }
+    }
+
+    ctx.scopeCurr = ctx.scopeCurr.parent
+}
+
+function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration, flags: number = 0): Type.Any {
+    const name = node.id ? node.id.value : ""
+    if (node.id && getVar(ctx, name)) {
+        raiseAt(ctx.module, node.id.start, `Duplicate function implementation '${name}'`)
+    }
+
+    const returnType = handleType(ctx, node.returnType)
+    const scope = createScope(ctx.scopeCurr)
+    const funcType = Type.createFunction(name, [], returnType)
+    const ref = Type.createRef(name, funcType, flags)
+
+    ctx.scopeCurr.vars[name] = ref
+
+    handleParams(ctx, scope, node.params)
+
+    ctx.scopeCurr.funcDecls.push({
+        funcType,
+        scope,
+        node,
+    })
+
+    if (name && flags & Flags.Exported) {
+        ctx.exports[name] = ref
+    }
+
+    return returnType
+}
+
+function handleStatements(ctx: Context, body: Node.Statement[]): void {
     const scopeCurr = ctx.scopeCurr
 
     for (const node of body) {
-        handle[node.kind](ctx, node)
+        statements[node.kind](ctx, node)
     }
 
     // const funcDecls = ctx.scopeCurr.funcDecls
@@ -820,8 +823,9 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
 }
 
 function getType(ctx: Context, name: string): Type.Any | null {
-    let scope: Scope | null = ctx.scopeCurr
-    while (scope) {
+    let scope = ctx.scopeCurr
+
+    while (scope !== ctx.scope) {
         const type = scope.types[name]
         if (type) {
             return type
@@ -916,17 +920,17 @@ function raiseTypeError(ctx: Context, start: number, leftType: Type.Any, rightTy
     raiseAt(ctx.module, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
 }
 
-function getVar(ctx: Context, value: string, isObject: boolean = false): Type.Reference | null {
+function getVar(ctx: Context, name: string, isObject: boolean = false): Type.Reference | null {
     if (isObject) {
-        const item = ctx.scopeCurr.vars[value]
+        const item = ctx.scopeCurr.vars[name]
         if (item) {
             return item
         }
     } else {
-        let scope: Scope | null = ctx.scopeCurr
+        let scope = ctx.scopeCurr
 
-        while (scope) {
-            let item = scope.vars[value]
+        while (scope !== ctx.scope) {
+            let item = scope.vars[name]
             if (item) {
                 return item
             }
@@ -952,7 +956,7 @@ function declareVar(ctx: Context, node: Node.VariableDeclarator, flags = 0, isOb
     return ref
 }
 
-function createScope(parent: Scope | null, node: Node.Any | null = null): Scope {
+function createScope(parent: Scope, node: Node.Any | null = null): Scope {
     return {
         parent,
         node,
@@ -964,7 +968,9 @@ function createScope(parent: Scope | null, node: Node.Any | null = null): Scope 
 }
 
 export function analyze(config: Config, module: Module, modules: Record<string, Module>) {
-    const scope = createScope(null)
+    const scope = createScope({} as Scope)
+    scope.parent = scope
+
     const ctx: Context = {
         config,
         module,
@@ -1000,7 +1006,15 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     return ctx.exports
 }
 
-type HandleFunc = (ctx: Context, node: any, flags?: number, type?: TypeNode.Any) => any
+type StatementFunc = (ctx: Context, node: any, flags?: number) => Type.Any | void
+
+const statements: Record<string, StatementFunc> = {
+    VariableDeclaration: handleVariableDeclaration,
+    ExportNamedDeclaration: handleExportNamedDeclaration,
+    FunctionDeclaration: handleFunctionDeclaration,
+}
+
+type HandleFunc = (ctx: Context, node: any, flags?: number, type?: TypeNode.Any) => Type.Any
 
 const handle: Record<string, HandleFunc> = {
     // VariableDeclarator: handleVariableDeclarator,
@@ -1009,9 +1023,7 @@ const handle: Record<string, HandleFunc> = {
     Literal: handleLiteral,
     NumericLiteral: handleNumericLiteral,
     Identifier: handleIdentifier,
-    VariableDeclaration: handleVariableDeclaration,
-    ExportNamedDeclaration: handleExportNamedDeclaration,
-    // FunctionDeclaration: handleFunctionDeclaration,
+    FunctionDeclaration: handleFunctionDeclaration,
     // ImportDeclaration: handleImportDeclaration,
     // LabeledStatement: handleLabeledStatement,
     // ExpressionStatement: handleExpressionStatement,

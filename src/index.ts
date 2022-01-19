@@ -21,3 +21,5 @@ compile("./source.ts", {
     rootDir: "./test",
     outDir: "./dist",
 })
+
+console.log("Compiled")

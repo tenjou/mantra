@@ -17,18 +17,16 @@ function parseFunctionDeclaration(ctx: CompilerContext, node: Node.FunctionDecla
     return result
 }
 
-function parseFunctionParams(ctx: CompilerContext, params: Node.FunctionParams): string {
+function parseFunctionParams(ctx: CompilerContext, params: Node.Parameter[]): string {
     let result = ""
 
     for (const param of params) {
-        const paramResult = parse[param.kind](ctx, param)
-
         if (!result) {
-            result = paramResult
+            result = param.name.value
             continue
         }
 
-        result += `, ${paramResult}`
+        result += `, ${param.name.value}`
     }
 
     return result
@@ -310,7 +308,7 @@ function parseConditionalExpression(ctx: CompilerContext, node: Node.Conditional
     return result
 }
 
-function parseBinaryExpression(ctx: CompilerContext, node: Node.ExpressionOp, depth = 0): string {
+function parseBinaryExpression(ctx: CompilerContext, node: Node.BinaryExpression | Node.LogicalExpression, depth = 0): string {
     const left = parse[node.left.kind](ctx, node.left, depth + 1)
     const right = parse[node.right.kind](ctx, node.right, depth + 1)
 
@@ -366,7 +364,7 @@ function parseConditionExpression(ctx: CompilerContext, node: Node.ConditionalEx
     return result
 }
 
-function parseExpressionList(ctx: CompilerContext, elements: Node.Any[]): string {
+function parseExpressionList(ctx: CompilerContext, elements: Node.Expression[]): string {
     let result = ""
 
     for (const element of elements) {
@@ -422,7 +420,7 @@ function parseProperty(ctx: CompilerContext, node: Node.Property): string {
     return result
 }
 
-function parseArgs(ctx: CompilerContext, args: Node.Any[]) {
+function parseArgs(ctx: CompilerContext, args: Node.Expression[]) {
     let result = ""
     let first = true
 

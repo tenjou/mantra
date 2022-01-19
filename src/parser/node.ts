@@ -29,7 +29,6 @@ export type Any =
     | CallExpression
     | AssignmentExpression
     | ConditionalExpression
-    | ExpressionOp
     | UnaryExpression
     | UpdateExpression
     | AssignPattern
@@ -42,9 +41,53 @@ export type Any =
     | EnumDeclaration
     | Identifier
 
-export type FunctionParams = (AssignPattern | BindingAtom)[]
-export type BindingAtom = ObjectExpression | Identifier
+export type Statement =
+    | VariableDeclaration
+    | ExportNamedDeclaration
+    | ImportDeclaration
+    | EnumDeclaration
+    | FunctionDeclaration
+    | TypeAliasDeclaration
+    | BreakStatement
+    | ContinueStatement
+    | IfStatement
+    | SwitchStatement
+    | WhileStatement
+    | ForStatement
+    | ForInStatement
+    | ForOfStatement
+    | ReturnStatement
+    | TryStatement
+    | ThrowStatement
+    | BlockStatement
+    | EmptyStatement
+    | LabeledStatement
+    | ExpressionStatement
+
+export type Expression =
+    | NumericLiteral
+    | BooleanLiteral
+    | Literal
+    | TemplateLiteral
+    | Identifier
+    | ArrayExpression
+    | ObjectExpression
+    | NewExpression
+    | ArrowFunction
+    | MemberExpression
+    | CallExpression
+    | SequenceExpression
+    | UpdateExpression
+    | UnaryExpression
+    | LogicalExpression
+    | BinaryExpression
+    | ConditionalExpression
+    | AssignmentExpression
+
 export type Kind = Any["kind"]
+export type StatementType = Statement["kind"]
+
+export type BindingAtom = ObjectExpression | Identifier
 
 export interface Identifier extends Node {
     kind: "Identifier"
@@ -62,9 +105,14 @@ export interface NumericLiteral extends Node {
     value: string
 }
 
+export interface BooleanLiteral extends Node {
+    kind: "BooleanLiteral"
+    value: string
+}
+
 export interface TemplateLiteral extends Node {
     kind: "TemplateLiteral"
-    expressions: Any[]
+    expressions: Expression[]
     quasis: TemplateElement[]
 }
 
@@ -80,10 +128,17 @@ export interface ExportNamedDeclaration extends Node {
     source: null
 }
 
+export interface Parameter extends Node {
+    kind: "Parameter"
+    name: Identifier
+    initializer: Expression | null
+    type: TypeNode.Any | null
+}
+
 export interface FunctionDeclaration extends Node {
     kind: "FunctionDeclaration"
     id: Identifier | null
-    params: FunctionParams
+    params: Parameter[]
     body: BlockStatement
     expression: boolean
     generator: boolean
@@ -100,38 +155,38 @@ export interface VariableDeclaration extends Node {
 export interface VariableDeclarator extends Node {
     kind: "VariableDeclarator"
     id: Identifier
-    init: Any | null
+    init: Expression | null
     type: TypeNode.Any | null
 }
 
 export interface Property extends Node {
     kind: "Property"
-    key: Any
-    value: Any | null
+    key: Identifier
+    value: Expression | null
     computed: boolean
     op: "init"
 }
 
 export interface ObjectExpression extends Node {
     kind: "ObjectExpression"
-    type: TypeNode.Any | null
     properties: Property[]
+    type: TypeNode.Any | null
 }
 
 export interface NewExpression extends Node {
     kind: "NewExpression"
-    callee: Any
-    arguments: Any[]
+    callee: Expression
+    arguments: Expression[]
 }
 
 export interface ArrayExpression extends Node {
     kind: "ArrayExpression"
-    elements: Any[]
+    elements: Expression[]
 }
 
 export interface ArrowFunction extends Node {
     kind: "ArrowFunction"
-    params: FunctionParams
+    params: Parameter[]
     body: BlockStatement
     returnType: TypeNode.Any | null
 }
@@ -180,7 +235,7 @@ export interface ImportDeclaration extends Node {
 
 export interface ThrowStatement extends Node {
     kind: "ThrowStatement"
-    argument: Any
+    argument: Expression
 }
 
 export interface EmptyStatement extends Node {
@@ -202,54 +257,54 @@ export interface TryStatement extends Node {
 
 export interface SwitchCase extends Node {
     kind: "SwitchCase"
-    test: Any | null
+    test: Expression | null
     consequent: Any[]
 }
 
 export interface SwitchStatement extends Node {
     kind: "SwitchStatement"
-    discriminant: Any
+    discriminant: Expression
     cases: SwitchCase[]
 }
 
 export interface IfStatement extends Node {
     kind: "IfStatement"
-    test: Any
+    test: Expression
     consequent: Any
     alternate: Any | null
 }
 
 export interface WhileStatement extends Node {
     kind: "WhileStatement"
-    test: Any
+    test: Expression
     body: Any
 }
 
 export interface ForOfStatement extends Node {
     kind: "ForOfStatement"
-    left: Any
-    right: Any
+    left: VariableDeclaration
+    right: Expression
     body: Any
 }
 
 export interface ForInStatement extends Node {
     kind: "ForInStatement"
-    left: Any
-    right: Any
+    left: VariableDeclaration
+    right: Expression
     body: Any
 }
 
 export interface ForStatement extends Node {
     kind: "ForStatement"
     init: Any | null
-    test: Any | null
-    update: Any | null
+    test: Expression | null
+    update: Expression | null
     body: Any
 }
 
 export interface ReturnStatement extends Node {
     kind: "ReturnStatement"
-    argument: Any | null
+    argument: Expression | null
 }
 
 export interface ContinueStatement extends Node {
@@ -264,7 +319,7 @@ export interface BreakStatement extends Node {
 
 export interface ExpressionStatement extends Node {
     kind: "ExpressionStatement"
-    expression: Any
+    expression: Expression
 }
 
 export interface LabeledStatement extends Node {
@@ -275,64 +330,72 @@ export interface LabeledStatement extends Node {
 
 export interface SequenceExpression extends Node {
     kind: "SequenceExpression"
-    expressions: Any[]
+    expressions: Expression[]
 }
 
 export interface ConditionalExpression extends Node {
     kind: "ConditionalExpression"
-    test: Any
-    consequent: Any
-    alternate: Any
+    test: Expression
+    consequent: Expression
+    alternate: Expression
 }
 
 export interface UnaryExpression extends Node {
     kind: "UnaryExpression"
     operator: string
     prefix: boolean
-    argument: Any
+    argument: Expression
 }
 
 export interface UpdateExpression extends Node {
     kind: "UpdateExpression"
     operator: string
     prefix: boolean
-    argument: Any
+    argument: Expression
 }
 
-export interface ExpressionOp extends Node {
-    kind: "LogicalExpression" | "BinaryExpression"
-    left: Any
+export interface LogicalExpression extends Node {
+    kind: "LogicalExpression"
+    left: Expression
     operator: string
-    right: Any
+    right: Expression
+    isComparison: boolean
+}
+
+export interface BinaryExpression extends Node {
+    kind: "BinaryExpression"
+    left: Expression
+    operator: string
+    right: Expression
     isComparison: boolean
 }
 
 export interface AssignPattern extends Node {
     kind: "AssignPattern"
     left: Any
-    right: Any
+    right: Expression
     type: TypeNode.Any | null
 }
 
 export interface CallExpression extends Node {
     kind: "CallExpression"
-    callee: Any
-    arguments: Any[]
+    callee: Expression
+    arguments: Expression[]
     optional: boolean
 }
 
 export interface AssignmentExpression extends Node {
     kind: "AssignmentExpression"
-    left: Any
+    left: Expression
     operator: string
-    right: Any
+    right: Expression
     type: TypeNode.Any | null
 }
 
 export interface MemberExpression extends Node {
     kind: "MemberExpression"
-    object: Any
-    property: Any
+    object: Expression
+    property: Expression
     computed: boolean
 }
 
@@ -343,7 +406,7 @@ export interface BlockStatement extends Node {
 
 export interface Program extends Node {
     kind: "Program"
-    body: Any[]
+    body: Statement[]
 }
 
 export interface Node {
