@@ -130,7 +130,7 @@ export interface ExportNamedDeclaration extends Node {
 
 export interface Parameter extends Node {
     kind: "Parameter"
-    name: Identifier
+    id: Identifier
     initializer: Expression | null
     type: TypeNode.Any | null
 }

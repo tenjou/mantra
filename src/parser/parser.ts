@@ -1272,7 +1272,7 @@ function parseFunctionParams(ctx: ParserContext): Node.Parameter[] {
         }
 
         const start = ctx.start
-        const name = parseIdentifier(ctx)
+        const id = parseIdentifier(ctx)
 
         let type: TypeNode.Any | null = null
         if (eat(ctx, kinds.colon)) {
@@ -1288,7 +1288,7 @@ function parseFunctionParams(ctx: ParserContext): Node.Parameter[] {
             kind: "Parameter",
             start,
             end: ctx.end,
-            name,
+            id,
             initializer,
             type,
         })

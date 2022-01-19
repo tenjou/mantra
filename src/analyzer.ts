@@ -668,35 +668,17 @@ function handleExportNamedDeclaration(ctx: Context, node: Node.ExportNamedDeclar
 function handleParams(ctx: Context, scope: Scope, params: Node.Parameter[]): void {
     ctx.scopeCurr = scope
 
-    const typeRefs = new Array(params.length)
-
     for (let nParam = 0; nParam < params.length; nParam++) {
         const param = params[nParam]
+        const paramRef = declareVar(ctx, param)
 
-        // switch (param.kind) {
-        //     case "Identifier": {
-        //         const paramRef = declareVar(ctx, param, param.type, 0)
-        //         typeRefs[nParam] = paramRef.type
-        //         break
-        //     }
+        if (param.initializer) {
+            const paramType = expressions[param.initializer.kind](ctx, param.initializer)
 
-        //     case "AssignPattern": {
-        //         handle[param.left.kind](ctx, param.left)
-        //         const argRef = declareVar(ctx, param.left.value, param.left, 0)
-        //         const rightType = handle[param.right.kind](ctx, param.right)
-        //         if (argRef.type.kind !== rightType.kind) {
-        //             raiseTypeError(ctx, param.right.start, argRef.type, rightType)
-        //         }
-        //         typeRefs[nParam] = argRef
-        //         break
-        //     }
-
-        //     case "ObjectExpression":
-        //         for (const property of param.properties) {
-        //             declareVar(ctx, property)
-        //         }
-        //         break
-        // }
+            if (paramRef.type.kind !== paramType.kind) {
+                raiseTypeError(ctx, param.initializer.start, paramRef.type, paramType)
+            }
+        }
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent
@@ -941,7 +923,7 @@ function getVar(ctx: Context, name: string, isObject: boolean = false): Type.Ref
     return null
 }
 
-function declareVar(ctx: Context, node: Node.VariableDeclarator, flags = 0, isObject = false): Type.Reference {
+function declareVar(ctx: Context, node: Node.VariableDeclarator | Node.Parameter, flags = 0, isObject = false): Type.Reference {
     const name = node.id.value
     const prevVar = getVar(ctx, name, isObject)
     if (prevVar) {
@@ -1014,15 +996,21 @@ const statements: Record<string, StatementFunc> = {
     FunctionDeclaration: handleFunctionDeclaration,
 }
 
+type ExpressionFunc = (ctx: Context, node: any) => Type.Any
+
 type HandleFunc = (ctx: Context, node: any, flags?: number, type?: TypeNode.Any) => Type.Any
+
+const expressions: Record<string, ExpressionFunc> = {
+    Literal: handleLiteral,
+    NumericLiteral: handleNumericLiteral,
+    Identifier: handleIdentifier,
+}
 
 const handle: Record<string, HandleFunc> = {
     // VariableDeclarator: handleVariableDeclarator,
     // EnumDeclaration: handleEnumDeclaration,
     // TypeAliasDeclaration: handleTypeAliasDeclaration,
-    Literal: handleLiteral,
-    NumericLiteral: handleNumericLiteral,
-    Identifier: handleIdentifier,
+
     FunctionDeclaration: handleFunctionDeclaration,
     // ImportDeclaration: handleImportDeclaration,
     // LabeledStatement: handleLabeledStatement,

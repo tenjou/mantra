@@ -22,11 +22,11 @@ function parseFunctionParams(ctx: CompilerContext, params: Node.Parameter[]): st
 
     for (const param of params) {
         if (!result) {
-            result = param.name.value
+            result = param.id.value
             continue
         }
 
-        result += `, ${param.name.value}`
+        result += `, ${param.id.value}`
     }
 
     return result

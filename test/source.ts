@@ -1,4 +1,4 @@
-export function isIdentifierStart(charCode: number = "sdsd"): void {
+export function isIdentifierStart(charCode: number): void {
     // if (charCode < 65) {
     //     return charCode === 36 // $
     // }
