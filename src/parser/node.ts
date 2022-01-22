@@ -64,25 +64,26 @@ export type Statement =
     | LabeledStatement
     | ExpressionStatement
 
+export type ParameterExpresion = NumericLiteral | BooleanLiteral | Literal | Identifier
+
 export type Expression =
-    | NumericLiteral
-    | BooleanLiteral
-    | Literal
-    | TemplateLiteral
-    | Identifier
-    | ArrayExpression
-    | ObjectExpression
-    | NewExpression
-    | ArrowFunction
-    | MemberExpression
-    | CallExpression
-    | SequenceExpression
-    | UpdateExpression
-    | UnaryExpression
-    | LogicalExpression
-    | BinaryExpression
-    | ConditionalExpression
-    | AssignmentExpression
+    | (
+          | TemplateLiteral
+          | ArrayExpression
+          | ObjectExpression
+          | NewExpression
+          | ArrowFunction
+          | MemberExpression
+          | CallExpression
+          | SequenceExpression
+          | UpdateExpression
+          | UnaryExpression
+          | LogicalExpression
+          | BinaryExpression
+          | ConditionalExpression
+          | AssignmentExpression
+      )
+    | ParameterExpresion
 
 export type Kind = Any["kind"]
 export type StatementType = Statement["kind"]
@@ -131,7 +132,7 @@ export interface ExportNamedDeclaration extends Node {
 export interface Parameter extends Node {
     kind: "Parameter"
     id: Identifier
-    initializer: Expression | null
+    initializer: ParameterExpresion | null
     type: TypeNode.Any | null
 }
 
@@ -401,7 +402,7 @@ export interface MemberExpression extends Node {
 
 export interface BlockStatement extends Node {
     kind: "BlockStatement"
-    body: Any[]
+    body: Statement[]
 }
 
 export interface Program extends Node {

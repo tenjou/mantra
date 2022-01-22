@@ -1,7 +1,7 @@
 export function isIdentifierStart(charCode: number): void {
-    // if (charCode < 65) {
-    //     return charCode === 36 // $
-    // }
+    if (charCode < 65) {
+        //     return charCode === 36 // $
+    }
     // if (charCode < 91) {
     //     return true
     // }

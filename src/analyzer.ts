@@ -1,5 +1,5 @@
 // import * as path from "path"
-import { getLineInfo, raiseAt } from "./error"
+import { getLineInfo, raiseAt, unexpected } from "./error"
 // import { getFilePath } from "./file"
 // import {
 //     coreTypeAliases,
@@ -47,7 +47,7 @@ interface Context {
     exports: Record<string, Type.Reference>
     scope: Scope
     scopeCurr: Scope
-    currFuncType: null
+    currFuncType: Type.Any
     typeAliases: {}
 }
 
@@ -194,31 +194,6 @@ interface Context {
 //     handle[node.alternate.kind](ctx, node.alternate)
 // }
 
-// function handleIfStatement(ctx, node) {
-//     ctx.scopeCurr = createScope(ctx.scopeCurr)
-
-//     handle[node.test.kind](ctx, node.test)
-
-//     switch (node.consequent.kind) {
-//         case "BlockStatement":
-//             handleStatements(ctx, node.consequent.body)
-//             break
-
-//         case "ExpressionStatement":
-//             handle[node.consequent.expression.kind](ctx, node.consequent.expression)
-//             break
-
-//         default:
-//             raiseAt(ctx, node.consequent.start, "Unsupported feature")
-//     }
-
-//     ctx.scopeCurr = ctx.scopeCurr.parent
-
-//     if (node.alternate) {
-//         handle[node.alternate.kind](ctx, node.alternate)
-//     }
-// }
-
 // function handleBreakContinueStatement(ctx, node) {
 //     if (!node.label) {
 //         return
@@ -305,14 +280,6 @@ interface Context {
 //     }
 // }
 
-// function handleBlockStatement(ctx: Context, node: Node.BlockStatement): void {
-//     ctx.scopeCurr = createScope(ctx.scopeCurr)
-
-//     handleStatements(ctx, node.body)
-
-//     ctx.scopeCurr = ctx.scopeCurr.parent
-// }
-
 // function handleEmptyStatement(_ctx: Context, _node: Node.EmptyStatement): void {}
 
 // function handleArrowFunction(ctx, node) {
@@ -361,32 +328,6 @@ interface Context {
 //     handle[node.right.kind](ctx, node.right)
 
 //     return coreTypeRefs.boolean
-// }
-
-// function handleBinaryExpression(ctx, node) {
-//     const leftRef = handle[node.left.kind](ctx, node.left)
-//     const rightRef = handle[node.right.kind](ctx, node.right)
-
-//     if (node.operator === "instanceof") {
-//         return redeclareVar(ctx, leftRef, rightRef.type)
-//     }
-
-//     if (
-//         (leftRef.type.kind !== TypeKind.number && leftRef.type.kind !== TypeKind.string) ||
-//         (rightRef.type.kind !== TypeKind.number && rightRef.type.kind !== TypeKind.string)
-//     ) {
-//         raiseAt(
-//             ctx,
-//             node.left.start,
-//             `Operator '${node.operator}' cannot be applied to types '${leftRef.type.name}' and '${rightRef.type.name}'`
-//         )
-//     }
-
-//     if (node.isComparison) {
-//         return coreTypeRefs.boolean
-//     }
-
-//     return leftRef.type.kind > rightRef.type.kind ? leftRef : rightRef
 // }
 
 // function handleMemberExpression(ctx, node) {
@@ -634,11 +575,63 @@ function handleIdentifier(ctx: Context, node: Node.Identifier): Type.Any {
     return identifier.type
 }
 
+function handleBinaryExpression(ctx: Context, node: Node.BinaryExpression): Type.Any {
+    const leftType = expressions[node.left.kind](ctx, node.left, 0)
+    const rightType = expressions[node.right.kind](ctx, node.right, 0)
+
+    // TODO: restore
+    // if (node.operator === "instanceof") {
+    //     return redeclareVar(ctx, leftRef, rightRef.type)
+    // }
+
+    if (
+        (leftType.kind !== Type.Kind.number && leftType.kind !== Type.Kind.string) ||
+        (rightType.kind !== Type.Kind.number && rightType.kind !== Type.Kind.string)
+    ) {
+        raiseAt(
+            ctx.module,
+            node.left.start,
+            `Operator '${node.operator}' cannot be applied to types '${leftType.name}' and '${rightType.name}'`
+        )
+    }
+
+    if (node.isComparison) {
+        return Type.coreAliases.boolean
+    }
+
+    return leftType.kind > rightType.kind ? leftType : rightType
+}
+
+function handleIfStatement(ctx: Context, node: Node.IfStatement): void {
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
+
+    expressions[node.test.kind](ctx, node.test, 0)
+
+    switch (node.consequent.kind) {
+        case "BlockStatement":
+            handleStatements(ctx, node.consequent.body)
+            break
+
+        case "ExpressionStatement":
+            expressions[node.consequent.expression.kind](ctx, node.consequent.expression, 0)
+            break
+
+        default:
+            unexpected(ctx.module)
+    }
+
+    ctx.scopeCurr = ctx.scopeCurr.parent
+
+    if (node.alternate) {
+        expressions[node.alternate.kind](ctx, node.alternate, 0)
+    }
+}
+
 function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, flags: number = 0): void {
     const varRef = declareVar(ctx, node, flags)
 
     if (node.init) {
-        const initType = handle[node.init.kind](ctx, node.init, flags)
+        const initType = expressions[node.init.kind](ctx, node.init, flags)
         if (varRef.type.kind === Type.Kind.unknown) {
             varRef.type = initType
         } else if (!isValidType(ctx, varRef.type, initType, node.start)) {
@@ -662,7 +655,7 @@ function handleVariableDeclaration(ctx: Context, node: Node.VariableDeclaration,
 }
 
 function handleExportNamedDeclaration(ctx: Context, node: Node.ExportNamedDeclaration): void {
-    handle[node.declaration.kind](ctx, node.declaration, Flags.Exported)
+    statements[node.declaration.kind](ctx, node.declaration, Flags.Exported)
 }
 
 function handleParams(ctx: Context, scope: Scope, params: Node.Parameter[]): void {
@@ -673,7 +666,7 @@ function handleParams(ctx: Context, scope: Scope, params: Node.Parameter[]): voi
         const paramRef = declareVar(ctx, param)
 
         if (param.initializer) {
-            const paramType = expressions[param.initializer.kind](ctx, param.initializer)
+            const paramType = expressions[param.initializer.kind](ctx, param.initializer, 0)
 
             if (paramRef.type.kind !== paramType.kind) {
                 raiseTypeError(ctx, param.initializer.start, paramRef.type, paramType)
@@ -712,23 +705,31 @@ function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration,
     return returnType
 }
 
+function handleBlockStatement(ctx: Context, node: Node.BlockStatement): void {
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
+
+    handleStatements(ctx, node.body)
+
+    ctx.scopeCurr = ctx.scopeCurr.parent
+}
+
 function handleStatements(ctx: Context, body: Node.Statement[]): void {
     const scopeCurr = ctx.scopeCurr
 
     for (const node of body) {
-        statements[node.kind](ctx, node)
+        statements[node.kind](ctx, node, 0)
     }
 
-    // const funcDecls = ctx.scopeCurr.funcDecls
-    // for (const decl of funcDecls) {
-    //     const prevFuncType = ctx.currFuncType
-    //     ctx.scopeCurr = decl.scope
-    //     ctx.currFuncType = decl.ref.type
+    const funcDecls = ctx.scopeCurr.funcDecls
+    for (const decl of funcDecls) {
+        const prevFuncType = ctx.currFuncType
+        ctx.scopeCurr = decl.scope
+        ctx.currFuncType = decl.funcType
 
-    //     handle[decl.node.body.kind](ctx, decl.node.body)
+        statements[decl.node.body.kind](ctx, decl.node.body, 0)
 
-    //     ctx.currFuncType = prevFuncType
-    // }
+        ctx.currFuncType = prevFuncType
+    }
 
     ctx.scopeCurr = scopeCurr
 }
@@ -961,7 +962,7 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         exports: {},
         scope,
         scopeCurr: scope,
-        currFuncType: null,
+        currFuncType: Type.coreAliases.unknown,
         typeAliases: {},
     }
 
@@ -988,22 +989,25 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     return ctx.exports
 }
 
-type StatementFunc = (ctx: Context, node: any, flags?: number) => Type.Any | void
+type StatementFunc = (ctx: Context, node: any, flags: number) => Type.Any | void
 
 const statements: Record<string, StatementFunc> = {
+    IfStatement: handleIfStatement,
     VariableDeclaration: handleVariableDeclaration,
     ExportNamedDeclaration: handleExportNamedDeclaration,
     FunctionDeclaration: handleFunctionDeclaration,
+    BlockStatement: handleBlockStatement,
 }
 
-type ExpressionFunc = (ctx: Context, node: any) => Type.Any
+type ExpressionFunc = (ctx: Context, node: any, flags: number) => Type.Any
 
-type HandleFunc = (ctx: Context, node: any, flags?: number, type?: TypeNode.Any) => Type.Any
+type HandleFunc = (ctx: Context, node: any) => void
 
 const expressions: Record<string, ExpressionFunc> = {
     Literal: handleLiteral,
     NumericLiteral: handleNumericLiteral,
     Identifier: handleIdentifier,
+    BinaryExpression: handleBinaryExpression,
 }
 
 const handle: Record<string, HandleFunc> = {
@@ -1034,7 +1038,7 @@ const handle: Record<string, HandleFunc> = {
     // UpdateExpression: handleUpdateExpression,
     // UnaryExpression: handleUnaryExpression,
     // LogicalExpression: handleLogicalExpression,
-    // BinaryExpression: handleBinaryExpression,
+    //
     // MemberExpression: handleMemberExpression,
     // CallExpression: handleCallExpression,
     // ArrayExpression: handleArrayExpression,
