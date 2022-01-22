@@ -307,13 +307,6 @@ interface Context {
 //     handle[node.argument.kind](ctx, node.argument)
 // }
 
-// function handleLogicalExpression(ctx, node) {
-//     handle[node.left.kind](ctx, node.left)
-//     handle[node.right.kind](ctx, node.right)
-
-//     return coreTypeRefs.boolean
-// }
-
 // function handleMemberExpression(ctx, node) {
 //     const typeRef = handle[node.object.kind](ctx, node.object)
 //     if (typeRef.type.kind !== TypeKind.object && typeRef.type.kind !== TypeKind.enum) {
@@ -584,6 +577,13 @@ function handleBinaryExpression(ctx: Context, node: Node.BinaryExpression): Type
     }
 
     return leftType.kind > rightType.kind ? leftType : rightType
+}
+
+function handleLogicalExpression(ctx: Context, node: Node.LogicalExpression): Type.Any {
+    expressions[node.left.kind](ctx, node.left, 0)
+    expressions[node.right.kind](ctx, node.right, 0)
+
+    return Type.coreAliases.boolean
 }
 
 function handleReturnStatement(ctx: Context, node: Node.ReturnStatement): void {
@@ -1014,6 +1014,7 @@ const expressions: Record<string, ExpressionFunc> = {
     BooleanLiteral: handleBooleanLiteral,
     Identifier: handleIdentifier,
     BinaryExpression: handleBinaryExpression,
+    LogicalExpression: handleLogicalExpression,
 }
 
 const handle: Record<string, HandleFunc> = {
