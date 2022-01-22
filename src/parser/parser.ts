@@ -5,7 +5,7 @@ import { raiseAt, unexpected } from "../error"
 import { createModule, Module } from "../module"
 import { Kind } from "../types"
 import * as Node from "./node"
-import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken } from "./tokenizer"
+import { canInsertSemicolon, eat, expect, expectContextual, kinds, nextTemplateToken, nextToken, possibleArrowFunction } from "./tokenizer"
 import { Token } from "./tokenizer-types"
 import * as TypeNode from "./type-node"
 
@@ -89,6 +89,20 @@ function parseIdentifier(ctx: ParserContext): Node.Identifier {
     return node
 }
 
+function parseParenthesisExpression(ctx: ParserContext): Node.Expression {
+    if (possibleArrowFunction(ctx)) {
+        return parseArrowFunction(ctx)
+    }
+
+    expect(ctx, kinds.parenthesisL)
+
+    const expression = parseExpression(ctx)
+
+    expect(ctx, kinds.parenthesisR)
+
+    return expression
+}
+
 function parseExpressionAtom(ctx: ParserContext): Node.Expression {
     switch (ctx.kind) {
         case kinds.name:
@@ -111,7 +125,7 @@ function parseExpressionAtom(ctx: ParserContext): Node.Expression {
             return parseArrayExpression(ctx)
 
         case kinds.parenthesisL:
-            return parseArrowFunction(ctx)
+            return parseParenthesisExpression(ctx)
 
         case kinds.braceL:
             return parseObjectExpression(ctx)
@@ -697,7 +711,7 @@ function parseReturnStatement(ctx: ParserContext): Node.ReturnStatement {
 
 function parseArrowFunction(ctx: ParserContext): Node.ArrowFunction {
     const start = ctx.start
-    const params = parseFunctionParams(ctx)
+    const params = parseParameters(ctx)
 
     expect(ctx, kinds.arrow)
 
@@ -1232,7 +1246,7 @@ function parseFunctionStatement(ctx: ParserContext): Node.FunctionDeclaration {
 function parseFunctionDeclaration(ctx: ParserContext): Node.FunctionDeclaration {
     const start = ctx.startLast
     const id = ctx.kind === kinds.name ? parseIdentifier(ctx) : null
-    const params = parseFunctionParams(ctx)
+    const params = parseParameters(ctx)
 
     let returnType: TypeNode.Any | null = null
     if (ctx.kind === kinds.colon) {
@@ -1262,7 +1276,28 @@ function parseFunctionDeclaration(ctx: ParserContext): Node.FunctionDeclaration 
     }
 }
 
-function parseFunctionParams(ctx: ParserContext): Node.Parameter[] {
+function parseParametersExpression(ctx: ParserContext): Node.ParameterExpresion {
+    switch (ctx.kind) {
+        case kinds.name:
+            return parseIdentifier(ctx)
+
+        case kinds.num:
+            return parseNumericLiteral(ctx)
+
+        case kinds.true:
+        case kinds.false:
+            return parseBooleanLiteral(ctx)
+
+        case kinds.text:
+        case kinds.null:
+        case kinds._undefined:
+            return parseLiteral(ctx)
+    }
+
+    unexpected(ctx)
+}
+
+function parseParameters(ctx: ParserContext): Node.Parameter[] {
     expect(ctx, kinds.parenthesisL)
 
     const params: Node.Parameter[] = []
@@ -1279,9 +1314,9 @@ function parseFunctionParams(ctx: ParserContext): Node.Parameter[] {
             type = parseTypeAnnotation(ctx)
         }
 
-        let initializer: Node.Expression | null = null
+        let initializer: Node.ParameterExpresion | null = null
         if (eat(ctx, kinds.assign)) {
-            initializer = parseExpressionAtom(ctx)
+            initializer = parseParametersExpression(ctx)
         }
 
         params.push({

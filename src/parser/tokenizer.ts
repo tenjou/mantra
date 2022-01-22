@@ -8,6 +8,7 @@ function skipSpace(ctx: ParserContext): void {
         const charCode = ctx.input.charCodeAt(ctx.pos)
         switch (charCode) {
             case 10:
+            case 13:
             case 32:
                 ctx.pos++
                 break
@@ -418,6 +419,26 @@ export function canInsertSemicolon(ctx: ParserContext): boolean {
         const charCode = ctx.input.charCodeAt(n)
         if (charCode === 10) {
             return true
+        }
+    }
+
+    return false
+}
+
+export function possibleArrowFunction(ctx: ParserContext): boolean {
+    for (let n = ctx.endLast; n < ctx.pos; n++) {
+        const charCode = ctx.input.charCodeAt(n)
+        if (isNewLine(charCode)) {
+            return false
+        }
+
+        // =
+        if (charCode === 61) {
+            // >
+            const charCode2 = ctx.input.charCodeAt(n++)
+            if (charCode2 === 62) {
+                return true
+            }
         }
     }
 
