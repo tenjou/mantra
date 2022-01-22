@@ -47,7 +47,7 @@ interface Context {
     exports: Record<string, Type.Reference>
     scope: Scope
     scopeCurr: Scope
-    currFuncType: Type.Any
+    currFuncType: Type.Function | null
     typeAliases: {}
 }
 
@@ -245,22 +245,6 @@ interface Context {
 //     handle[node.left.kind](ctx, node.left)
 //     handle[node.right.kind](ctx, node.right)
 //     handle[node.body.kind](ctx, node.body)
-// }
-
-// function handleReturnStatement(ctx, node) {
-//     let returnRef
-
-//     if (node.argument) {
-//         returnRef = handle[node.argument.kind](ctx, node.argument)
-//     } else {
-//         returnRef = coreTypeRefs.void
-//     }
-
-//     if (!ctx.currFuncType.returnType.type.kind) {
-//         ctx.currFuncType.returnType = returnRef
-//     } else if (ctx.currFuncType.returnType.type.kind !== returnRef.type.kind) {
-//         raiseTypeError(ctx, node.start, ctx.currFuncType.returnType, returnRef.type)
-//     }
 // }
 
 // function handleThrowStatement(ctx: Context, node: Node.ThrowStatement): void {
@@ -554,16 +538,16 @@ interface Context {
 //     ctx.modulesExports[alias] = refs
 // }
 
-function handleLiteral(_ctx: Context, node: Node.Literal): Type.Any {
-    if (node.value === "true" || node.value === "false") {
-        return Type.coreAliases.boolean
-    }
-
+function handleLiteral(_ctx: Context, _node: Node.Literal): Type.Any {
     return Type.coreAliases.string
 }
 
 function handleNumericLiteral(_ctx: Context, _node: Node.NumericLiteral): Type.Any {
     return Type.coreAliases.number
+}
+
+function handleBooleanLiteral(_ctx: Context, _node: Node.BooleanLiteral): Type.Any {
+    return Type.coreAliases.boolean
 }
 
 function handleIdentifier(ctx: Context, node: Node.Identifier): Type.Any {
@@ -600,6 +584,26 @@ function handleBinaryExpression(ctx: Context, node: Node.BinaryExpression): Type
     }
 
     return leftType.kind > rightType.kind ? leftType : rightType
+}
+
+function handleReturnStatement(ctx: Context, node: Node.ReturnStatement): void {
+    if (!ctx.currFuncType) {
+        raiseAt(ctx.module, node.start, "A 'return' statement can only be used within a function body.")
+    }
+
+    let returnType: Type.Any
+
+    if (node.argument) {
+        returnType = expressions[node.argument.kind](ctx, node.argument, 0)
+    } else {
+        returnType = Type.coreAliases.void
+    }
+
+    if (!ctx.currFuncType.returnType.kind) {
+        ctx.currFuncType.returnType = returnType
+    } else if (ctx.currFuncType.returnType.kind !== returnType.kind) {
+        raiseTypeError(ctx, node.start, ctx.currFuncType.returnType, returnType)
+    }
 }
 
 function handleIfStatement(ctx: Context, node: Node.IfStatement): void {
@@ -962,7 +966,7 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         exports: {},
         scope,
         scopeCurr: scope,
-        currFuncType: Type.coreAliases.unknown,
+        currFuncType: null,
         typeAliases: {},
     }
 
@@ -992,6 +996,7 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
 type StatementFunc = (ctx: Context, node: any, flags: number) => Type.Any | void
 
 const statements: Record<string, StatementFunc> = {
+    ReturnStatement: handleReturnStatement,
     IfStatement: handleIfStatement,
     VariableDeclaration: handleVariableDeclaration,
     ExportNamedDeclaration: handleExportNamedDeclaration,
@@ -1006,6 +1011,7 @@ type HandleFunc = (ctx: Context, node: any) => void
 const expressions: Record<string, ExpressionFunc> = {
     Literal: handleLiteral,
     NumericLiteral: handleNumericLiteral,
+    BooleanLiteral: handleBooleanLiteral,
     Identifier: handleIdentifier,
     BinaryExpression: handleBinaryExpression,
 }
@@ -1028,7 +1034,6 @@ const handle: Record<string, HandleFunc> = {
     // ForStatement: handleForStatement,
     // ForInStatement: handleForInStatement,
     // ForOfStatement: handleForOfStatement,
-    // ReturnStatement: handleReturnStatement,
     // ThrowStatement: handleThrowStatement,
     // TryStatement: handleTryStatement,
     // BlockStatement: handleBlockStatement,

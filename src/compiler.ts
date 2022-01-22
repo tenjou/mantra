@@ -461,6 +461,10 @@ function parseNumericLiteral(_ctx: CompilerContext, node: Node.NumericLiteral): 
     return node.value
 }
 
+function parseBooleanLiteral(_ctx: CompilerContext, node: Node.BooleanLiteral): string {
+    return node.value
+}
+
 function parseLiteral(_ctx: CompilerContext, node: Node.Literal): string {
     return node.raw
 }
@@ -617,6 +621,7 @@ const parse: Record<string, NodeParserFunc> = {
     ArrayExpression: parseArrayExpression,
     ObjectExpression: parseObjectExpression,
     TemplateLiteral: parseTemplateLiteral,
+    BooleanLiteral: parseBooleanLiteral,
     NumericLiteral: parseNumericLiteral,
     Literal: parseLiteral,
     Identifier: parseIdentifier,

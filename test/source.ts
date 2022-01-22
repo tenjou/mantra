@@ -1,6 +1,6 @@
-export function isIdentifierStart(charCode: number): void {
+export function isIdentifierStart(charCode: number): boolean {
     if (charCode < 65) {
-        //     return charCode === 36 // $
+        return charCode === 36 // $
     }
     // if (charCode < 91) {
     //     return true
@@ -11,7 +11,7 @@ export function isIdentifierStart(charCode: number): void {
     // if (charCode < 123) {
     //     return true
     // }
-    // return false
+    return false
 }
 
 // export function isIdentifierChar(charCode: number) {
