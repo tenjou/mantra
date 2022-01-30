@@ -231,7 +231,7 @@ export interface ImportDeclaration extends Node {
     kind: "ImportDeclaration"
     importClause: NamespaceImport | NamedImports
     name: Identifier | null
-    source: Identifier
+    source: Literal
 }
 
 export interface ThrowStatement extends Node {

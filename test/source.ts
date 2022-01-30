@@ -1,42 +1,11 @@
-export function isIdentifierStart(charCode: number): boolean {
-    if (charCode < 65) {
-        return charCode === 36 // $
-    }
-    if (charCode < 91) {
-        return true
-    }
-    if (charCode < 97) {
-        return charCode === 95 // _
-    }
-    if (charCode < 123) {
-        return true
-    }
-    return false
-}
+import * as path from "path"
 
-export function isIdentifierChar(charCode: number) {
-    if (charCode < 48) {
-        return charCode === 36 // $
-    }
-    if (charCode < 58) {
-        return true
-    }
-    if (charCode < 65) {
-        return false
-    }
-    if (charCode < 91) {
-        return true
-    }
-    if (charCode < 97) {
-        return charCode === 95 // _
-    }
-    if (charCode < 123) {
-        return true
+export function getFilePath(fileDir: string, sourcePath: string): string {
+    if (sourcePath.charCodeAt(0) === 46) {
+        const fileExt = path.extname(sourcePath) || ".ts"
+        const filePath = path.relative(fileDir, `${sourcePath}${fileExt}`)
+        return filePath
     }
 
-    return false
-}
-
-export function isNewLine(charCode: number) {
-    return charCode === 10 || charCode === 13
+    return sourcePath
 }

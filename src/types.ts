@@ -42,7 +42,7 @@ export interface Function {
 export interface Object {
     name: string
     kind: Kind.object
-    members: Any[]
+    members: Record<string, Reference>
 }
 
 export type Any = Default | Union | Array | Function | Object
@@ -67,11 +67,11 @@ export function createArray(name: string, elementType: Any): Array {
     return { name, kind: Kind.array, elementType }
 }
 
-export function createFunction(name: string, params: any[], returnType: Any): Function {
+export function createFunction(name: string, params: Any[], returnType: Any): Function {
     return { name, kind: Kind.function, params, returnType }
 }
 
-export function createObject(name: string, members: Any[]): Object {
+export function createObject(name: string, members: Record<string, Reference>): Object {
     return { name, kind: Kind.object, members }
 }
 
@@ -86,7 +86,7 @@ export const coreAliases: Record<string, Any> = {
     boolean: createType("boolean", Kind.boolean),
     void: createType("void", Kind.void),
     args: createType("args", Kind.args),
-    object: createObject("object", []),
+    object: createObject("object", {}),
 }
 
 export const coreRefs: Record<string, Reference> = {

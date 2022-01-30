@@ -1,4 +1,4 @@
-import { analyze } from "./analyzer"
+import { analyze } from "./analyzer/analyzer"
 import { compiler } from "./compiler"
 import { Config } from "./config"
 import { parser } from "./parser/parser"

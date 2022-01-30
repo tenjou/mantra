@@ -981,7 +981,7 @@ function parseImport(ctx: ParserContext): Node.ImportDeclaration {
 
     expectContextual(ctx, "from")
 
-    const source = parseIdentifier(ctx)
+    const source = parseLiteral(ctx)
     if (source.value.charCodeAt(0) === 46) {
         const fileExt = path.extname(source.value) || ".ts"
         const filePath = path.relative("./", `${source.value}${fileExt}`)
@@ -1467,7 +1467,7 @@ function canExportStatement(ctx: ParserContext): boolean {
 export function parser(config: Config, srcFileName: string, modules = {}) {
     const fileDir = path.relative("./", path.dirname(srcFileName))
     const fileName = path.relative("./", srcFileName)
-    const filePath = path.resolve(`${config.rootDir}/${fileDir}`, fileName)
+    const filePath = path.resolve(config.rootDir, fileName)
     const input = fs.readFileSync(filePath, "utf8")
 
     const ctx: ParserContext = {

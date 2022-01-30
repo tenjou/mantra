@@ -1,6 +1,6 @@
 // import * as path from "path"
-import { getLineInfo, raiseAt, unexpected } from "./error"
-// import { getFilePath } from "./file"
+import { getLineInfo, raiseAt, unexpected } from "../error"
+import { getFilePath } from "../file"
 // import {
 //     coreTypeAliases,
 //     coreTypeRefs,
@@ -17,12 +17,13 @@ import { getLineInfo, raiseAt, unexpected } from "./error"
 //     loadCoreTypes,
 //     TypeKind,
 // } from "./types.js"
-import { Flags } from "./flags"
-import { Config } from "./config"
-import { Module } from "./module"
-import * as Node from "./parser/node"
-import * as TypeNode from "./parser/type-node"
-import * as Type from "./types"
+import { Flags } from "../flags"
+import { Config } from "../config"
+import { Module } from "../module"
+import * as Node from "../parser/node"
+import * as TypeNode from "../parser/type-node"
+import * as Type from "../types"
+import { loadExterns } from "./externs"
 
 interface FunctionDecl {
     funcType: Type.Function
@@ -43,50 +44,13 @@ interface Context {
     config: Config
     module: Module
     modules: Record<string, Module>
-    modulesExports: {}
+    modulesExports: Record<string, Record<string, Type.Reference>>
     exports: Record<string, Type.Reference>
     scope: Scope
     scopeCurr: Scope
     currFuncType: Type.Function | null
     typeAliases: {}
 }
-
-// function handleImportClause(ctx: Context, node, moduleExports) {
-//     if (node.kind === "NamedImports") {
-//         for (const entry of node.specifiers) {
-//             const entryId = entry.imported.value
-//             const exportedRef = moduleExports[entryId]
-//             if (!exportedRef) {
-//                 raiseAt(ctx, entry.start, `Module '"${node.source.value}"' has no exported member '${entry.imported.value}'`)
-//             }
-
-//             const importedRef = moduleExports[entry.imported.value]
-//             importVar(ctx, entry.imported.value, importedRef)
-//         }
-//     }
-// }
-
-// function handleImportDeclaration(ctx: Context, node: Node.ImportDeclaration): void {
-//     const filePath = getFilePath(ctx.module.fileDir, node.source.value)
-
-//     let moduleExports = ctx.modulesExports[filePath]
-//     if (!moduleExports) {
-//         const module = ctx.modules[filePath]
-//         module.order = ctx.module.order + 1
-//         moduleExports = analyze(ctx.config, module, ctx.modules)
-//         ctx.modulesExports[filePath] = moduleExports
-//     }
-
-//     if (node.name) {
-//         if (!moduleExports.defauls) {
-//             raiseAt(ctx, node.name, `Module '"${filePath}"' has no default export.`)
-//         }
-//     }
-
-//     if (node.importClause) {
-//         handleImportClause(ctx, node.importClause, moduleExports)
-//     }
-// }
 
 // function getEnumType(ctx: Context, members: Node.EnumMember[]): TypeKind {
 //     let enumType = TypeKind.unknown
@@ -505,12 +469,12 @@ interface Context {
 // }
 
 // function importVar(ctx: Context, name: string, ref) {
-//     const prevVar = getVar(ctx, name, false)
-//     if (prevVar) {
-//         raise(ctx, node, `Duplicate identifier '${name}'`)
-//     }
+// const prevVar = getVar(ctx, name, false)
+// if (prevVar) {
+//     raise(ctx, node, `Duplicate identifier '${name}'`)
+// }
 
-//     ctx.scopeCurr.vars[name] = ref
+// ctx.scopeCurr.vars[name] = ref
 // }
 
 // function redeclareVar(ctx, varRef, newType) {
@@ -524,11 +488,6 @@ interface Context {
 //     const lineInfo = getLineInfo(ctx, node.start)
 //     const fileName = path.relative("./", ctx.filePath)
 //     throw new SyntaxError(`${error}. ${fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
-// }
-
-// function declareModule(ctx, alias, refs) {
-//     ctx.modules[alias] = createModule(null, "", "", "", alias)
-//     ctx.modulesExports[alias] = refs
 // }
 
 function handleLiteral(_ctx: Context, _node: Node.Literal): Type.Any {
@@ -658,6 +617,48 @@ function handleVariableDeclaration(ctx: Context, node: Node.VariableDeclaration,
     }
 }
 
+function handleImportDeclaration(ctx: Context, node: Node.ImportDeclaration): void {
+    const filePath = getFilePath(ctx.module.fileDir, node.source.value)
+
+    let moduleExports = ctx.modulesExports[filePath]
+    if (!moduleExports) {
+        const module = ctx.modules[filePath]
+        if (!module) {
+            raiseAt(ctx.module, node.source.start, `Cannot find module '${filePath}' or its corresponding type declarations.`)
+        }
+
+        module.order = ctx.module.order + 1
+        moduleExports = analyze(ctx.config, module, ctx.modules)
+        ctx.modulesExports[filePath] = moduleExports
+    }
+
+    if (node.name) {
+        if (!moduleExports.defauls) {
+            raiseAt(ctx.module, node.start, `Module '"${filePath}"' has no default export.`)
+        }
+    }
+
+    const importClause = node.importClause
+    if (importClause) {
+        switch (importClause.kind) {
+            case "NamedImports":
+                break
+
+            case "NamespaceImport": {
+                const name = importClause.name.value
+                const prevVar = getVar(ctx, name, false)
+                if (prevVar) {
+                    raiseAt(ctx.module, importClause.start, `Duplicate identifier '${name}'`)
+                }
+
+                const importedObjRef = Type.createRef(name, Type.createObject(name, moduleExports))
+                ctx.scopeCurr.vars[name] = importedObjRef
+                break
+            }
+        }
+    }
+}
+
 function handleExportNamedDeclaration(ctx: Context, node: Node.ExportNamedDeclaration): void {
     statements[node.declaration.kind](ctx, node.declaration, Flags.Exported)
 }
@@ -761,7 +762,7 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
         }
 
         case "FunctionType": {
-            const params: Type.Reference[] = new Array(type.params.length)
+            const params: Type.Any[] = new Array(type.params.length)
             for (let nParam = 0; nParam < type.params.length; nParam++) {
                 const param = type.params[nParam]
                 const paramType = handleType(ctx, param.type, param.name.value)
@@ -769,7 +770,7 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
                     raiseAt(ctx.module, type.start, `Parameter '${param.name.value}' implicitly has an 'any' type.`)
                 }
 
-                params[nParam] = Type.createRef("", paramType, 0)
+                params[nParam] = paramType
             }
 
             const returnType = handleType(ctx, type.type)
@@ -777,13 +778,14 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
         }
 
         case "TypeLiteral": {
-            const members: Type.Any[] = new Array(type.members.length)
-            for (let n = 0; n < type.members.length; n++) {
-                const entry = type.members[n]
-                members[n] = handleType(ctx, entry.type, entry.name)
-            }
+            raiseAt(ctx.module, type.start, "TODO")
+            // const members: Type.Any[] = new Array(type.members.length)
+            // for (let n = 0; n < type.members.length; n++) {
+            //     const entry = type.members[n]
+            //     members[n] = handleType(ctx, entry.type, entry.name)
+            // }
 
-            return Type.createObject(name, members)
+            // return Type.createObject(name, members)
         }
 
         case "NumberKeyword":
@@ -954,6 +956,11 @@ function createScope(parent: Scope, node: Node.Any | null = null): Scope {
     }
 }
 
+// function declareModule(ctx: Context, alias: string, refs: Object) {
+//     ctx.modules[alias] = createModule(null, "", "", "", alias)
+//     ctx.modulesExports[alias] = refs
+// }
+
 export function analyze(config: Config, module: Module, modules: Record<string, Module>) {
     const scope = createScope({} as Scope)
     scope.parent = scope
@@ -971,6 +978,9 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     }
 
     // loadCoreTypes(ctx)
+    loadExterns(ctx.modulesExports)
+
+    // declareModule(ctx, "path", {})
 
     // scope.vars["Infinity"] = coreTypeRefs.number
     // scope.vars["NaN"] = coreTypeRefs.number
@@ -999,6 +1009,7 @@ const statements: Record<string, StatementFunc> = {
     ReturnStatement: handleReturnStatement,
     IfStatement: handleIfStatement,
     VariableDeclaration: handleVariableDeclaration,
+    ImportDeclaration: handleImportDeclaration,
     ExportNamedDeclaration: handleExportNamedDeclaration,
     FunctionDeclaration: handleFunctionDeclaration,
     BlockStatement: handleBlockStatement,
@@ -1021,9 +1032,6 @@ const handle: Record<string, HandleFunc> = {
     // VariableDeclarator: handleVariableDeclarator,
     // EnumDeclaration: handleEnumDeclaration,
     // TypeAliasDeclaration: handleTypeAliasDeclaration,
-
-    FunctionDeclaration: handleFunctionDeclaration,
-    // ImportDeclaration: handleImportDeclaration,
     // LabeledStatement: handleLabeledStatement,
     // ExpressionStatement: handleExpressionStatement,
     // ConditionalExpression: handleConditionalExpression,
