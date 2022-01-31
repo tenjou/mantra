@@ -13,7 +13,8 @@ export enum Kind {
     enum,
 }
 
-type DefaultKind = Kind.unknown | Kind.number | Kind.string | Kind.boolean | Kind.void | Kind.args
+type DefaultKind = Kind.unknown | Kind.boolean | Kind.void | Kind.args | Kind.enum
+type ObjectKind = Kind.object | Kind.string | Kind.number
 
 export interface Default {
     name: string
@@ -41,7 +42,7 @@ export interface Function {
 
 export interface Object {
     name: string
-    kind: Kind.object
+    kind: ObjectKind
     members: Record<string, Reference>
 }
 
@@ -71,22 +72,35 @@ export function createFunction(name: string, params: Any[], returnType: Any): Fu
     return { name, kind: Kind.function, params, returnType }
 }
 
-export function createObject(name: string, members: Record<string, Reference>): Object {
-    return { name, kind: Kind.object, members }
+export function createFunctionRef(name: string, params: Any[], returnType: Any) {
+    return createRef(name, createFunction(name, params, returnType))
+}
+
+export function createObject(name: string, members: Record<string, Reference>, kind: ObjectKind = Kind.object): Object {
+    return { name, kind, members }
 }
 
 export function createRef(name: string, type: Any, flags: number = 0): Reference {
     return { name, type, flags }
 }
 
+const numberType = createObject("Number", {}, Kind.number)
+
 export const coreAliases: Record<string, Any> = {
     unknown: createType("unknown", Kind.unknown),
-    number: createType("number", Kind.number),
-    string: createType("string", Kind.string),
+    number: numberType,
+    string: createObject(
+        "String",
+        {
+            charCodeAt: createFunctionRef("charCodeAt", [numberType], numberType),
+        },
+        Kind.string
+    ),
     boolean: createType("boolean", Kind.boolean),
     void: createType("void", Kind.void),
     args: createType("args", Kind.args),
     object: createObject("object", {}),
+    enum: createType("enum", Kind.enum),
 }
 
 export const coreRefs: Record<string, Reference> = {

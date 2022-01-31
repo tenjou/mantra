@@ -5,6 +5,7 @@ import { getFilePath } from "./file"
 import { Module } from "./module"
 import { Kind } from "./types"
 import * as Node from "./parser/node"
+import { raiseAt } from "./error"
 
 const mantrLibFileName = "./__mantra__.js"
 
@@ -114,10 +115,10 @@ function parseExportNamedDeclaration(ctx: CompilerContext, node: Node.ExportName
 }
 
 function parseImportClause(_ctx: CompilerContext, importClause: Node.NamespaceImport | Node.NamedImports): string {
-    let result = ""
-
     switch (importClause.kind) {
         case "NamedImports": {
+            let result = ""
+
             for (const specifier of importClause.specifiers) {
                 const specifierResult = specifier.local ? `${specifier.imported.value}: ${specifier.local.value}` : specifier.imported.value
                 if (result) {
@@ -129,17 +130,19 @@ function parseImportClause(_ctx: CompilerContext, importClause: Node.NamespaceIm
 
             return `{ ${result} }`
         }
-    }
 
-    return result
+        case "NamespaceImport": {
+            return `* as ${importClause.name.value}`
+        }
+    }
 }
 
 function parseImportDeclaration(ctx: CompilerContext, node: Node.ImportDeclaration): string {
-    const specifiers = parseImportClause(ctx, node.importClause)
+    const importClause = parseImportClause(ctx, node.importClause)
     const filePath = getFilePath(ctx.module.fileDir, node.source.value)
     const module = ctx.modules[filePath]
-    const importPath = module.program ? `${node.source.value}.js` : filePath
-    const result = `import ${specifiers} from "${importPath}"\n`
+    const importPath = module ? `${node.source.value}.js` : filePath
+    const result = `import ${importClause} from "${importPath}"\n`
 
     return result
 }

@@ -148,10 +148,6 @@ interface Context {
 //     ctx.scopeCurr.labels.pop()
 // }
 
-// function handleExpressionStatement(ctx, node) {
-//     handle[node.expression.kind](ctx, node.expression)
-// }
-
 // function handleConditionalExpression(ctx: Context, node: Node.ConditionalExpression): void {
 //     handle[node.test.kind](ctx, node.test)
 //     handle[node.consequent.kind](ctx, node.consequent)
@@ -269,77 +265,6 @@ interface Context {
 
 // function handleUnaryExpression(ctx, node) {
 //     handle[node.argument.kind](ctx, node.argument)
-// }
-
-// function handleMemberExpression(ctx, node) {
-//     const typeRef = handle[node.object.kind](ctx, node.object)
-//     if (typeRef.type.kind !== TypeKind.object && typeRef.type.kind !== TypeKind.enum) {
-//         if (typeRef.type.kind === TypeKind.unknown) {
-//             raiseAt(ctx.module, node.object.start, `'${node.object.value}' is of type 'unknown'`)
-//         }
-//         raiseAt(ctx.module, node.object.start, `'${node.object.value}' is not an object`)
-//     }
-
-//     if (!node.computed) {
-//         const propRef = typeRef.type.members[node.property.value]
-//         if (!propRef) {
-//             raiseAt(ctx.module, node.property.start, `Property '${node.property.value}' does not exist on type '${propRef.type.name}'`)
-//         }
-//         return propRef
-//     }
-
-//     switch (node.property.kind) {
-//         case "Literal": {
-//             const prop = type.props[node.property.value]
-//             if (!prop) {
-//                 raiseAt(ctx.module, node.property.start, `Property '${node.property.value}' does not exist on type '${type.name}'`)
-//             }
-//             return prop
-//         }
-//     }
-
-//     raiseAt(ctx.module, node.property.start, "Unsupported object property access")
-// }
-
-// function handleCallExpression(ctx, node) {
-//     const typeRef = handle[node.callee.kind](ctx, node.callee)
-//     if (typeRef.type.kind !== TypeKind.function) {
-//         raiseAt(ctx, node.callee.start, `This expression is not callable.\n  Type '${typeRef.type.name}' has no call signatures`)
-//     }
-
-//     if (node.arguments.length < typeRef.type.argsMin) {
-//         raiseAt(ctx, node.callee.start, `Expected ${typeRef.type.argsMin} arguments, but got ${node.arguments.length}`)
-//     }
-//     if (node.arguments.length > typeRef.type.argsMax) {
-//         raiseAt(ctx, node.callee.start, `Expected ${typeRef.type.argsMax} arguments, but got ${node.arguments.length}`)
-//     }
-
-//     for (let n = 0; n < node.arguments.length; n++) {
-//         const arg = node.arguments[n]
-//         const argRef = handle[arg.kind](ctx, arg)
-//         const funcArgRef = typeRef.type.args[n]
-
-//         if (funcArgRef.type.kind === TypeKind.enum) {
-//             if (funcArgRef.type.kind === TypeKind.args) {
-//                 break
-//             }
-//             if (funcArgRef.type.enumType !== argRef.type.kind) {
-//                 raiseTypeError(ctx, arg.start, funcArgRef.type, argRef.type)
-//             }
-
-//             const value = getArgValue(arg)
-//             if (!funcArgRef.type.values[value]) {
-//                 raiseAt(ctx.module, arg.start, `Argument '${value}' is not assignable to parameter of type '${typeRef.name}'`)
-//             }
-//         } else if (funcArgRef.type.kind !== argRef.type.kind) {
-//             if (funcArgRef.type.kind === TypeKind.args) {
-//                 break
-//             }
-//             raiseTypeError(ctx, arg.start, funcArgRef.type, argRef.type)
-//         }
-//     }
-
-//     return typeRef.type.returnType
 // }
 
 // function handleArrayExpression(ctx, node) {
@@ -515,10 +440,10 @@ function handleBinaryExpression(ctx: Context, node: Node.BinaryExpression): Type
     const leftType = expressions[node.left.kind](ctx, node.left, 0)
     const rightType = expressions[node.right.kind](ctx, node.right, 0)
 
-    // TODO: restore
-    // if (node.operator === "instanceof") {
-    //     return redeclareVar(ctx, leftRef, rightRef.type)
-    // }
+    if (node.operator === "instanceof") {
+        raiseAt(ctx.module, node.start, "TODO")
+        // return redeclareVar(ctx, leftRef, rightRef.type)
+    }
 
     if (
         (leftType.kind !== Type.Kind.number && leftType.kind !== Type.Kind.string) ||
@@ -543,6 +468,89 @@ function handleLogicalExpression(ctx: Context, node: Node.LogicalExpression): Ty
     expressions[node.right.kind](ctx, node.right, 0)
 
     return Type.coreAliases.boolean
+}
+
+function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any {
+    const calleeType = expressions[node.callee.kind](ctx, node.callee, 0)
+    if (calleeType.kind !== Type.Kind.function) {
+        raiseAt(ctx.module, node.callee.start, `This expression is not callable.\n  Type '${calleeType.name}' has no call signatures`)
+    }
+
+    // if (node.arguments.length < typeRef.type.argsMin) {
+    //     raiseAt(ctx, node.callee.start, `Expected ${typeRef.type.argsMin} arguments, but got ${node.arguments.length}`)
+    // }
+    // if (node.arguments.length > typeRef.type.argsMax) {
+    //     raiseAt(ctx, node.callee.start, `Expected ${typeRef.type.argsMax} arguments, but got ${node.arguments.length}`)
+    // }
+
+    // for (let n = 0; n < node.arguments.length; n++) {
+    //     const arg = node.arguments[n]
+    //     const argRef = handle[arg.kind](ctx, arg)
+    //     const funcArgRef = typeRef.type.args[n]
+
+    //     if (funcArgRef.type.kind === TypeKind.enum) {
+    //         if (funcArgRef.type.kind === TypeKind.args) {
+    //             break
+    //         }
+    //         if (funcArgRef.type.enumType !== argRef.type.kind) {
+    //             raiseTypeError(ctx, arg.start, funcArgRef.type, argRef.type)
+    //         }
+
+    //         const value = getArgValue(arg)
+    //         if (!funcArgRef.type.values[value]) {
+    //             raiseAt(ctx.module, arg.start, `Argument '${value}' is not assignable to parameter of type '${typeRef.name}'`)
+    //         }
+    //     } else if (funcArgRef.type.kind !== argRef.type.kind) {
+    //         if (funcArgRef.type.kind === TypeKind.args) {
+    //             break
+    //         }
+    //         raiseTypeError(ctx, arg.start, funcArgRef.type, argRef.type)
+    //     }
+    // }
+
+    return calleeType.returnType
+}
+
+function handleMemberExpression(ctx: Context, node: Node.MemberExpression): Type.Any {
+    const type = expressions[node.object.kind](ctx, node.object, 0)
+    const typeKind = type.kind
+
+    if (typeKind !== Type.Kind.object && typeKind !== Type.Kind.string && typeKind !== Type.Kind.number) {
+        if (type.kind === Type.Kind.unknown) {
+            raiseAt(ctx.module, node.object.start, `'${type.name}' is of type 'unknown'`)
+        }
+        raiseAt(ctx.module, node.object.start, `'${type.name}' is not an object`)
+    }
+
+    const property = node.property
+
+    if (!node.computed) {
+        switch (property.kind) {
+            case "Identifier": {
+                const propRef = type.members[property.value]
+                if (!propRef) {
+                    raiseAt(ctx.module, node.property.start, `Property '${property.value}' does not exist on type '${type.name}'`)
+                }
+                return propRef.type
+            }
+        }
+    }
+
+    raiseAt(ctx.module, property.start, "TODO")
+
+    // switch (node.property.kind) {
+    //     case "Literal": {
+    //         const prop = type.props[node.property.value]
+    //         if (!prop) {
+    //             raiseAt(ctx.module, node.property.start, `Property '${node.property.value}' does not exist on type '${type.name}'`)
+    //         }
+    //         return prop
+    //     }
+    // }
+
+    // raiseAt(ctx.module, node.property.start, "Unsupported object property access")
+
+    return type
 }
 
 function handleReturnStatement(ctx: Context, node: Node.ReturnStatement): void {
@@ -728,15 +736,25 @@ function handleStatements(ctx: Context, body: Node.Statement[]): void {
     const funcDecls = ctx.scopeCurr.funcDecls
     for (const decl of funcDecls) {
         const prevFuncType = ctx.currFuncType
+        const declBody = decl.node.body
+
         ctx.scopeCurr = decl.scope
         ctx.currFuncType = decl.funcType
 
-        statements[decl.node.body.kind](ctx, decl.node.body, 0)
+        if (declBody.kind === "BlockStatement") {
+            handleStatements(ctx, declBody.body)
+        } else {
+            raiseAt(ctx.module, decl.node.start, "Unsupported feature")
+        }
 
         ctx.currFuncType = prevFuncType
     }
 
     ctx.scopeCurr = scopeCurr
+}
+
+function handleExpressionStatement(ctx: Context, node: Node.ExpressionStatement): void {
+    expressions[node.expression.kind](ctx, node.expression, 0)
 }
 
 function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): Type.Any {
@@ -917,14 +935,18 @@ function getVar(ctx: Context, name: string, isObject: boolean = false): Type.Ref
         }
     } else {
         let scope = ctx.scopeCurr
+        let item = scope.vars[name]
+        if (item) {
+            return item
+        }
 
-        while (scope !== ctx.scope) {
-            let item = scope.vars[name]
+        do {
+            scope = scope.parent
+            item = scope.vars[name]
             if (item) {
                 return item
             }
-            scope = scope.parent
-        }
+        } while (scope !== ctx.scope)
     }
 
     return null
@@ -1013,6 +1035,7 @@ const statements: Record<string, StatementFunc> = {
     ExportNamedDeclaration: handleExportNamedDeclaration,
     FunctionDeclaration: handleFunctionDeclaration,
     BlockStatement: handleBlockStatement,
+    ExpressionStatement: handleExpressionStatement,
 }
 
 type ExpressionFunc = (ctx: Context, node: any, flags: number) => Type.Any
@@ -1026,6 +1049,8 @@ const expressions: Record<string, ExpressionFunc> = {
     Identifier: handleIdentifier,
     BinaryExpression: handleBinaryExpression,
     LogicalExpression: handleLogicalExpression,
+    CallExpression: handleCallExpression,
+    MemberExpression: handleMemberExpression,
 }
 
 const handle: Record<string, HandleFunc> = {
@@ -1033,7 +1058,6 @@ const handle: Record<string, HandleFunc> = {
     // EnumDeclaration: handleEnumDeclaration,
     // TypeAliasDeclaration: handleTypeAliasDeclaration,
     // LabeledStatement: handleLabeledStatement,
-    // ExpressionStatement: handleExpressionStatement,
     // ConditionalExpression: handleConditionalExpression,
     // IfStatement: handleIfStatement,
     // BreakStatement: handleBreakContinueStatement,
@@ -1053,7 +1077,6 @@ const handle: Record<string, HandleFunc> = {
     // UnaryExpression: handleUnaryExpression,
     // LogicalExpression: handleLogicalExpression,
     //
-    // MemberExpression: handleMemberExpression,
     // CallExpression: handleCallExpression,
     // ArrayExpression: handleArrayExpression,
     // ObjectExpression: handleObjectExpression,
