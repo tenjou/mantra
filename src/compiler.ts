@@ -352,7 +352,7 @@ function parseMemberExpression(ctx: CompilerContext, node: Node.MemberExpression
 
 function parseCallExpression(ctx: CompilerContext, node: Node.CallExpression): string {
     const callee = parse[node.callee.kind](ctx, node.callee)
-    const args = parseArgs(ctx, node.arguments)
+    const args = parseArgs(ctx, node.args)
     const result = `${callee}(${args})`
 
     return result

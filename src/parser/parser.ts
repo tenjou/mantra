@@ -285,7 +285,7 @@ function parseSubscript(ctx: ParserContext, base: Node.Expression): Node.Express
         start,
         end: ctx.end,
         callee: base,
-        arguments: args,
+        args: args,
         optional: false,
     }
 }

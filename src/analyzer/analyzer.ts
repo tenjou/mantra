@@ -371,12 +371,6 @@ interface Context {
 
 // function handleAssignPattern(_ctx: Context, _node: Node.AssignPattern): void {}
 
-// function handleTemplateLiteral(ctx: Context, node: Node.TemplateLiteral): void {
-//     for (const expression of node.expressions) {
-//         handle[expression.kind](ctx, expression)
-//     }
-// }
-
 // function haveLabel(ctx: Context, label: Node.LabeledStatement): boolean {
 //     let scope = ctx.scopeCurr
 
@@ -425,6 +419,14 @@ function handleNumericLiteral(_ctx: Context, _node: Node.NumericLiteral): Type.A
 
 function handleBooleanLiteral(_ctx: Context, _node: Node.BooleanLiteral): Type.Any {
     return Type.coreAliases.boolean
+}
+
+function handleTemplateLiteral(ctx: Context, node: Node.TemplateLiteral): Type.Any {
+    for (const expression of node.expressions) {
+        expressions[expression.kind](ctx, expression, 0)
+    }
+
+    return Type.coreAliases.string
 }
 
 function handleIdentifier(ctx: Context, node: Node.Identifier): Type.Any {
@@ -476,37 +478,40 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
         raiseAt(ctx.module, node.callee.start, `This expression is not callable.\n  Type '${calleeType.name}' has no call signatures`)
     }
 
-    // if (node.arguments.length < typeRef.type.argsMin) {
-    //     raiseAt(ctx, node.callee.start, `Expected ${typeRef.type.argsMin} arguments, but got ${node.arguments.length}`)
-    // }
-    // if (node.arguments.length > typeRef.type.argsMax) {
-    //     raiseAt(ctx, node.callee.start, `Expected ${typeRef.type.argsMax} arguments, but got ${node.arguments.length}`)
-    // }
+    if (node.args.length < calleeType.argsMin) {
+        raiseAt(ctx.module, node.callee.start, `Expected ${calleeType.argsMin} arguments, but got ${node.args.length}`)
+    }
+    if (node.args.length > calleeType.argsMax) {
+        raiseAt(ctx.module, node.callee.start, `Expected ${calleeType.argsMax} arguments, but got ${node.args.length}`)
+    }
 
-    // for (let n = 0; n < node.arguments.length; n++) {
-    //     const arg = node.arguments[n]
-    //     const argRef = handle[arg.kind](ctx, arg)
-    //     const funcArgRef = typeRef.type.args[n]
+    for (let n = 0; n < node.args.length; n++) {
+        const arg = node.args[n]
+        const argType = expressions[arg.kind](ctx, arg, 0)
+        const paramType = calleeType.params[n]
 
-    //     if (funcArgRef.type.kind === TypeKind.enum) {
-    //         if (funcArgRef.type.kind === TypeKind.args) {
-    //             break
-    //         }
-    //         if (funcArgRef.type.enumType !== argRef.type.kind) {
-    //             raiseTypeError(ctx, arg.start, funcArgRef.type, argRef.type)
-    //         }
+        if (paramType.kind === Type.Kind.enum) {
+            if (argType.kind === Type.Kind.args) {
+                break
+            }
+            if (argType.kind !== Type.Kind.enum) {
+                raiseTypeError(ctx, arg.start, paramType, argType)
+            }
+            if (paramType.enumType !== argType.kind) {
+                raiseTypeError(ctx, arg.start, paramType, argType)
+            }
 
-    //         const value = getArgValue(arg)
-    //         if (!funcArgRef.type.values[value]) {
-    //             raiseAt(ctx.module, arg.start, `Argument '${value}' is not assignable to parameter of type '${typeRef.name}'`)
-    //         }
-    //     } else if (funcArgRef.type.kind !== argRef.type.kind) {
-    //         if (funcArgRef.type.kind === TypeKind.args) {
-    //             break
-    //         }
-    //         raiseTypeError(ctx, arg.start, funcArgRef.type, argRef.type)
-    //     }
-    // }
+            const value = getEnumValue(ctx, arg)
+            if (!paramType.values[value]) {
+                raiseAt(ctx.module, arg.start, `Argument '${value}' is not assignable to parameter of type '${paramType.name}'`)
+            }
+        } else if (paramType.kind !== argType.kind) {
+            if (paramType.kind === Type.Kind.args) {
+                break
+            }
+            raiseTypeError(ctx, arg.start, paramType, argType)
+        }
+    }
 
     return calleeType.returnType
 }
@@ -913,16 +918,6 @@ function getTypeName(type: Type.Any): string {
     return type.name
 }
 
-// function getArgValue(ctx: Context, node: Node.Any): void {
-//     switch (node.kind) {
-//         case "Literal":
-//         case "NumericLiteral":
-//             return node.value
-//     }
-
-//     raiseAt(ctx.module, node.start, `Unsupported argument value`)
-// }
-
 function raiseTypeError(ctx: Context, start: number, leftType: Type.Any, rightType: Type.Any) {
     raiseAt(ctx.module, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
 }
@@ -965,6 +960,16 @@ function declareVar(ctx: Context, node: Node.VariableDeclarator | Node.Parameter
     ctx.scopeCurr.vars[name] = ref
 
     return ref
+}
+
+function getEnumValue(ctx: Context, node: Node.Expression): string {
+    switch (node.kind) {
+        case "Literal":
+        case "NumericLiteral":
+            return node.value
+    }
+
+    raiseAt(ctx.module, node.start, `Unsupported argument value`)
 }
 
 function createScope(parent: Scope, node: Node.Any | null = null): Scope {
@@ -1046,6 +1051,7 @@ const expressions: Record<string, ExpressionFunc> = {
     Literal: handleLiteral,
     NumericLiteral: handleNumericLiteral,
     BooleanLiteral: handleBooleanLiteral,
+    TemplateLiteral: handleTemplateLiteral,
     Identifier: handleIdentifier,
     BinaryExpression: handleBinaryExpression,
     LogicalExpression: handleLogicalExpression,
@@ -1083,5 +1089,4 @@ const handle: Record<string, HandleFunc> = {
     // NewExpression: handleNewExpression,
     // SequenceExpression: handleSequenceExpression,
     // AssignPattern: handleAssignPattern,
-    // TemplateLiteral: handleTemplateLiteral,
 }

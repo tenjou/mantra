@@ -381,7 +381,7 @@ export interface AssignPattern extends Node {
 export interface CallExpression extends Node {
     kind: "CallExpression"
     callee: Expression
-    arguments: Expression[]
+    args: Expression[]
     optional: boolean
 }
 

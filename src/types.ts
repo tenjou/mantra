@@ -13,7 +13,7 @@ export enum Kind {
     enum,
 }
 
-type DefaultKind = Kind.unknown | Kind.boolean | Kind.void | Kind.args | Kind.enum
+type DefaultKind = Kind.unknown | Kind.boolean | Kind.void | Kind.args
 type ObjectKind = Kind.object | Kind.string | Kind.number
 
 export interface Default {
@@ -38,6 +38,15 @@ export interface Function {
     kind: Kind.function
     params: Any[]
     returnType: Any
+    argsMin: number
+    argsMax: number
+}
+
+export interface Enum {
+    name: string
+    kind: Kind.enum
+    enumType: Kind.number | Kind.string
+    values: Record<string, number | string | null>
 }
 
 export interface Object {
@@ -46,7 +55,7 @@ export interface Object {
     members: Record<string, Reference>
 }
 
-export type Any = Default | Union | Array | Function | Object
+export type Any = Default | Union | Array | Function | Object | Enum
 
 export interface Reference {
     name: string
@@ -68,8 +77,12 @@ export function createArray(name: string, elementType: Any): Array {
     return { name, kind: Kind.array, elementType }
 }
 
+export function createEnum(name: string, enumType: Kind.number | Kind.string, values: Record<string, string>): Enum {
+    return { name, kind: Kind.enum, enumType, values }
+}
+
 export function createFunction(name: string, params: Any[], returnType: Any): Function {
-    return { name, kind: Kind.function, params, returnType }
+    return { name, kind: Kind.function, params, returnType, argsMin: params.length, argsMax: params.length }
 }
 
 export function createFunctionRef(name: string, params: Any[], returnType: Any) {
@@ -100,7 +113,6 @@ export const coreAliases: Record<string, Any> = {
     void: createType("void", Kind.void),
     args: createType("args", Kind.args),
     object: createObject("object", {}),
-    enum: createType("enum", Kind.enum),
 }
 
 export const coreRefs: Record<string, Reference> = {
@@ -111,37 +123,3 @@ export const coreRefs: Record<string, Reference> = {
     void: createRef("void", coreAliases.void, 0),
     args: createRef("args", coreAliases.args, 0),
 }
-
-// export function loadCoreTypes(ctx) {
-//     ctx.typeAliases = {
-//         ...coreTypeAliases,
-//     }
-// }
-
-// export function createEnum(name, enumType, members = {}, values = {}) {
-//     const type = { name: name || "enum", kind: TypeKind.enum, enumType, members, values }
-
-//     return { type, flags: 0 }
-// }
-
-// export function createFunction(name, args, returnType = null) {
-//     let argsMin = 0
-//     let argsMax = 0
-
-//     for (let n = 0; n < args.length; n++) {
-//         const arg = args[n]
-//         if (arg.kind !== TypeKind.args) {
-//             argsMin++
-//             argsMax++
-//         } else {
-//             argsMax = Number.MAX_SAFE_INTEGER
-//         }
-//     }
-
-//     const type = { name, kind: TypeKind.function, args, argsMin, argsMax, returnType }
-//     return type
-// }
-
-// export function createArg(name, type) {
-//     return { name, type, flags: 0 }
-// }
