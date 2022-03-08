@@ -641,22 +641,22 @@ function handleEnumDeclaration(ctx: Context, node: Node.EnumDeclaration): void {
     const enumDef = Type.createEnum(node.name.value, contentType, members)
 
     switch (contentType) {
-        // case Type.Kind.string:
-        //     for (const member of node.members) {
-        //         if (!member.initializer) {
-        //             raiseAt(ctx.module, member.start, `Enum member must have initializer`)
-        //         }
-        //         if (member.initializer.kind !== "Literal") {
-        //             raiseAt(ctx.module, member.initializer.start, `String literal enums can only have literal values`)
-        //         }
-        //         if (members[member.name.value]) {
-        //             raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
-        //         }
+        case Type.Kind.string:
+            for (const member of node.members) {
+                if (!member.initializer) {
+                    raiseAt(ctx.module, member.start, `Enum member must have initializer`)
+                }
+                if (member.initializer.kind !== "Literal") {
+                    raiseAt(ctx.module, member.initializer.start, `String literal enums can only have literal values`)
+                }
+                if (members[member.name.value]) {
+                    raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
+                }
 
-        //         members[member.name.value] = createRef(coreTypeAliases.string, member.name.value)
-        //         values[member.initializer.value] = true
-        //     }
-        //     break
+                members[member.name.value] = Type.createRef(member.name.value, Type.createEnumMember(member.name.value, enumDef))
+                values[member.initializer.value] = true
+            }
+            break
 
         default: {
             let index = 0
