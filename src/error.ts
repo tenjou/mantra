@@ -13,7 +13,7 @@ interface LineInfo {
 
 export function raiseAt(ctx: Context, pos: number, error: string): never {
     const lineInfo = getLineInfo(ctx.input, pos)
-    const fileName = `./${ctx.fileDir}${ctx.fileName}`
+    const fileName = `./test/${ctx.fileDir}${ctx.fileName}`
     throw new SyntaxError(`${error}. ${fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 }
 
@@ -27,7 +27,11 @@ export function getLineInfo(input: string, offset: number): LineInfo {
 
     for (let n = 0; n < offset; n++) {
         const charCode = input.charCodeAt(n)
-        if (isNewLine(charCode)) {
+        if (charCode === 13) {
+            line++
+            n++
+            pos = 0
+        } else if (charCode === 10) {
             line++
             pos = 0
         } else {
@@ -37,6 +41,6 @@ export function getLineInfo(input: string, offset: number): LineInfo {
 
     return {
         line,
-        pos,
+        pos: pos,
     }
 }
