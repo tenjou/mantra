@@ -52,85 +52,6 @@ interface Context {
     typeAliases: {}
 }
 
-// function getEnumType(ctx: Context, members: Node.EnumMember[]): TypeKind {
-//     let enumType = TypeKind.unknown
-
-//     for (const member of members) {
-//         if (!member.initializer) {
-//             continue
-//         }
-
-//         switch (member.initializer.kind) {
-//             case "NumericLiteral":
-//                 return TypeKind.number
-
-//             case "Literal":
-//                 return TypeKind.string
-
-//             default:
-//                 raiseAt(ctx.module, member.initializer.start, `Enums can only have numeric or string values`)
-//         }
-//     }
-
-//     return enumType || TypeKind.number
-// }
-
-// function handleEnumDeclaration(ctx, node) {
-//     const contentType = getEnumType(ctx, node.members)
-
-//     ctx.scopeCurr = createScope(ctx.scopeCurr, node)
-
-//     const members = {}
-//     const values = {}
-
-//     switch (contentType) {
-//         case TypeKind.string:
-//             for (const member of node.members) {
-//                 if (!member.initializer) {
-//                     raiseAt(ctx.module, member.start, `Enum member must have initializer`)
-//                 }
-//                 if (member.initializer.kind !== "Literal") {
-//                     raiseAt(ctx.module, member.initializer.start, `String literal enums can only have literal values`)
-//                 }
-
-//                 if (members[member.name.value]) {
-//                     raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
-//                 }
-
-//                 members[member.name.value] = createRef(coreTypeAliases.string, member.name.value)
-//                 values[member.initializer.value] = true
-//             }
-//             break
-
-//         default: {
-//             let index = 0
-//             for (const member of node.members) {
-//                 if (member.initializer) {
-//                     if (member.initializer.kind !== "NumericLiteral") {
-//                         raiseAt(ctx.module, member.initializer.start, `Numeric enums can only have numeric values`)
-//                     }
-//                 }
-
-//                 if (members[member.name.value]) {
-//                     raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
-//                 }
-
-//                 if (member.initializer) {
-//                     index = member.initializer.value
-//                 }
-
-//                 members[member.name.value] = createRef(coreTypeAliases.number, member.name.value)
-//                 values[index++] = true
-//             }
-//             break
-//         }
-//     }
-
-//     const enumVar = createEnum(node.name.value, contentType, members, values)
-//     ctx.scope.vars[node.name.value] = enumVar
-//     ctx.typeAliases[enumVar.type.name] = enumVar.type
-// }
-
 // function handleTypeAliasDeclaration(ctx, node) {
 //     if (ctx.typeAliases[node.id]) {
 //         raise(ctx, node, `Type alias name cannot be '${node.id}'`)
@@ -502,7 +423,7 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
             }
 
             const value = getEnumValue(ctx, arg)
-            if (!paramType.values[value]) {
+            if (!paramType.members[value]) {
                 raiseAt(ctx.module, arg.start, `Argument '${value}' is not assignable to parameter of type '${paramType.name}'`)
             }
         } else if (paramType.kind !== argType.kind) {
@@ -520,7 +441,7 @@ function handleMemberExpression(ctx: Context, node: Node.MemberExpression): Type
     const type = expressions[node.object.kind](ctx, node.object, 0)
     const typeKind = type.kind
 
-    if (typeKind !== Type.Kind.object && typeKind !== Type.Kind.string && typeKind !== Type.Kind.number) {
+    if (typeKind !== Type.Kind.object && typeKind !== Type.Kind.enum && typeKind !== Type.Kind.string && typeKind !== Type.Kind.number) {
         if (type.kind === Type.Kind.unknown) {
             raiseAt(ctx.module, node.object.start, `'${type.name}' is of type 'unknown'`)
         }
@@ -542,20 +463,6 @@ function handleMemberExpression(ctx: Context, node: Node.MemberExpression): Type
     }
 
     raiseAt(ctx.module, property.start, "TODO")
-
-    // switch (node.property.kind) {
-    //     case "Literal": {
-    //         const prop = type.props[node.property.value]
-    //         if (!prop) {
-    //             raiseAt(ctx.module, node.property.start, `Property '${node.property.value}' does not exist on type '${type.name}'`)
-    //         }
-    //         return prop
-    //     }
-    // }
-
-    // raiseAt(ctx.module, node.property.start, "Unsupported object property access")
-
-    return type
 }
 
 function handleReturnStatement(ctx: Context, node: Node.ReturnStatement): void {
@@ -723,6 +630,62 @@ function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration,
     return returnType
 }
 
+function handleEnumDeclaration(ctx: Context, node: Node.EnumDeclaration): void {
+    const contentType = getEnumType(ctx, node.members)
+
+    ctx.scopeCurr = createScope(ctx.scopeCurr, node)
+
+    const members: Record<string, Type.Reference> = {}
+    const values: Record<string, boolean> = {}
+
+    const enumDef = Type.createEnum(node.name.value, contentType, members)
+
+    switch (contentType) {
+        // case Type.Kind.string:
+        //     for (const member of node.members) {
+        //         if (!member.initializer) {
+        //             raiseAt(ctx.module, member.start, `Enum member must have initializer`)
+        //         }
+        //         if (member.initializer.kind !== "Literal") {
+        //             raiseAt(ctx.module, member.initializer.start, `String literal enums can only have literal values`)
+        //         }
+        //         if (members[member.name.value]) {
+        //             raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
+        //         }
+
+        //         members[member.name.value] = createRef(coreTypeAliases.string, member.name.value)
+        //         values[member.initializer.value] = true
+        //     }
+        //     break
+
+        default: {
+            let index = 0
+            for (const member of node.members) {
+                if (member.initializer) {
+                    if (member.initializer.kind !== "NumericLiteral") {
+                        raiseAt(ctx.module, member.initializer.start, `Numeric enums can only have numeric values`)
+                    }
+                }
+
+                if (members[member.name.value]) {
+                    raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
+                }
+
+                if (member.initializer) {
+                    index = parseInt(member.initializer.value)
+                }
+
+                members[member.name.value] = Type.createRef(member.name.value, Type.createEnumMember(member.name.value, enumDef))
+                values[index++] = true
+            }
+            break
+        }
+    }
+
+    ctx.scope.vars[node.name.value] = Type.createRef(node.name.value, enumDef, 0)
+    ctx.scope.types[node.name.value] = enumDef
+}
+
 function handleBlockStatement(ctx: Context, node: Node.BlockStatement): void {
     ctx.scopeCurr = createScope(ctx.scopeCurr)
 
@@ -836,15 +799,18 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
 
 function getType(ctx: Context, name: string): Type.Any | null {
     let scope = ctx.scopeCurr
+    let type = scope.types[name]
+    if (type) {
+        return type
+    }
 
-    while (scope !== ctx.scope) {
-        const type = scope.types[name]
+    do {
+        scope = scope.parent
+        type = scope.types[name]
         if (type) {
             return type
         }
-
-        scope = scope.parent
-    }
+    } while (scope !== ctx.scope)
 
     return null
 }
@@ -892,6 +858,13 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
         return isValidType(ctx, leftType.elementType, rightType.elementType)
     }
 
+    if (leftType.kind === Type.Kind.enum) {
+        if (rightType.kind === Type.Kind.enumMember) {
+            return rightType.enum === leftType
+        }
+        return false
+    }
+
     return leftType === rightType
 }
 
@@ -913,6 +886,10 @@ function getTypeName(type: Type.Any): string {
         }
 
         return `(${paramsOutput}) => ${returnOutput}`
+    }
+
+    if (type.kind === Type.Kind.enumMember) {
+        return type.enum.name
     }
 
     return type.name
@@ -960,6 +937,29 @@ function declareVar(ctx: Context, node: Node.VariableDeclarator | Node.Parameter
     ctx.scopeCurr.vars[name] = ref
 
     return ref
+}
+
+function getEnumType(ctx: Context, members: Node.EnumMember[]): Type.Kind.number | Type.Kind.string {
+    let enumType = Type.Kind.unknown
+
+    for (const member of members) {
+        if (!member.initializer) {
+            continue
+        }
+
+        switch (member.initializer.kind) {
+            case "NumericLiteral":
+                return Type.Kind.number
+
+            case "Literal":
+                return Type.Kind.string
+
+            default:
+                raiseAt(ctx.module, member.start, `Enums can only have numeric or string values`)
+        }
+    }
+
+    return enumType || Type.Kind.number
 }
 
 function getEnumValue(ctx: Context, node: Node.Expression): string {
@@ -1039,6 +1039,7 @@ const statements: Record<string, StatementFunc> = {
     ImportDeclaration: handleImportDeclaration,
     ExportNamedDeclaration: handleExportNamedDeclaration,
     FunctionDeclaration: handleFunctionDeclaration,
+    EnumDeclaration: handleEnumDeclaration,
     BlockStatement: handleBlockStatement,
     ExpressionStatement: handleExpressionStatement,
 }
@@ -1061,7 +1062,6 @@ const expressions: Record<string, ExpressionFunc> = {
 
 const handle: Record<string, HandleFunc> = {
     // VariableDeclarator: handleVariableDeclarator,
-    // EnumDeclaration: handleEnumDeclaration,
     // TypeAliasDeclaration: handleTypeAliasDeclaration,
     // LabeledStatement: handleLabeledStatement,
     // ConditionalExpression: handleConditionalExpression,

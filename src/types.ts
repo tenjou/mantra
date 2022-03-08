@@ -11,6 +11,7 @@ export enum Kind {
     void,
     args,
     enum,
+    enumMember,
 }
 
 type DefaultKind = Kind.unknown | Kind.boolean | Kind.void | Kind.args
@@ -46,7 +47,13 @@ export interface Enum {
     name: string
     kind: Kind.enum
     enumType: Kind.number | Kind.string
-    values: Record<string, number | string | null>
+    members: Record<string, Reference>
+}
+
+export interface EnumMember {
+    name: string
+    kind: Kind.enumMember
+    enum: Enum
 }
 
 export interface Object {
@@ -55,7 +62,7 @@ export interface Object {
     members: Record<string, Reference>
 }
 
-export type Any = Default | Union | Array | Function | Object | Enum
+export type Any = Default | Union | Array | Function | Object | Enum | EnumMember
 
 export interface Reference {
     name: string
@@ -77,8 +84,12 @@ export function createArray(name: string, elementType: Any): Array {
     return { name, kind: Kind.array, elementType }
 }
 
-export function createEnum(name: string, enumType: Kind.number | Kind.string, values: Record<string, string>): Enum {
-    return { name, kind: Kind.enum, enumType, values }
+export function createEnum(name: string, enumType: Kind.number | Kind.string, members: Record<string, Reference>): Enum {
+    return { name, kind: Kind.enum, enumType, members }
+}
+
+export function createEnumMember(name: string, srcEnum: Enum): EnumMember {
+    return { name, kind: Kind.enumMember, enum: srcEnum }
 }
 
 export function createFunction(name: string, params: Any[], returnType: Any): Function {
