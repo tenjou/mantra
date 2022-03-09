@@ -489,12 +489,12 @@ function handleInterfaceDeclaration(ctx: Context, node: Node.InterfaceDeclaratio
 }
 
 function handleTypeAliasDeclaration(ctx: Context, node: Node.TypeAliasDeclaration): void {
-    if (ctx.scope.types[node.id]) {
-        raiseAt(ctx.module, node.start, `Duplicate identifier '${node.id}'`)
+    if (ctx.scope.types[node.id.value]) {
+        raiseAt(ctx.module, node.start, `Duplicate identifier '${node.id.value}'`)
     }
 
-    const type = handleType(ctx, node.type, node.id)
-    ctx.scope.types[node.id] = type
+    const type = handleType(ctx, node.type, node.id.value)
+    ctx.scope.types[node.id.value] = type
 }
 
 function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, flags: number = 0): void {
@@ -787,9 +787,9 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
             return Type.coreAliases.void
 
         default: {
-            const typeFound = getType(ctx, type.name)
+            const typeFound = getType(ctx, type.name.value)
             if (!typeFound) {
-                raiseAt(ctx.module, type.start, `Cannot find name '${type.name}'`)
+                raiseAt(ctx.module, type.start, `Cannot find name '${type.name.value}'`)
             }
 
             return typeFound

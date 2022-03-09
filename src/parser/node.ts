@@ -208,20 +208,14 @@ export interface EnumDeclaration extends Node {
 
 export interface TypeAliasDeclaration extends Node {
     kind: "TypeAliasDeclaration"
-    id: string
+    id: Identifier
     type: TypeNode.Any
-}
-
-export interface PropertySignature extends Node {
-    kind: "PropertySignature"
-    name: Identifier
-    type: Type.Any
 }
 
 export interface InterfaceDeclaration extends Node {
     kind: "InterfaceDeclaration"
     name: Identifier
-    members: PropertySignature[]
+    members: TypeNode.PropertySignature[]
 }
 
 export interface ImportSpecifier extends Node {

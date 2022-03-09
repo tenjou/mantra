@@ -44,7 +44,7 @@ export interface Function extends TypeNode {
 
 export interface PropertySignature extends TypeNode {
     kind: "PropertySignature"
-    name: string
+    name: Identifier
     type: Any
 }
 
@@ -55,7 +55,7 @@ export interface Literal extends TypeNode {
 
 export interface TypeReference extends TypeNode {
     kind: "TypeReference"
-    name: string
+    name: Identifier
 }
 
 export interface StringKeyword extends TypeNode {

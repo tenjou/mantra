@@ -156,8 +156,7 @@ function parseTypeLiteral(ctx: ParserContext): TypeNode.Literal {
     const members: TypeNode.PropertySignature[] = []
 
     while (!eat(ctx, kinds.braceR)) {
-        const start = ctx.start
-        const name = ctx.value
+        const name = parseIdentifier(ctx)
 
         nextToken(ctx)
         expect(ctx, kinds.colon)
@@ -1069,7 +1068,7 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
                 kind: "TypeReference",
                 start: left.start,
                 end: ctx.endLast,
-                name: left.value,
+                name: left,
             }
         }
     }
@@ -1113,8 +1112,7 @@ function parseTypeAliasDeclaration(ctx: ParserContext): Node.TypeAliasDeclaratio
     const start = ctx.start
     nextToken(ctx)
 
-    const id = ctx.value
-    nextToken(ctx)
+    const id = parseIdentifier(ctx)
 
     expect(ctx, kinds.assign)
 
@@ -1137,14 +1135,29 @@ function parseInterface(ctx: ParserContext): Node.InterfaceDeclaration {
 
     expect(ctx, kinds.braceL)
 
-    expect(ctx, kinds.braceR)
+    const members: TypeNode.PropertySignature[] = []
+    while (!eat(ctx, kinds.braceR)) {
+        const name = parseIdentifier(ctx)
+
+        expect(ctx, kinds.colon)
+
+        const type = parseTypeAnnotation(ctx)
+
+        members.push({
+            kind: "PropertySignature",
+            start: name.start,
+            end: ctx.end,
+            name,
+            type,
+        })
+    }
 
     return {
         kind: "InterfaceDeclaration",
         start,
         end: ctx.end,
         name,
-        members: [],
+        members,
     }
 }
 
