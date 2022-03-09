@@ -538,5 +538,6 @@ export const kinds: Record<string, Token> = {
     import: createKeyword("import"),
     export: createKeyword("export"),
     type: createKeyword("type"),
+    interface: createKeyword("interface"),
     enum: createKeyword("enum"),
 }

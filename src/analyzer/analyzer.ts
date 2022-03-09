@@ -1,24 +1,7 @@
-// import * as path from "path"
-import { getLineInfo, raiseAt, unexpected } from "../error"
-import { getFilePath } from "../file"
-// import {
-//     coreTypeAliases,
-//     coreTypeRefs,
-//     createArg,
-//     createArray,
-//     createEnum,
-//     createFunction,
-//     createModule,
-//     createObject,
-//     createRef,
-//     createUnion,
-//     createVar,
-//     Flags,
-//     loadCoreTypes,
-//     TypeKind,
-// } from "./types.js"
-import { Flags } from "../flags"
 import { Config } from "../config"
+import { raiseAt, unexpected } from "../error"
+import { getFilePath } from "../file"
+import { Flags } from "../flags"
 import { Module } from "../module"
 import * as Node from "../parser/node"
 import * as TypeNode from "../parser/type-node"
@@ -499,6 +482,10 @@ function handleIfStatement(ctx: Context, node: Node.IfStatement): void {
     if (node.alternate) {
         expressions[node.alternate.kind](ctx, node.alternate, 0)
     }
+}
+
+function handleInterfaceDeclaration(ctx: Context, node: Node.InterfaceDeclaration): void {
+    return
 }
 
 function handleTypeAliasDeclaration(ctx: Context, node: Node.TypeAliasDeclaration): void {
@@ -1048,6 +1035,7 @@ type StatementFunc = (ctx: Context, node: any, flags: number) => Type.Any | void
 const statements: Record<string, StatementFunc> = {
     ReturnStatement: handleReturnStatement,
     IfStatement: handleIfStatement,
+    InterfaceDeclaration: handleInterfaceDeclaration,
     TypeAliasDeclaration: handleTypeAliasDeclaration,
     VariableDeclaration: handleVariableDeclaration,
     ImportDeclaration: handleImportDeclaration,

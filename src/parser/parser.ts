@@ -485,6 +485,8 @@ function parseStatement(ctx: ParserContext): Node.Statement {
             return parseImport(ctx)
         case kinds.type:
             return parseTypeAliasDeclaration(ctx)
+        case kinds.interface:
+            return parseInterface(ctx)
         case kinds.enum:
             return parseEnum(ctx)
     }
@@ -894,7 +896,7 @@ function parseExport(ctx: ParserContext): Node.ExportNamedDeclaration {
     }
 
     const declaration = parseStatement(ctx)
-    const specifiers: Node.Any[] = []
+    const specifiers: Node.Statement[] = []
     const source = null
 
     return {
@@ -1124,6 +1126,25 @@ function parseTypeAliasDeclaration(ctx: ParserContext): Node.TypeAliasDeclaratio
         end: ctx.end,
         id,
         type,
+    }
+}
+
+function parseInterface(ctx: ParserContext): Node.InterfaceDeclaration {
+    const start = ctx.start
+
+    nextToken(ctx)
+    const name = parseIdentifier(ctx)
+
+    expect(ctx, kinds.braceL)
+
+    expect(ctx, kinds.braceR)
+
+    return {
+        kind: "InterfaceDeclaration",
+        start,
+        end: ctx.end,
+        name,
+        members: [],
     }
 }
 

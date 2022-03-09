@@ -48,6 +48,7 @@ export type Statement =
     | EnumDeclaration
     | FunctionDeclaration
     | TypeAliasDeclaration
+    | InterfaceDeclaration
     | BreakStatement
     | ContinueStatement
     | IfStatement
@@ -124,8 +125,8 @@ export interface TemplateElement extends Node {
 
 export interface ExportNamedDeclaration extends Node {
     kind: "ExportNamedDeclaration"
-    declaration: Any
-    specifiers: Any[]
+    declaration: Statement
+    specifiers: Statement[]
     source: null
 }
 
@@ -211,6 +212,18 @@ export interface TypeAliasDeclaration extends Node {
     type: TypeNode.Any
 }
 
+export interface PropertySignature extends Node {
+    kind: "PropertySignature"
+    name: Identifier
+    type: Type.Any
+}
+
+export interface InterfaceDeclaration extends Node {
+    kind: "InterfaceDeclaration"
+    name: Identifier
+    members: PropertySignature[]
+}
+
 export interface ImportSpecifier extends Node {
     kind: "ImportSpecifier"
     imported: Identifier
@@ -259,7 +272,7 @@ export interface TryStatement extends Node {
 export interface SwitchCase extends Node {
     kind: "SwitchCase"
     test: Expression | null
-    consequent: Any[]
+    consequent: Statement[]
 }
 
 export interface SwitchStatement extends Node {
@@ -271,36 +284,36 @@ export interface SwitchStatement extends Node {
 export interface IfStatement extends Node {
     kind: "IfStatement"
     test: Expression
-    consequent: Any
-    alternate: Any | null
+    consequent: Statement
+    alternate: Statement | null
 }
 
 export interface WhileStatement extends Node {
     kind: "WhileStatement"
     test: Expression
-    body: Any
+    body: Statement
 }
 
 export interface ForOfStatement extends Node {
     kind: "ForOfStatement"
     left: VariableDeclaration
     right: Expression
-    body: Any
+    body: Statement
 }
 
 export interface ForInStatement extends Node {
     kind: "ForInStatement"
     left: VariableDeclaration
     right: Expression
-    body: Any
+    body: Statement
 }
 
 export interface ForStatement extends Node {
     kind: "ForStatement"
-    init: Any | null
+    init: Statement | null
     test: Expression | null
     update: Expression | null
-    body: Any
+    body: Statement
 }
 
 export interface ReturnStatement extends Node {
@@ -325,7 +338,7 @@ export interface ExpressionStatement extends Node {
 
 export interface LabeledStatement extends Node {
     kind: "LabeledStatement"
-    body: Any
+    body: Statement
     label: Any
 }
 

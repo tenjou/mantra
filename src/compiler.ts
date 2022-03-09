@@ -439,7 +439,7 @@ function parseArgs(ctx: CompilerContext, args: Node.Expression[]) {
     return result
 }
 
-function parseStatements(ctx: CompilerContext, statements: Node.Any[]): string {
+function parseStatements(ctx: CompilerContext, statements: Node.Statement[]): string {
     enterBlock(ctx)
 
     let result = ""
@@ -505,7 +505,7 @@ function parseBlockStatement(ctx: CompilerContext, node: Node.BlockStatement): s
     return parseBlock(ctx, node.body)
 }
 
-function parseBlock(ctx: CompilerContext, body: Node.Any[] | Node.SwitchCase[]): string {
+function parseBlock(ctx: CompilerContext, body: Node.Statement[] | Node.SwitchCase[]): string {
     let result = `{`
 
     enterBlock(ctx)
@@ -587,6 +587,7 @@ type NodeParserFunc = (ctx: CompilerContext, node: any, depth?: number) => strin
 
 const parse: Record<string, NodeParserFunc> = {
     TypeAliasDeclaration: parseNoop,
+    InterfaceDeclaration: parseNoop,
     EnumDeclaration: parseEnumDeclaration,
     VariableDeclaration: parseVariableDeclaration,
     FunctionDeclaration: parseFunctionDeclaration,
