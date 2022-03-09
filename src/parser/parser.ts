@@ -1018,47 +1018,58 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
         unexpected(ctx)
     }
 
-    const start = ctx.start
-    const value = ctx.value
+    const left = parseIdentifier(ctx)
 
-    nextToken(ctx)
-
-    switch (value) {
+    switch (left.value) {
         case "number":
             return {
                 kind: "NumberKeyword",
-                start,
+                start: left.start,
                 end: ctx.end,
             }
 
         case "string":
             return {
                 kind: "StringKeyword",
-                start,
+                start: left.start,
                 end: ctx.end,
             }
 
         case "boolean":
             return {
                 kind: "BooleanKeyword",
-                start,
+                start: left.start,
                 end: ctx.end,
             }
 
         case "void":
             return {
                 kind: "VoidKeyword",
-                start,
+                start: left.start,
                 end: ctx.end,
             }
 
-        default:
+        default: {
+            if (ctx.kind === kinds.dot) {
+                nextToken(ctx)
+                const right = parseIdentifier(ctx)
+
+                return {
+                    kind: "QualifiedName",
+                    start: left.start,
+                    end: ctx.end,
+                    left,
+                    right,
+                }
+            }
+
             return {
                 kind: "TypeReference",
-                start,
+                start: left.start,
                 end: ctx.endLast,
-                name: value,
+                name: left.value,
             }
+        }
     }
 }
 

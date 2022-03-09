@@ -1,4 +1,4 @@
-export enum Kind {
+enum Kind {
     unknown,
     number,
     string,
@@ -11,10 +11,9 @@ export enum Kind {
     void,
     args,
     enum,
+    enumMember,
 }
 
-enum Foo {
-    a = 10,
-}
+type DefaultKind = Kind.unknown | Kind.string
 
-const x: Kind = Foo.a
+const x: DefaultKind = Kind.string

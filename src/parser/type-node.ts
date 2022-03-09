@@ -10,12 +10,19 @@ export type Any =
     | PropertySignature
     | Function
     | ArrayType
+    | QualifiedName
     | Union
 export type Kind = Any["kind"]
 
 export interface ArrayType extends TypeNode {
     kind: "ArrayType"
     elementType: Any
+}
+
+export interface QualifiedName extends TypeNode {
+    kind: "QualifiedName"
+    left: Identifier
+    right: Identifier
 }
 
 export interface Union extends TypeNode {

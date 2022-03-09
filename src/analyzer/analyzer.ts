@@ -52,15 +52,6 @@ interface Context {
     typeAliases: {}
 }
 
-// function handleTypeAliasDeclaration(ctx, node) {
-//     if (ctx.typeAliases[node.id]) {
-//         raise(ctx, node, `Type alias name cannot be '${node.id}'`)
-//     }
-
-//     const type = handleType(ctx, node.type, node.id)
-//     ctx.typeAliases[node.id] = type
-// }
-
 // function handleLabeledStatement(ctx: Context, node: Node.LabeledStatement): void {
 //     ctx.scopeCurr.labels.push(node.label.value)
 
@@ -510,6 +501,15 @@ function handleIfStatement(ctx: Context, node: Node.IfStatement): void {
     }
 }
 
+function handleTypeAliasDeclaration(ctx: Context, node: Node.TypeAliasDeclaration): void {
+    if (ctx.scope.types[node.id]) {
+        raiseAt(ctx.module, node.start, `Duplicate identifier '${node.id}'`)
+    }
+
+    const type = handleType(ctx, node.type, node.id)
+    ctx.scope.types[node.id] = type
+}
+
 function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, flags: number = 0): void {
     const varRef = declareVar(ctx, node, flags)
 
@@ -774,6 +774,19 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
             // return Type.createObject(name, members)
         }
 
+        case "QualifiedName": {
+            const enumType = getType(ctx, type.left.value)
+            if (!enumType || enumType.kind !== Type.Kind.enum) {
+                raiseAt(ctx.module, type.start, "Unsupported type")
+            }
+
+            const enumMember = enumType.members[type.right.value]
+            if (!enumMember) {
+                raiseAt(ctx.module, type.right.start, `Namespace '${type.left.value}' has no exported member '${type.right.value}'`)
+            }
+            return enumMember.type
+        }
+
         case "NumberKeyword":
             return Type.coreAliases.number
 
@@ -889,7 +902,7 @@ function getTypeName(type: Type.Any): string {
     }
 
     if (type.kind === Type.Kind.enumMember) {
-        return type.enum.name
+        return `${type.enum.name}.${type.name}`
     }
 
     return type.name
@@ -1035,6 +1048,7 @@ type StatementFunc = (ctx: Context, node: any, flags: number) => Type.Any | void
 const statements: Record<string, StatementFunc> = {
     ReturnStatement: handleReturnStatement,
     IfStatement: handleIfStatement,
+    TypeAliasDeclaration: handleTypeAliasDeclaration,
     VariableDeclaration: handleVariableDeclaration,
     ImportDeclaration: handleImportDeclaration,
     ExportNamedDeclaration: handleExportNamedDeclaration,
@@ -1062,7 +1076,6 @@ const expressions: Record<string, ExpressionFunc> = {
 
 const handle: Record<string, HandleFunc> = {
     // VariableDeclarator: handleVariableDeclarator,
-    // TypeAliasDeclaration: handleTypeAliasDeclaration,
     // LabeledStatement: handleLabeledStatement,
     // ConditionalExpression: handleConditionalExpression,
     // IfStatement: handleIfStatement,
