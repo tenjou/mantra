@@ -485,7 +485,19 @@ function handleIfStatement(ctx: Context, node: Node.IfStatement): void {
 }
 
 function handleInterfaceDeclaration(ctx: Context, node: Node.InterfaceDeclaration): void {
-    return
+    if (ctx.scope.types[node.name.value]) {
+        raiseAt(ctx.module, node.start, `Duplicate identifier '${node.name.value}'`)
+    }
+
+    const nodeMembers = node.members
+    const members: Type.Any[] = new Array(node.members.length)
+    for (let n = 0; n < nodeMembers.length; n++) {
+        const nodeMember = nodeMembers[n]
+        members[n] = handleType(ctx, nodeMember.type, nodeMember.name.value)
+    }
+
+    const type = Type.createInterface(node.name.value, members)
+    ctx.scope.types[node.name.value] = type
 }
 
 function handleTypeAliasDeclaration(ctx: Context, node: Node.TypeAliasDeclaration): void {
@@ -751,14 +763,13 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
         }
 
         case "TypeLiteral": {
-            raiseAt(ctx.module, type.start, "TODO")
-            // const members: Type.Any[] = new Array(type.members.length)
-            // for (let n = 0; n < type.members.length; n++) {
-            //     const entry = type.members[n]
-            //     members[n] = handleType(ctx, entry.type, entry.name)
-            // }
+            const members: Type.Any[] = new Array(type.members.length)
+            for (let n = 0; n < type.members.length; n++) {
+                const entry = type.members[n]
+                members[n] = handleType(ctx, entry.type, entry.name.value)
+            }
 
-            // return Type.createObject(name, members)
+            return Type.createInterface(name, members)
         }
 
         case "QualifiedName": {

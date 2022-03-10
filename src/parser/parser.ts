@@ -158,7 +158,6 @@ function parseTypeLiteral(ctx: ParserContext): TypeNode.Literal {
     while (!eat(ctx, kinds.braceR)) {
         const name = parseIdentifier(ctx)
 
-        nextToken(ctx)
         expect(ctx, kinds.colon)
 
         const type = parseTypeAnnotation(ctx)
