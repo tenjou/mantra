@@ -5,23 +5,9 @@ import { Flags } from "../flags"
 import { Module } from "../module"
 import * as Node from "../parser/node"
 import * as TypeNode from "../parser/type-node"
+import { createScope, Scope } from "../scope"
 import * as Type from "../types"
 import { loadExterns } from "./externs"
-
-interface FunctionDecl {
-    funcType: Type.Function
-    scope: Scope
-    node: Node.FunctionDeclaration
-}
-
-interface Scope {
-    parent: Scope
-    node: Node.Any | null
-    vars: Record<string, Type.Reference>
-    types: Record<string, Type.Any>
-    funcDecls: FunctionDecl[]
-    labels: []
-}
 
 interface Context {
     config: Config
@@ -208,51 +194,37 @@ interface Context {
 //     return type
 // }
 
-// function handleObjectExpression(ctx, node, type = null) {
-//     ctx.scopeCurr = createScope(ctx.scopeCurr)
+function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number): Type.Interface {
+    const scope = createScope(ctx.scopeCurr)
+    ctx.scopeCurr = scope
 
-//     for (const property of node.properties) {
-//         if (property.op !== "init") {
-//             raise(ctx, property, "Unsupported feature")
-//         }
+    const properties = node.properties
+    const members: Type.Reference[] = new Array(properties.length)
 
-//         const varRef = declareVar(ctx, property.key.value, property, 0, true)
+    for (let n = 0; n < properties.length; n++) {
+        const property = properties[n]
+        if (property.op !== "init") {
+            raiseAt(ctx.module, property.start, "Unsupported feature")
+        }
+        if (ctx.scopeCurr.vars[property.id.value]) {
+            raiseAt(ctx.module, property.start, `Duplicate identifier '${property.id.value}'`)
+        }
 
-//         if (property.value) {
-//             const valueRef = handle[property.value.kind](ctx, property.value)
-//             varRef.type = valueRef.type
-//         }
-//     }
+        if (!property.value) {
+            raiseAt(ctx.module, property.start, "Unsupported feature")
+        }
 
-//     if (type) {
-//         let mostLikelyType = null
+        const type = expressions[property.value.kind](ctx, property.value, 0)
+        const ref = Type.createRef(property.id.value, type, flags)
 
-//         if (type.kind === TypeKind.union) {
-//             for (const typeEntry of type.types) {
-//                 const objectType = handleObjectType(ctx, type.name, node, typeEntry)
-//                 if (objectType) {
-//                     mostLikelyType = objectType
-//                 }
-//             }
-//         } else {
-//             mostLikelyType = handleObjectType(ctx, type.name, node, type)
-//         }
+        ctx.scopeCurr.vars[property.id.value] = ref
+        members[n] = ref
+    }
 
-//         if (!mostLikelyType) {
-//             raiseAt(ctx, node.start, `Type '{}' is not assignable to type '${type.name}'`)
-//         }
+    ctx.scopeCurr = scope.parent
 
-//         type = mostLikelyType
-//     }
-
-//     ctx.scopeCurr = ctx.scopeCurr.parent
-
-//     if (type) {
-//         return { type, flags: 0 }
-//     }
-
-//     return createObject(null, {})
-// }
+    return Type.createInterface("", members)
+}
 
 // function handleNewExpression(ctx: Context, node: Node.NewExpression): void {
 //     // TODO
@@ -427,7 +399,8 @@ function handleMemberExpression(ctx: Context, node: Node.MemberExpression): Type
     if (!node.computed) {
         switch (property.kind) {
             case "Identifier": {
-                const propRef = type.members[property.value]
+                const vars = type.kind === Type.Kind.enum ? type.members : type.scope.vars
+                const propRef = vars[property.value]
                 if (!propRef) {
                     raiseAt(ctx.module, node.property.start, `Property '${property.value}' does not exist on type '${type.name}'`)
                 }
@@ -490,10 +463,12 @@ function handleInterfaceDeclaration(ctx: Context, node: Node.InterfaceDeclaratio
     }
 
     const nodeMembers = node.members
-    const members: Type.Any[] = new Array(node.members.length)
+    const members: Type.Reference[] = new Array(node.members.length)
     for (let n = 0; n < nodeMembers.length; n++) {
         const nodeMember = nodeMembers[n]
-        members[n] = handleType(ctx, nodeMember.type, nodeMember.name.value)
+        const memberType = handleType(ctx, nodeMember.type, "")
+        const ref = Type.createRef(nodeMember.name.value, memberType)
+        members[n] = ref
     }
 
     const type = Type.createInterface(node.name.value, members)
@@ -570,7 +545,7 @@ function handleImportDeclaration(ctx: Context, node: Node.ImportDeclaration): vo
                     raiseAt(ctx.module, importClause.start, `Duplicate identifier '${name}'`)
                 }
 
-                const importedObjRef = Type.createRef(name, Type.createObject(name, moduleExports))
+                const importedObjRef = Type.createRef(name, Type.createObjectExtern(name, moduleExports))
                 ctx.scopeCurr.vars[name] = importedObjRef
                 break
             }
@@ -763,10 +738,11 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
         }
 
         case "TypeLiteral": {
-            const members: Type.Any[] = new Array(type.members.length)
+            const members: Type.Reference[] = new Array(type.members.length)
             for (let n = 0; n < type.members.length; n++) {
                 const entry = type.members[n]
-                members[n] = handleType(ctx, entry.type, entry.name.value)
+                const entryType = handleType(ctx, entry.type, entry.name.value)
+                // members[n] = Type.createRef(entry.)
             }
 
             return Type.createInterface(name, members)
@@ -827,80 +803,123 @@ function getType(ctx: Context, name: string): Type.Any | null {
 }
 
 function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos = 0): boolean {
-    if (leftType.kind === Type.Kind.union) {
-        for (const type of leftType.types) {
-            if (isValidType(ctx, type, rightType)) {
+    switch (leftType.kind) {
+        case Type.Kind.interface: {
+            if (rightType.kind === Type.Kind.interface) {
+                const membersLeft = leftType.members
+                const membersRight = rightType.members
+
+                loop: for (let n = 0; n < membersLeft.length; n++) {
+                    const memberLeft = membersLeft[n]
+                    for (let m = 0; m < membersRight.length; m++) {
+                        const memberRight = membersRight[m]
+                        if (memberLeft.type === memberRight.type && memberLeft.name === memberRight.name) {
+                            continue loop
+                        }
+                    }
+
+                    raiseAt(
+                        ctx.module,
+                        pos,
+                        `Property '{${memberLeft.name}: ${getTypeName(memberLeft.type)}}' is missing but required in type '${
+                            leftType.name
+                        }'`
+                    )
+                }
+
+                return leftType.members.length === rightType.members.length
+            }
+
+            return false
+        }
+
+        case Type.Kind.union: {
+            for (const type of leftType.types) {
+                if (isValidType(ctx, type, rightType)) {
+                    return true
+                }
+            }
+
+            return false
+        }
+
+        case Type.Kind.function: {
+            if (rightType.kind !== Type.Kind.function) {
+                return false
+            }
+
+            const leftParams = leftType.params
+            const rightParams = rightType.params
+
+            if (rightParams.length < leftParams.length) {
                 return true
             }
-        }
 
-        return false
-    }
-
-    if (leftType.kind === Type.Kind.function) {
-        if (rightType.kind !== Type.Kind.function) {
-            return false
-        }
-
-        const leftParams = leftType.params
-        const rightParams = rightType.params
-
-        if (rightParams.length < leftParams.length) {
-            return true
-        }
-
-        for (let nArg = 0; nArg < leftParams.length; nArg++) {
-            const leftParam = leftParams[nArg]
-            const rightParam = rightParams[nArg]
-            if (leftParam.kind !== rightParam.kind) {
-                raiseTypeError(ctx, pos, leftType, rightType)
+            for (let nArg = 0; nArg < leftParams.length; nArg++) {
+                const leftParam = leftParams[nArg]
+                const rightParam = rightParams[nArg]
+                if (leftParam.kind !== rightParam.kind) {
+                    raiseTypeError(ctx, pos, leftType, rightType)
+                }
+                return true
             }
+
             return true
         }
 
-        return true
-    }
+        case Type.Kind.array: {
+            if (rightType.kind !== Type.Kind.array) {
+                return false
+            }
 
-    if (leftType.kind === Type.Kind.array) {
-        if (rightType.kind !== Type.Kind.array) {
+            return isValidType(ctx, leftType.elementType, rightType.elementType)
+        }
+
+        case Type.Kind.enum: {
+            if (rightType.kind === Type.Kind.enumMember) {
+                return rightType.enum === leftType
+            }
             return false
         }
-
-        return isValidType(ctx, leftType.elementType, rightType.elementType)
-    }
-
-    if (leftType.kind === Type.Kind.enum) {
-        if (rightType.kind === Type.Kind.enumMember) {
-            return rightType.enum === leftType
-        }
-        return false
     }
 
     return leftType === rightType
 }
 
 function getTypeName(type: Type.Any): string {
-    if (type.kind === Type.Kind.array) {
-        return `${getTypeName(type.elementType)}[]`
-    }
+    switch (type.kind) {
+        case Type.Kind.array:
+            return `${getTypeName(type.elementType)}[]`
 
-    if (type.kind === Type.Kind.function) {
-        const returnOutput = getTypeName(type.returnType)
+        case Type.Kind.function: {
+            const returnOutput = getTypeName(type.returnType)
 
-        let paramsOutput = ""
-        for (const param of type.params) {
-            if (paramsOutput) {
-                paramsOutput += `, ${param.name}: ${param.name}`
-            } else {
-                paramsOutput = `${param.name}: ${param.name}`
+            let paramsOutput = ""
+            for (const param of type.params) {
+                if (paramsOutput) {
+                    paramsOutput += `, ${param.name}: ${param.name}`
+                } else {
+                    paramsOutput = `${param.name}: ${param.name}`
+                }
             }
+
+            return `(${paramsOutput}) => ${returnOutput}`
         }
 
-        return `(${paramsOutput}) => ${returnOutput}`
-    }
+        case Type.Kind.enumMember:
+            return `${type.enum.name}.${type.name}`
 
-    if (type.kind === Type.Kind.enumMember) {
-        return `${type.enum.name}.${type.name}`
+        case Type.Kind.interface: {
+            let result = ""
+            for (const member of type.members) {
+                if (result) {
+                    result += `, ${member.name}: ${getTypeName(member.type)}`
+                } else {
+                    result = `${member.name}: ${getTypeName(member.type)}`
+                }
+            }
+            return `{ ${result} }`
+        }
     }
 
     return type.name
@@ -935,9 +954,9 @@ function getVar(ctx: Context, name: string, isObject: boolean = false): Type.Ref
     return null
 }
 
-function declareVar(ctx: Context, node: Node.VariableDeclarator | Node.Parameter, flags = 0, isObject = false): Type.Reference {
+function declareVar(ctx: Context, node: Node.VariableDeclarator | Node.Parameter, flags = 0): Type.Reference {
     const name = node.id.value
-    const prevVar = getVar(ctx, name, isObject)
+    const prevVar = getVar(ctx, name, false)
     if (prevVar) {
         raiseAt(ctx.module, node.start, `Duplicate identifier '${name}'`)
     }
@@ -981,17 +1000,6 @@ function getEnumValue(ctx: Context, node: Node.Expression): string {
     }
 
     raiseAt(ctx.module, node.start, `Unsupported argument value`)
-}
-
-function createScope(parent: Scope, node: Node.Any | null = null): Scope {
-    return {
-        parent,
-        node,
-        vars: {},
-        types: {},
-        funcDecls: [],
-        labels: [],
-    }
 }
 
 // function declareModule(ctx: Context, alias: string, refs: Object) {
@@ -1057,9 +1065,7 @@ const statements: Record<string, StatementFunc> = {
     ExpressionStatement: handleExpressionStatement,
 }
 
-type ExpressionFunc = (ctx: Context, node: any, flags: number) => Type.Any
-
-type HandleFunc = (ctx: Context, node: any) => void
+type ExpressionFunc = (ctx: Context, node: any, flags: number, type?: Type.Any) => Type.Any
 
 const expressions: Record<string, ExpressionFunc> = {
     Literal: handleLiteral,
@@ -1071,7 +1077,10 @@ const expressions: Record<string, ExpressionFunc> = {
     LogicalExpression: handleLogicalExpression,
     CallExpression: handleCallExpression,
     MemberExpression: handleMemberExpression,
+    ObjectExpression: handleObjectExpression,
 }
+
+type HandleFunc = (ctx: Context, node: any) => void
 
 const handle: Record<string, HandleFunc> = {
     // VariableDeclarator: handleVariableDeclarator,
@@ -1097,7 +1106,6 @@ const handle: Record<string, HandleFunc> = {
     //
     // CallExpression: handleCallExpression,
     // ArrayExpression: handleArrayExpression,
-    // ObjectExpression: handleObjectExpression,
     // NewExpression: handleNewExpression,
     // SequenceExpression: handleSequenceExpression,
     // AssignPattern: handleAssignPattern,

@@ -411,7 +411,8 @@ function parseObjectExpression(ctx: CompilerContext, node: Node.ObjectExpression
 }
 
 function parseProperty(ctx: CompilerContext, node: Node.Property): string {
-    const key = node.computed ? `[${parse[node.key.kind](ctx, node.key)}]` : parse[node.key.kind](ctx, node.key)
+    const id = parse[node.id.kind](ctx, node.id)
+    const key = node.computed ? `[${id}]` : id
 
     if (node.value) {
         const value = parse[node.value.kind](ctx, node.value)

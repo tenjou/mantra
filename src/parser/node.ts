@@ -163,7 +163,7 @@ export interface VariableDeclarator extends Node {
 
 export interface Property extends Node {
     kind: "Property"
-    key: Identifier
+    id: Identifier
     value: Expression | null
     computed: boolean
     op: "init"

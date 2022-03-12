@@ -1,3 +1,5 @@
+import { createScope, Scope } from "./scope"
+
 export enum Kind {
     unknown,
     number,
@@ -16,7 +18,7 @@ export enum Kind {
 }
 
 type DefaultKind = Kind.unknown | Kind.boolean | Kind.void | Kind.args
-type ObjectKind = Kind.object | Kind.string | Kind.number
+type ObjectKind = Kind.object | Kind.string | Kind.number | Kind.boolean
 
 export interface Default {
     name: string
@@ -60,13 +62,13 @@ export interface EnumMember {
 export interface Interface {
     kind: Kind.interface
     name: string
-    members: Any[]
+    members: Reference[]
 }
 
 export interface Object {
-    name: string
     kind: ObjectKind
-    members: Record<string, Reference>
+    name: string
+    scope: Scope
 }
 
 export type Any = Default | Union | Array | Function | Object | Enum | EnumMember | Interface
@@ -87,7 +89,7 @@ export function createUnion(name: string, types: Any[]): Union {
     return { name, kind: Kind.union, types }
 }
 
-export function createInterface(name: string, members: Any[]): Interface {
+export function createInterface(name: string, members: Reference[]): Interface {
     return { kind: Kind.interface, name, members }
 }
 
@@ -111,30 +113,37 @@ export function createFunctionRef(name: string, params: Any[], returnType: Any) 
     return createRef(name, createFunction(name, params, returnType))
 }
 
-export function createObject(name: string, members: Record<string, Reference>, kind: ObjectKind = Kind.object): Object {
-    return { name, kind, members }
+export function createObject(scope: Scope): Object {
+    return { kind: Kind.object, name: "", scope }
+}
+
+export function createObjectExtern(name: string, refs: Record<string, Reference>, kind: ObjectKind = Kind.object): Object {
+    const scope = createScope({} as Scope, null)
+    scope.vars = refs
+
+    return { kind, name, scope }
 }
 
 export function createRef(name: string, type: Any, flags: number = 0): Reference {
     return { name, type, flags }
 }
 
-const numberType = createObject("Number", {}, Kind.number)
+const numberType = createObjectExtern("Number", {}, Kind.number)
 
 export const coreAliases: Record<string, Any> = {
     unknown: createType("unknown", Kind.unknown),
     number: numberType,
-    string: createObject(
+    string: createObjectExtern(
         "String",
         {
             charCodeAt: createFunctionRef("charCodeAt", [numberType], numberType),
         },
         Kind.string
     ),
-    boolean: createType("boolean", Kind.boolean),
+    boolean: createObjectExtern("boolean", {}, Kind.boolean),
     void: createType("void", Kind.void),
     args: createType("args", Kind.args),
-    object: createObject("object", {}),
+    object: createObjectExtern("object", {}),
 }
 
 export const coreRefs: Record<string, Reference> = {
