@@ -15,6 +15,7 @@ export enum Kind {
     enum,
     enumMember,
     interface,
+    mapped,
 }
 
 type DefaultKind = Kind.unknown | Kind.boolean | Kind.void | Kind.args
@@ -65,13 +66,18 @@ export interface Interface {
     members: Reference[]
 }
 
+export interface Mapped {
+    kind: Kind.mapped
+    name: string
+}
+
 export interface Object {
     kind: ObjectKind
     name: string
     scope: Scope
 }
 
-export type Any = Default | Union | Array | Function | Object | Enum | EnumMember | Interface
+export type Any = Default | Union | Array | Function | Object | Enum | EnumMember | Interface | Mapped
 
 export interface Reference {
     name: string
@@ -91,6 +97,10 @@ export function createUnion(name: string, types: Any[]): Union {
 
 export function createInterface(name: string, members: Reference[]): Interface {
     return { kind: Kind.interface, name, members }
+}
+
+export function createMappedType(name: string): Mapped {
+    return { name, kind: Kind.mapped }
 }
 
 export function createArray(name: string, elementType: Any): Array {

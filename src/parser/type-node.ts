@@ -10,6 +10,7 @@ export type Any =
     | PropertySignature
     | Function
     | ArrayType
+    | MappedType
     | QualifiedName
     | Union
 export type Kind = Any["kind"]
@@ -36,6 +37,12 @@ export interface Parameter extends TypeNode {
     type: Any
 }
 
+export interface TypeParameter extends TypeNode {
+    kind: "TypeParameter"
+    name: Identifier
+    constraint: Any | null
+}
+
 export interface Function extends TypeNode {
     kind: "FunctionType"
     type: Any
@@ -45,6 +52,12 @@ export interface Function extends TypeNode {
 export interface PropertySignature extends TypeNode {
     kind: "PropertySignature"
     name: Identifier
+    type: Any
+}
+
+export interface MappedType extends TypeNode {
+    kind: "MappedType"
+    typeParam: TypeParameter
     type: Any
 }
 

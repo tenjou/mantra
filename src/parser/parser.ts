@@ -148,10 +148,29 @@ function parseBindingAtom(ctx: ParserContext): Node.BindingAtom {
     return parseIdentifier(ctx)
 }
 
-function parseTypeLiteral(ctx: ParserContext): TypeNode.Literal {
+function parseTypeLiteral(ctx: ParserContext): TypeNode.Literal | TypeNode.MappedType {
     const start = ctx.start
 
     expect(ctx, kinds.braceL)
+
+    if (eat(ctx, kinds.bracketL)) {
+        const typeParam = parseTypeParameter(ctx)
+
+        expect(ctx, kinds.bracketR)
+        expect(ctx, kinds.colon)
+
+        const type = parseTypeAnnotationEntry(ctx)
+
+        expect(ctx, kinds.braceR)
+
+        return {
+            kind: "MappedType",
+            start,
+            end: ctx.end,
+            type,
+            typeParam,
+        }
+    }
 
     const members: TypeNode.PropertySignature[] = []
 
@@ -1013,7 +1032,6 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
     if (ctx.kind === kinds.parenthesisL) {
         return parseFunctionType(ctx)
     }
-
     if (ctx.kind !== kinds.name) {
         unexpected(ctx)
     }
@@ -1093,40 +1111,73 @@ function parseTypeAnnotation(ctx: ParserContext): TypeNode.Any {
 
     const type = parseTypeAnnotationEntry(ctx)
 
-    if (ctx.kind === kinds.bitwiseOr) {
-        const types = [type]
+    switch (ctx.kind) {
+        case kinds.bitwiseOr: {
+            const types = [type]
 
-        while (eat(ctx, kinds.bitwiseOr)) {
-            const newType = parseTypeAnnotationEntry(ctx)
-            types.push(newType)
+            while (eat(ctx, kinds.bitwiseOr)) {
+                const newType = parseTypeAnnotationEntry(ctx)
+                types.push(newType)
+            }
+
+            return {
+                kind: "UnionType",
+                start: type.start,
+                end: ctx.end,
+                types,
+            }
         }
 
-        return {
-            kind: "UnionType",
-            start: type.start,
-            end: ctx.end,
-            types,
-        }
-    } else if (ctx.kind === kinds.bracketL) {
-        nextToken(ctx)
-        expect(ctx, kinds.bracketR)
+        case kinds.bracketL: {
+            nextToken(ctx)
+            expect(ctx, kinds.bracketR)
 
-        return {
-            kind: "ArrayType",
-            start: type.start,
-            end: ctx.end,
-            elementType: type,
+            return {
+                kind: "ArrayType",
+                start: type.start,
+                end: ctx.end,
+                elementType: type,
+            }
         }
     }
 
     return type
 }
 
+function parseTypeParameter(ctx: ParserContext): TypeNode.TypeParameter {
+    const start = ctx.pos
+    const name = parseIdentifier(ctx)
+
+    let constraint: TypeNode.Any | null = null
+    if ((ctx.kind === kinds.name && ctx.value === "extends") || ctx.kind === kinds.in) {
+        nextToken(ctx)
+        constraint = parseTypeAnnotation(ctx)
+    }
+
+    return {
+        kind: "TypeParameter",
+        name,
+        start,
+        end: ctx.end,
+        constraint,
+    }
+}
+
 function parseTypeAliasDeclaration(ctx: ParserContext): Node.TypeAliasDeclaration {
-    const start = ctx.start
     nextToken(ctx)
 
+    const start = ctx.start
     const id = parseIdentifier(ctx)
+
+    let typeParams: TypeNode.TypeParameter[] | null = null
+    if (eat(ctx, kinds.lessThan)) {
+        typeParams = [parseTypeParameter(ctx)]
+
+        while (!eat(ctx, kinds.greaterThan)) {
+            expect(ctx, kinds.comma)
+            typeParams.push(parseTypeParameter(ctx))
+        }
+    }
 
     expect(ctx, kinds.assign)
 
@@ -1138,6 +1189,7 @@ function parseTypeAliasDeclaration(ctx: ParserContext): Node.TypeAliasDeclaratio
         end: ctx.end,
         id,
         type,
+        typeParams,
     }
 }
 

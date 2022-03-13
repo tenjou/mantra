@@ -764,6 +764,9 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
             return Type.createInterface(name, members)
         }
 
+        case "MappedType":
+            return Type.createMappedType(name)
+
         case "QualifiedName": {
             const enumType = getType(ctx, type.left.value)
             if (!enumType || enumType.kind !== Type.Kind.enum) {

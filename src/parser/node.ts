@@ -210,6 +210,7 @@ export interface TypeAliasDeclaration extends Node {
     kind: "TypeAliasDeclaration"
     id: Identifier
     type: TypeNode.Any
+    typeParams: TypeNode.TypeParameter[] | null
 }
 
 export interface InterfaceDeclaration extends Node {
