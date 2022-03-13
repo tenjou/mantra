@@ -496,7 +496,22 @@ function handleTypeAliasDeclaration(ctx: Context, node: Node.TypeAliasDeclaratio
         raiseAt(ctx.module, node.start, `Duplicate identifier '${node.id.value}'`)
     }
 
-    const type = handleType(ctx, node.type, node.id.value)
+    let params: Type.Parameter[] | null = null
+    if (node.typeParams) {
+        const typeParams = node.typeParams
+        params = new Array(typeParams.length)
+
+        for (let n = 0; n < typeParams.length; n++) {
+            const typeParam = typeParams[n]
+            const constaint = handleType(ctx, typeParam.constraint, "")
+            params[n] = {
+                name: typeParam.name.value,
+                type: constaint,
+            }
+        }
+    }
+
+    const type = handleType(ctx, node.type, node.id.value, params)
     ctx.scope.types[node.id.value] = type
 }
 
@@ -715,7 +730,7 @@ function handleExpressionStatement(ctx: Context, node: Node.ExpressionStatement)
     expressions[node.expression.kind](ctx, node.expression, 0)
 }
 
-function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): Type.Any {
+function handleType(ctx: Context, type: TypeNode.Any | null = null, name = "", params: Type.Parameter[] | null = null): Type.Any {
     if (!type) {
         return Type.coreAliases.unknown
     }
@@ -764,8 +779,9 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
             return Type.createInterface(name, members)
         }
 
-        case "MappedType":
-            return Type.createMappedType(name)
+        case "MappedType": {
+            return Type.createMappedType(name, params)
+        }
 
         case "QualifiedName": {
             const enumType = getType(ctx, type.left.value)
@@ -1062,6 +1078,8 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     // declareModule(ctx, "fs", {
     //     readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),
     // })
+
+    // scope.types["Record"] = Type.createMappedType("Record")
 
     handleStatements(ctx, module.program.body)
 

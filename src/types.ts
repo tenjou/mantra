@@ -69,12 +69,18 @@ export interface Interface {
 export interface Mapped {
     kind: Kind.mapped
     name: string
+    params: Parameter[] | null
 }
 
 export interface Object {
     kind: ObjectKind
     name: string
     scope: Scope
+}
+
+export interface Parameter {
+    name: string
+    type: Any
 }
 
 export type Any = Default | Union | Array | Function | Object | Enum | EnumMember | Interface | Mapped
@@ -99,8 +105,8 @@ export function createInterface(name: string, members: Reference[]): Interface {
     return { kind: Kind.interface, name, members }
 }
 
-export function createMappedType(name: string): Mapped {
-    return { name, kind: Kind.mapped }
+export function createMappedType(name: string, params: Parameter[] | null): Mapped {
+    return { name, kind: Kind.mapped, params }
 }
 
 export function createArray(name: string, elementType: Any): Array {
