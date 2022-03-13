@@ -195,13 +195,13 @@ interface Context {
 // }
 
 function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number, srcType?: Type.Any): Type.Interface {
-    if (srcType && srcType.kind !== Type.Kind.interface) {
-        raiseAt(ctx.module, node.start, "ddd")
+    if (srcType && srcType.kind !== Type.Kind.interface && srcType.kind !== Type.Kind.mapped) {
+        raiseAt(ctx.module, node.start, `Type '{}' is not assignable to type '${srcType.name}'`)
     }
 
     const properties = node.properties
 
-    if (srcType) {
+    if (srcType && srcType.kind !== Type.Kind.mapped) {
         for (const property of properties) {
             if (property.op !== "init" || !property.value) {
                 raiseAt(ctx.module, property.start, "Unsupported feature")
@@ -813,6 +813,15 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = "", p
             if (!typeFound) {
                 raiseAt(ctx.module, type.start, `Cannot find name '${type.name.value}'`)
             }
+            if (typeFound.kind === Type.Kind.mapped && typeFound.params) {
+                if (type.kind !== "TypeReference" || !type.typeArgs || typeFound.params.length !== type.typeArgs.length) {
+                    raiseAt(
+                        ctx.module,
+                        type.start,
+                        `Generic type '${typeFound.name}' requires ${typeFound.params.length} type argument(s).`
+                    )
+                }
+            }
 
             return typeFound
         }
@@ -916,6 +925,10 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
             }
             return false
         }
+
+        case Type.Kind.mapped: {
+            return rightType.kind === Type.Kind.interface
+        }
     }
 
     return leftType === rightType
@@ -953,7 +966,7 @@ function getTypeName(type: Type.Any): string {
                     result = `${member.name}: ${getTypeName(member.type)}`
                 }
             }
-            return `{ ${result} }`
+            return result ? `{ ${result} }` : "{}"
         }
     }
 
@@ -1079,7 +1092,16 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     //     readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),
     // })
 
-    // scope.types["Record"] = Type.createMappedType("Record")
+    scope.types["Record"] = Type.createMappedType("Record", [
+        {
+            name: "K",
+            type: Type.coreAliases.string,
+        },
+        {
+            name: "T",
+            type: Type.coreAliases.string,
+        },
+    ])
 
     handleStatements(ctx, module.program.body)
 

@@ -1081,12 +1081,12 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
                 }
             }
 
-            const typeArgs: TypeNode.Any[] | null = null
+            let typeArgs: TypeNode.Any[] | null = null
 
             if (ctx.kind === kinds.lessThan) {
                 nextToken(ctx)
 
-                const typeArgs = [parseTypeAnnotation(ctx)]
+                typeArgs = [parseTypeAnnotation(ctx)]
                 while (!eat(ctx, kinds.greaterThan)) {
                     expect(ctx, kinds.comma)
 
