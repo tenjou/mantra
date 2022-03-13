@@ -1063,11 +1063,26 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
                 }
             }
 
+            const typeArgs: TypeNode.Any[] | null = null
+
+            if (ctx.kind === kinds.lessThan) {
+                nextToken(ctx)
+
+                const typeArgs = [parseTypeAnnotation(ctx)]
+                while (!eat(ctx, kinds.greaterThan)) {
+                    expect(ctx, kinds.comma)
+
+                    const typeArg = parseTypeAnnotation(ctx)
+                    typeArgs.push(typeArg)
+                }
+            }
+
             return {
                 kind: "TypeReference",
                 start: left.start,
                 end: ctx.endLast,
                 name: left,
+                typeArgs,
             }
         }
     }

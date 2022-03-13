@@ -56,6 +56,7 @@ export interface Literal extends TypeNode {
 export interface TypeReference extends TypeNode {
     kind: "TypeReference"
     name: Identifier
+    typeArgs: Any[] | null
 }
 
 export interface StringKeyword extends TypeNode {
