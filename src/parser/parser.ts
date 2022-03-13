@@ -1505,7 +1505,13 @@ function checkLValue(ctx: ParserContext, node: Node.Expression): void {
 }
 
 function canExportStatement(ctx: ParserContext): boolean {
-    return ctx.kind === kinds.function || ctx.kind === kinds.const || ctx.kind === kinds.let || ctx.kind === kinds.enum
+    return (
+        ctx.kind === kinds.function ||
+        ctx.kind === kinds.const ||
+        ctx.kind === kinds.let ||
+        ctx.kind === kinds.enum ||
+        ctx.kind === kinds.interface
+    )
 }
 
 export function parser(config: Config, srcFileName: string, modules = {}) {

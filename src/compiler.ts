@@ -109,8 +109,11 @@ function parseVariableDeclaration(ctx: CompilerContext, node: Node.VariableDecla
 
 function parseExportNamedDeclaration(ctx: CompilerContext, node: Node.ExportNamedDeclaration): string {
     const declaration = parse[node.declaration.kind](ctx, node.declaration)
-    const result = `export ${declaration}`
+    if (!declaration) {
+        return ""
+    }
 
+    const result = `export ${declaration}`
     return result
 }
 

@@ -1,9 +1,23 @@
-interface Default {
-    name: string
-    kind: string
+export enum Kind {
+    unknown,
+    number,
+    string,
+    boolean,
+    function,
+    array,
+    object,
+    type,
+    union,
+    void,
+    args,
+    enum,
+    enumMember,
+    interface,
 }
 
-const x: Default = {
-    kind: "sdsd",
-    name: "sdsdss",
+type DefaultKind = Kind.unknown
+
+export interface Default {
+    name: string
+    kind: DefaultKind
 }
