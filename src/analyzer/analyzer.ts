@@ -194,34 +194,50 @@ interface Context {
 //     return type
 // }
 
-function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number): Type.Interface {
-    const scope = createScope(ctx.scopeCurr)
-    ctx.scopeCurr = scope
+function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number, srcType?: Type.Any): Type.Interface {
+    if (srcType && srcType.kind !== Type.Kind.interface) {
+        raiseAt(ctx.module, node.start, "ddd")
+    }
 
     const properties = node.properties
+
+    if (srcType) {
+        for (const property of properties) {
+            if (property.op !== "init" || !property.value) {
+                raiseAt(ctx.module, property.start, "Unsupported feature")
+            }
+            if (ctx.scopeCurr.vars[property.id.value]) {
+                raiseAt(ctx.module, property.start, `Duplicate identifier '${property.id.value}'`)
+            }
+
+            const type = expressions[property.value.kind](ctx, property.value, 0)
+
+            for (const srcTypeEntry of srcType.members) {
+                if (srcTypeEntry.type !== type && srcTypeEntry.name !== property.id.value) {
+                    const propertyStr = `{ ${property.id.value}: ${type.name} }`
+                    raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
+                }
+            }
+        }
+
+        return srcType
+    }
+
     const members: Type.Reference[] = new Array(properties.length)
 
     for (let n = 0; n < properties.length; n++) {
         const property = properties[n]
-        if (property.op !== "init") {
+        if (property.op !== "init" || !property.value) {
             raiseAt(ctx.module, property.start, "Unsupported feature")
         }
         if (ctx.scopeCurr.vars[property.id.value]) {
             raiseAt(ctx.module, property.start, `Duplicate identifier '${property.id.value}'`)
         }
 
-        if (!property.value) {
-            raiseAt(ctx.module, property.start, "Unsupported feature")
-        }
-
         const type = expressions[property.value.kind](ctx, property.value, 0)
         const ref = Type.createRef(property.id.value, type, flags)
-
-        ctx.scopeCurr.vars[property.id.value] = ref
         members[n] = ref
     }
-
-    ctx.scopeCurr = scope.parent
 
     return Type.createInterface("", members)
 }
@@ -488,7 +504,7 @@ function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, f
     const varRef = declareVar(ctx, node, flags)
 
     if (node.init) {
-        const initType = expressions[node.init.kind](ctx, node.init, flags)
+        const initType = expressions[node.init.kind](ctx, node.init, flags, varRef.type)
         if (varRef.type.kind === Type.Kind.unknown) {
             varRef.type = initType
         } else if (!isValidType(ctx, varRef.type, initType, node.start)) {
@@ -741,8 +757,8 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = ""): 
             const members: Type.Reference[] = new Array(type.members.length)
             for (let n = 0; n < type.members.length; n++) {
                 const entry = type.members[n]
-                const entryType = handleType(ctx, entry.type, entry.name.value)
-                // members[n] = Type.createRef(entry.)
+                const entryType = handleType(ctx, entry.type, "")
+                members[n] = Type.createRef(entry.name.value, entryType)
             }
 
             return Type.createInterface(name, members)
