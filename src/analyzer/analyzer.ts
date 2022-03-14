@@ -856,6 +856,15 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = "", p
                         `Generic type '${typeFound.name}' requires ${typeFound.params.length} type argument(s).`
                     )
                 }
+
+                for (const typeArg of type.typeArgs) {
+                    if (typeArg.kind === "TypeReference") {
+                        const typeArgFound = getType(ctx, typeArg.name.value)
+                        if (!typeArgFound) {
+                            raiseAt(ctx.module, typeArg.start, `Cannot find name '${typeArg.name.value}'`)
+                        }
+                    }
+                }
             }
 
             return typeFound
