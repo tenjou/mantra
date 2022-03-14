@@ -1577,7 +1577,8 @@ function canExportStatement(ctx: ParserContext): boolean {
         ctx.kind === kinds.const ||
         ctx.kind === kinds.let ||
         ctx.kind === kinds.enum ||
-        ctx.kind === kinds.interface
+        ctx.kind === kinds.interface ||
+        ctx.kind === kinds.type
     )
 }
 

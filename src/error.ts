@@ -1,5 +1,3 @@
-import { isNewLine } from "./parser/utils"
-
 interface Context {
     input: string
     fileDir: string

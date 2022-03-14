@@ -473,29 +473,40 @@ function handleIfStatement(ctx: Context, node: Node.IfStatement): void {
     }
 }
 
-function handleInterfaceDeclaration(ctx: Context, node: Node.InterfaceDeclaration): void {
+function declareInterface(ctx: Context, node: Node.InterfaceDeclaration): void {
     if (ctx.scope.types[node.name.value]) {
         raiseAt(ctx.module, node.start, `Duplicate identifier '${node.name.value}'`)
     }
 
-    const nodeMembers = node.members
-    const members: Type.Reference[] = new Array(node.members.length)
-    for (let n = 0; n < nodeMembers.length; n++) {
-        const nodeMember = nodeMembers[n]
-        const memberType = handleType(ctx, nodeMember.type, "")
-        const ref = Type.createRef(nodeMember.name.value, memberType)
-        members[n] = ref
-    }
-
+    const members = new Array(node.members.length)
     const type = Type.createInterface(node.name.value, members)
     ctx.scope.types[node.name.value] = type
 }
 
-function handleTypeAliasDeclaration(ctx: Context, node: Node.TypeAliasDeclaration): void {
+function handleInterfaceDeclaration(ctx: Context, node: Node.InterfaceDeclaration): void {
+    const type = ctx.scope.types[node.name.value]
+    if (type.kind !== Type.Kind.interface) {
+        raiseAt(ctx.module, 0, `Expected type to be an interface but got: ${type.kind}`)
+    }
+
+    const nodeMembers = node.members
+    for (let n = 0; n < nodeMembers.length; n++) {
+        const nodeMember = nodeMembers[n]
+        const memberType = handleType(ctx, nodeMember.type, "")
+        const ref = Type.createRef(nodeMember.name.value, memberType)
+        type.members[n] = ref
+    }
+}
+
+function declareTypeAlias(ctx: Context, node: Node.TypeAliasDeclaration): void {
     if (ctx.scope.types[node.id.value]) {
         raiseAt(ctx.module, node.start, `Duplicate identifier '${node.id.value}'`)
     }
 
+    ctx.scope.types[node.id.value] = Type.coreAliases.unknown
+}
+
+function handleTypeAliasDeclaration(ctx: Context, node: Node.TypeAliasDeclaration): void {
     let params: Type.Parameter[] | null = null
     if (node.typeParams) {
         const typeParams = node.typeParams
@@ -581,6 +592,17 @@ function handleImportDeclaration(ctx: Context, node: Node.ImportDeclaration): vo
                 break
             }
         }
+    }
+}
+
+function declareExport(ctx: Context, node: Node.ExportNamedDeclaration): void {
+    switch (node.declaration.kind) {
+        case "InterfaceDeclaration":
+            declareInterface(ctx, node.declaration)
+            break
+        case "TypeAliasDeclaration":
+            declareTypeAlias(ctx, node.declaration)
+            break
     }
 }
 
@@ -701,6 +723,20 @@ function handleBlockStatement(ctx: Context, node: Node.BlockStatement): void {
 
 function handleStatements(ctx: Context, body: Node.Statement[]): void {
     const scopeCurr = ctx.scopeCurr
+
+    for (const node of body) {
+        switch (node.kind) {
+            case "InterfaceDeclaration":
+                declareInterface(ctx, node)
+                break
+            case "TypeAliasDeclaration":
+                declareTypeAlias(ctx, node)
+                break
+            case "ExportNamedDeclaration":
+                declareExport(ctx, node)
+                break
+        }
+    }
 
     for (const node of body) {
         statements[node.kind](ctx, node, 0)
