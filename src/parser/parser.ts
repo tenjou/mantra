@@ -1032,7 +1032,7 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
     if (ctx.kind === kinds.parenthesisL) {
         return parseFunctionType(ctx)
     }
-    if (ctx.kind !== kinds.name) {
+    if (ctx.kind !== kinds.name && ctx.kind !== kinds.null) {
         unexpected(ctx)
     }
 
@@ -1056,6 +1056,13 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
         case "boolean":
             return {
                 kind: "BooleanKeyword",
+                start: left.start,
+                end: ctx.end,
+            }
+
+        case "null":
+            return {
+                kind: "NullKeyword",
                 start: left.start,
                 end: ctx.end,
             }

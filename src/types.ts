@@ -8,6 +8,7 @@ export enum Kind {
     object,
     type,
     union,
+    null,
     void,
     args,
     enum,
@@ -16,7 +17,7 @@ export enum Kind {
     mapped,
 }
 
-type DefaultKind = Kind.unknown | Kind.boolean | Kind.void | Kind.args
+type DefaultKind = Kind.unknown | Kind.boolean | Kind.null | Kind.void | Kind.args
 type ObjectKind = Kind.object | Kind.string | Kind.number | Kind.boolean
 
 export interface Default {
@@ -148,6 +149,7 @@ export const coreAliases: Record<string, Any> = {
         Kind.string
     ),
     boolean: createObject("boolean", {}, Kind.boolean),
+    null: createType("null", Kind.null),
     void: createType("void", Kind.void),
     args: createType("args", Kind.args),
     object: createObject("object", {}),

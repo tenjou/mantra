@@ -292,7 +292,10 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
 //     throw new SyntaxError(`${error}. ${fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 // }
 
-function handleLiteral(_ctx: Context, _node: Node.Literal): Type.Any {
+function handleLiteral(_ctx: Context, node: Node.Literal): Type.Any {
+    if (node.value === "null") {
+        return Type.coreAliases.null
+    }
     return Type.coreAliases.string
 }
 
@@ -839,6 +842,9 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = "", p
 
         case "BooleanKeyword":
             return Type.coreAliases.boolean
+
+        case "NullKeyword":
+            return Type.coreAliases.null
 
         case "VoidKeyword":
             return Type.coreAliases.void

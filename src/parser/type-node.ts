@@ -4,6 +4,7 @@ export type Any =
     | NumberKeyword
     | StringKeyword
     | BooleanKeyword
+    | NullKeyword
     | VoidKeyword
     | TypeReference
     | Literal
@@ -82,6 +83,10 @@ export interface NumberKeyword extends TypeNode {
 
 export interface BooleanKeyword extends TypeNode {
     kind: "BooleanKeyword"
+}
+
+export interface NullKeyword extends TypeNode {
+    kind: "NullKeyword"
 }
 
 export interface VoidKeyword extends TypeNode {
