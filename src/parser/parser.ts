@@ -1116,35 +1116,33 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
 function parseTypeAnnotation(ctx: ParserContext): TypeNode.Any {
     eat(ctx, kinds.bitwiseOr)
 
-    const type = parseTypeAnnotationEntry(ctx)
+    let type = parseTypeAnnotationEntry(ctx)
 
-    switch (ctx.kind) {
-        case kinds.bitwiseOr: {
-            const types = [type]
+    if (ctx.kind === kinds.bracketL) {
+        nextToken(ctx)
+        expect(ctx, kinds.bracketR)
 
-            while (eat(ctx, kinds.bitwiseOr)) {
-                const newType = parseTypeAnnotationEntry(ctx)
-                types.push(newType)
-            }
+        type = {
+            kind: "ArrayType",
+            start: type.start,
+            end: ctx.end,
+            elementType: type,
+        }
+    }
 
-            return {
-                kind: "UnionType",
-                start: type.start,
-                end: ctx.end,
-                types,
-            }
+    if (ctx.kind === kinds.bitwiseOr) {
+        const types = [type]
+
+        while (eat(ctx, kinds.bitwiseOr)) {
+            const newType = parseTypeAnnotationEntry(ctx)
+            types.push(newType)
         }
 
-        case kinds.bracketL: {
-            nextToken(ctx)
-            expect(ctx, kinds.bracketR)
-
-            return {
-                kind: "ArrayType",
-                start: type.start,
-                end: ctx.end,
-                elementType: type,
-            }
+        return {
+            kind: "UnionType",
+            start: type.start,
+            end: ctx.end,
+            types,
         }
     }
 
