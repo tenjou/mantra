@@ -1134,9 +1134,9 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     // scope.vars["Error"] = createObject("Error", {
     //     message: createVar(coreTypeAliases.string),
     // })
-    // scope.vars["Object"] = createObject("Object", {
-    //     keys: createFunction("keys", [createArg("o", coreTypeAliases.object)], createArray(coreTypeAliases.string)),
-    // })
+    scope.vars["Object"] = Type.createObjectRef("Object", {
+        keys: Type.createFunctionRef("keys", [Type.coreAliases.object], Type.createArray("", Type.coreAliases.string)),
+    })
 
     // declareModule(ctx, "fs", {
     //     readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),

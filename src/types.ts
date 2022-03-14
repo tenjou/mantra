@@ -124,12 +124,16 @@ export function createFunction(name: string, params: Any[], returnType: Any): Fu
     return { name, kind: Kind.function, params, returnType, argsMin: params.length, argsMax: params.length }
 }
 
-export function createFunctionRef(name: string, params: Any[], returnType: Any) {
+export function createFunctionRef(name: string, params: Any[], returnType: Any): Reference {
     return createRef(name, createFunction(name, params, returnType))
 }
 
 export function createObject(name: string, members: Record<string, Reference>, kind: ObjectKind = Kind.object): Object {
     return { kind, name, members }
+}
+
+export function createObjectRef(name: string, members: Record<string, Reference>, kind: ObjectKind = Kind.object): Reference {
+    return { name, type: createObject(name, members, kind), flags: 0 }
 }
 
 export function createRef(name: string, type: Any, flags: number = 0): Reference {
