@@ -415,8 +415,7 @@ function handleMemberExpression(ctx: Context, node: Node.MemberExpression): Type
     if (!node.computed) {
         switch (property.kind) {
             case "Identifier": {
-                const vars = type.kind === Type.Kind.enum ? type.members : type.scope.vars
-                const propRef = vars[property.value]
+                const propRef = type.members[property.value]
                 if (!propRef) {
                     raiseAt(ctx.module, node.property.start, `Property '${property.value}' does not exist on type '${type.name}'`)
                 }
@@ -587,7 +586,7 @@ function handleImportDeclaration(ctx: Context, node: Node.ImportDeclaration): vo
                     raiseAt(ctx.module, importClause.start, `Duplicate identifier '${name}'`)
                 }
 
-                const importedObjRef = Type.createRef(name, Type.createObjectExtern(name, moduleExports))
+                const importedObjRef = Type.createRef(name, Type.createObject(name, moduleExports))
                 ctx.scopeCurr.vars[name] = importedObjRef
                 break
             }
