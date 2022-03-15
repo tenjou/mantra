@@ -13,8 +13,8 @@ interface Context {
     config: Config
     module: Module
     modules: Record<string, Module>
-    modulesExports: Record<string, Record<string, Type.Reference>>
-    exports: Record<string, Type.Reference>
+    modulesExports: Record<string, Type.Reference[]>
+    exports: Type.Reference[]
     scope: Scope
     scopeCurr: Scope
     currFuncType: Type.Function | null
@@ -148,21 +148,6 @@ interface Context {
 //     handle[node.argument.kind](ctx, node.argument)
 // }
 
-// function handleArrayExpression(ctx, node) {
-//     let arrayType = null
-
-//     for (const element of node.elements) {
-//         const elementRef = handle[element.kind](ctx, element)
-//         if (!arrayType) {
-//             arrayType = elementRef.type
-//         } else if (!isValidType(arrayType, elementRef.type)) {
-//             raiseTypeError(ctx, element.start, arrayType, elementRef.type)
-//         }
-//     }
-
-//     return createArray(arrayType || coreTypeAliases.unknown)
-// }
-
 // function handleObjectType(ctx, name, node, type) {
 //     if (type.kind !== TypeKind.object) {
 //         return null
@@ -194,8 +179,23 @@ interface Context {
 //     return type
 // }
 
-function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number, srcType?: Type.Any): Type.Interface {
-    if (srcType && srcType.kind !== Type.Kind.interface && srcType.kind !== Type.Kind.mapped) {
+function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.Array {
+    let arrayType = null
+
+    for (const element of node.elements) {
+        const elementType = expressions[element.kind](ctx, element, 0)
+        if (!arrayType) {
+            arrayType = elementType
+        } else if (!isValidType(ctx, arrayType, elementType)) {
+            raiseTypeError(ctx, element.start, arrayType, elementType)
+        }
+    }
+
+    return Type.createArray(arrayType || Type.coreAliases.unknown)
+}
+
+function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number, srcType?: Type.Any): Type.Object {
+    if (srcType && srcType.kind !== Type.Kind.object && srcType.kind !== Type.Kind.mapped) {
         raiseAt(ctx.module, node.start, `Type '{}' is not assignable to type '${srcType.name}'`)
     }
 
@@ -239,7 +239,7 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
         members[n] = ref
     }
 
-    return Type.createInterface("", members)
+    return Type.createObject("", members)
 }
 
 // function handleNewExpression(ctx: Context, node: Node.NewExpression): void {
@@ -388,7 +388,7 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
             }
 
             const value = getEnumValue(ctx, arg)
-            if (!paramType.members[value]) {
+            if (!paramType.membersDict[value]) {
                 raiseAt(ctx.module, arg.start, `Argument '${value}' is not assignable to parameter of type '${paramType.name}'`)
             }
         } else if (paramType.kind !== argType.kind) {
@@ -418,7 +418,7 @@ function handleMemberExpression(ctx: Context, node: Node.MemberExpression): Type
     if (!node.computed) {
         switch (property.kind) {
             case "Identifier": {
-                const propRef = type.members[property.value]
+                const propRef = type.membersDict[property.value]
                 if (!propRef) {
                     raiseAt(ctx.module, node.property.start, `Property '${property.value}' does not exist on type '${type.name}'`)
                 }
@@ -481,14 +481,14 @@ function declareInterface(ctx: Context, node: Node.InterfaceDeclaration): void {
     }
 
     const members = new Array(node.members.length)
-    const type = Type.createInterface(node.name.value, members)
+    const type = Type.createObject(node.name.value, members)
     ctx.scope.types[node.name.value] = type
 }
 
 function handleInterfaceDeclaration(ctx: Context, node: Node.InterfaceDeclaration): void {
     const type = ctx.scope.types[node.name.value]
-    if (type.kind !== Type.Kind.interface) {
-        raiseAt(ctx.module, 0, `Expected type to be an interface but got: ${type.kind}`)
+    if (type.kind !== Type.Kind.object) {
+        raiseAt(ctx.module, 0, `Expected type to be an object type but got: ${type.kind}`)
     }
 
     const nodeMembers = node.members
@@ -541,7 +541,7 @@ function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, f
     }
 
     if (flags & Flags.Exported) {
-        ctx.exports[varRef.name] = varRef
+        ctx.exports.push(varRef)
     }
 }
 
@@ -571,7 +571,14 @@ function handleImportDeclaration(ctx: Context, node: Node.ImportDeclaration): vo
     }
 
     if (node.name) {
-        if (!moduleExports.defauls) {
+        let haveDefault = false
+        for (const entry of moduleExports) {
+            if (entry.name === "default") {
+                haveDefault = true
+                break
+            }
+        }
+        if (!haveDefault) {
             raiseAt(ctx.module, node.start, `Module '"${filePath}"' has no default export.`)
         }
     }
@@ -653,7 +660,7 @@ function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration,
     })
 
     if (name && flags & Flags.Exported) {
-        ctx.exports[name] = ref
+        ctx.exports.push(ref)
     }
 
     return returnType
@@ -787,7 +794,7 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = "", p
         case "ArrayType": {
             const elementType = handleType(ctx, type.elementType)
 
-            return Type.createArray(name, elementType)
+            return Type.createArray(elementType, name)
         }
 
         case "FunctionType": {
@@ -814,7 +821,7 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = "", p
                 members[n] = Type.createRef(entry.name.value, entryType)
             }
 
-            return Type.createInterface(name, members)
+            return Type.createObject(name, members)
         }
 
         case "MappedType": {
@@ -827,7 +834,7 @@ function handleType(ctx: Context, type: TypeNode.Any | null = null, name = "", p
                 raiseAt(ctx.module, type.start, "Unsupported type")
             }
 
-            const enumMember = enumType.members[type.right.value]
+            const enumMember = enumType.membersDict[type.right.value]
             if (!enumMember) {
                 raiseAt(ctx.module, type.right.start, `Namespace '${type.left.value}' has no exported member '${type.right.value}'`)
             }
@@ -898,8 +905,8 @@ function getType(ctx: Context, name: string): Type.Any | null {
 
 function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos = 0): boolean {
     switch (leftType.kind) {
-        case Type.Kind.interface: {
-            if (rightType.kind === Type.Kind.interface) {
+        case Type.Kind.object: {
+            if (rightType.kind === Type.Kind.object) {
                 const membersLeft = leftType.members
                 const membersRight = rightType.members
 
@@ -977,7 +984,7 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
         }
 
         case Type.Kind.mapped: {
-            return rightType.kind === Type.Kind.interface
+            return rightType.kind === Type.Kind.object
         }
     }
 
@@ -1007,7 +1014,7 @@ function getTypeName(type: Type.Any): string {
         case Type.Kind.enumMember:
             return `${type.enum.name}.${type.name}`
 
-        case Type.Kind.interface: {
+        case Type.Kind.object: {
             let result = ""
             for (const member of type.members) {
                 if (result) {
@@ -1114,7 +1121,7 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         module,
         modules,
         modulesExports: {},
-        exports: {},
+        exports: [],
         scope,
         scopeCurr: scope,
         currFuncType: null,
@@ -1134,9 +1141,9 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     // scope.vars["Error"] = createObject("Error", {
     //     message: createVar(coreTypeAliases.string),
     // })
-    scope.vars["Object"] = Type.createObjectRef("Object", {
-        keys: Type.createFunctionRef("keys", [Type.coreAliases.object], Type.createArray("", Type.coreAliases.string)),
-    })
+    scope.vars["Object"] = Type.createObjectRef("Object", [
+        Type.createFunctionRef("keys", [Type.coreAliases.object], Type.createArray(Type.coreAliases.string)),
+    ])
 
     // declareModule(ctx, "fs", {
     //     readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),
@@ -1158,7 +1165,7 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     return ctx.exports
 }
 
-type StatementFunc = (ctx: Context, node: any, flags: number) => Type.Any | void
+type StatementFunc = (ctx: Context, node: any, flags: number) => void
 
 const statements: Record<string, StatementFunc> = {
     ReturnStatement: handleReturnStatement,
@@ -1187,6 +1194,7 @@ const expressions: Record<string, ExpressionFunc> = {
     CallExpression: handleCallExpression,
     MemberExpression: handleMemberExpression,
     ObjectExpression: handleObjectExpression,
+    ArrayExpression: handleArrayExpression,
 }
 
 type HandleFunc = (ctx: Context, node: any) => void
@@ -1214,7 +1222,6 @@ const handle: Record<string, HandleFunc> = {
     // LogicalExpression: handleLogicalExpression,
     //
     // CallExpression: handleCallExpression,
-    // ArrayExpression: handleArrayExpression,
     // NewExpression: handleNewExpression,
     // SequenceExpression: handleSequenceExpression,
     // AssignPattern: handleAssignPattern,

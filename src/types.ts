@@ -13,7 +13,6 @@ export enum Kind {
     args,
     enum,
     enumMember,
-    interface,
     mapped,
 }
 
@@ -50,19 +49,13 @@ export interface Enum {
     name: string
     kind: Kind.enum
     enumType: Kind.number | Kind.string
-    members: Record<string, Reference>
+    membersDict: Record<string, Reference>
 }
 
 export interface EnumMember {
     name: string
     kind: Kind.enumMember
     enum: Enum
-}
-
-export interface Interface {
-    kind: Kind.interface
-    name: string
-    members: Reference[]
 }
 
 export interface Mapped {
@@ -74,7 +67,8 @@ export interface Mapped {
 export interface Object {
     kind: ObjectKind
     name: string
-    members: Record<string, Reference>
+    members: Reference[]
+    membersDict: Record<string, Reference>
 }
 
 export interface Parameter {
@@ -82,7 +76,7 @@ export interface Parameter {
     type: Any
 }
 
-export type Any = Default | Union | Array | Function | Object | Enum | EnumMember | Interface | Mapped
+export type Any = Default | Union | Array | Function | Object | Enum | EnumMember | Mapped
 
 export interface Reference {
     name: string
@@ -100,20 +94,16 @@ export function createUnion(name: string, types: Any[]): Union {
     return { name, kind: Kind.union, types }
 }
 
-export function createInterface(name: string, members: Reference[]): Interface {
-    return { kind: Kind.interface, name, members }
-}
-
 export function createMappedType(name: string, params: Parameter[] | null): Mapped {
     return { name, kind: Kind.mapped, params }
 }
 
-export function createArray(name: string, elementType: Any): Array {
+export function createArray(elementType: Any, name: string = ""): Array {
     return { name, kind: Kind.array, elementType }
 }
 
-export function createEnum(name: string, enumType: Kind.number | Kind.string, members: Record<string, Reference>): Enum {
-    return { name, kind: Kind.enum, enumType, members }
+export function createEnum(name: string, enumType: Kind.number | Kind.string, membersDict: Record<string, Reference>): Enum {
+    return { name, kind: Kind.enum, enumType, membersDict }
 }
 
 export function createEnumMember(name: string, srcEnum: Enum): EnumMember {
@@ -128,11 +118,16 @@ export function createFunctionRef(name: string, params: Any[], returnType: Any):
     return createRef(name, createFunction(name, params, returnType))
 }
 
-export function createObject(name: string, members: Record<string, Reference>, kind: ObjectKind = Kind.object): Object {
-    return { kind, name, members }
+export function createObject(name: string, members: Reference[], kind: ObjectKind = Kind.object): Object {
+    const membersDict: Record<string, Reference> = {}
+    for (const member of members) {
+        membersDict[member.name] = member
+    }
+
+    return { kind, name, members, membersDict }
 }
 
-export function createObjectRef(name: string, members: Record<string, Reference>, kind: ObjectKind = Kind.object): Reference {
+export function createObjectRef(name: string, members: Reference[], kind: ObjectKind = Kind.object): Reference {
     return { name, type: createObject(name, members, kind), flags: 0 }
 }
 
@@ -140,23 +135,17 @@ export function createRef(name: string, type: Any, flags: number = 0): Reference
     return { name, type, flags }
 }
 
-const numberType = createObject("Number", {}, Kind.number)
+const numberType = createObject("Number", [], Kind.number)
 
 export const coreAliases: Record<string, Any> = {
     unknown: createType("unknown", Kind.unknown),
     number: numberType,
-    string: createObject(
-        "String",
-        {
-            charCodeAt: createFunctionRef("charCodeAt", [numberType], numberType),
-        },
-        Kind.string
-    ),
-    boolean: createObject("boolean", {}, Kind.boolean),
+    string: createObject("String", [createFunctionRef("charCodeAt", [numberType], numberType)], Kind.string),
+    boolean: createObject("boolean", [], Kind.boolean),
     null: createType("null", Kind.null),
     void: createType("void", Kind.void),
     args: createType("args", Kind.args),
-    object: createObject("object", {}),
+    object: createObject("object", []),
 }
 
 export const coreRefs: Record<string, Reference> = {

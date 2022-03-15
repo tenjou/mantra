@@ -1,1 +1,1 @@
-const x: string | null = null
+const TypeKindNamed = Object.keys({})
