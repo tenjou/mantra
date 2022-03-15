@@ -395,6 +395,9 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
             if (paramType.kind === Type.Kind.args) {
                 break
             }
+            if (paramType.kind === Type.Kind.object && argType.kind === Type.Kind.enum) {
+                continue
+            }
             raiseTypeError(ctx, arg.start, paramType, argType)
         }
     }
