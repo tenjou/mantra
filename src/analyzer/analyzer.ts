@@ -483,8 +483,7 @@ function declareInterface(ctx: Context, node: Node.InterfaceDeclaration): void {
         raiseAt(ctx.module, node.start, `Duplicate identifier '${node.name.value}'`)
     }
 
-    const members = new Array(node.members.length)
-    const type = Type.createObject(node.name.value, members)
+    const type = Type.createObject(node.name.value, [])
     ctx.scope.types[node.name.value] = type
 }
 
@@ -495,11 +494,14 @@ function handleInterfaceDeclaration(ctx: Context, node: Node.InterfaceDeclaratio
     }
 
     const nodeMembers = node.members
+    type.members.length = nodeMembers.length
+
     for (let n = 0; n < nodeMembers.length; n++) {
         const nodeMember = nodeMembers[n]
         const memberType = handleType(ctx, nodeMember.type, "")
         const ref = Type.createRef(nodeMember.name.value, memberType)
         type.members[n] = ref
+        type.membersDict[ref.name] = ref
     }
 }
 
