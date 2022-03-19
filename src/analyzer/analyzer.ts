@@ -230,7 +230,7 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
                 raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
             }
             if (srcMemberType.type !== type) {
-                raiseTypeError(ctx, property.start, srcMemberType.type, type)
+                raiseTypeError(ctx, property.start, srcMemberType.type, type, srcMemberType.name)
             }
         }
 
@@ -277,6 +277,7 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
 
         const ref = Type.createRef(property.id.value, type, flags)
         members[n] = ref
+        membersDict[property.id.value] = ref
     }
 
     return {
@@ -486,7 +487,7 @@ function handleReturnStatement(ctx: Context, node: Node.ReturnStatement): void {
     let returnType: Type.Any
 
     if (node.argument) {
-        if (ctx.currFuncType.returnType) {
+        if (ctx.currFuncType.returnType && ctx.currFuncType.returnType !== Type.coreAliases.unknown) {
             expressions[node.argument.kind](ctx, node.argument, 0, ctx.currFuncType.returnType)
             return
         }
@@ -1106,7 +1107,14 @@ function getTypeName(type: Type.Any): string {
     return type.name
 }
 
-function raiseTypeError(ctx: Context, start: number, leftType: Type.Any, rightType: Type.Any) {
+function raiseTypeError(ctx: Context, start: number, leftType: Type.Any, rightType: Type.Any, name: string = "") {
+    if (name) {
+        raiseAt(
+            ctx.module,
+            start,
+            `Variable '${name}' with type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`
+        )
+    }
     raiseAt(ctx.module, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
 }
 
