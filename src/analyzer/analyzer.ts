@@ -201,20 +201,49 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
     const properties = node.properties
 
     if (srcType && srcType.kind !== Type.Kind.mapped) {
+        const membersTypesDict: Record<string, Type.Any> = {}
+        let numMembers = 0
+
         for (const property of properties) {
-            if (property.op !== "init" || !property.value) {
-                raiseAt(ctx.module, property.start, "Unsupported feature")
-            }
-            if (ctx.scopeCurr.vars[property.id.value]) {
+            if (membersTypesDict[property.id.value]) {
                 raiseAt(ctx.module, property.start, `Duplicate identifier '${property.id.value}'`)
             }
 
-            const type = expressions[property.value.kind](ctx, property.value, 0)
+            let type: Type.Any
 
-            for (const srcTypeEntry of srcType.members) {
-                if (srcTypeEntry.type !== type && srcTypeEntry.name !== property.id.value) {
-                    const propertyStr = `{ ${property.id.value}: ${type.name} }`
-                    raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
+            if (!property.value) {
+                const valueVar = getVar(ctx, property.id.value)
+                if (!valueVar) {
+                    raiseAt(ctx.module, node.start, `Cannot find name '${property.id.value}'`)
+                }
+                type = valueVar.type
+            } else {
+                type = expressions[property.value.kind](ctx, property.value, 0)
+            }
+
+            membersTypesDict[property.id.value] = type
+            numMembers++
+
+            const srcMemberType = srcType.membersDict[property.id.value]
+            if (!srcMemberType) {
+                const propertyStr = `{ ${property.id.value}: ${type.name} }`
+                raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
+            }
+            if (srcMemberType.type !== type) {
+                raiseTypeError(ctx, property.start, srcMemberType.type, type)
+            }
+        }
+
+        if (srcType.members.length !== numMembers) {
+            for (const srcTypeMember of srcType.members) {
+                if (!membersTypesDict[srcTypeMember.name]) {
+                    raiseAt(
+                        ctx.module,
+                        node.start,
+                        `Property '${srcTypeMember.name}' is missing in type '${getObjectSignatureName(
+                            membersTypesDict
+                        )}' but required in type '${srcType.name}'`
+                    )
                 }
             }
         }
@@ -457,6 +486,11 @@ function handleReturnStatement(ctx: Context, node: Node.ReturnStatement): void {
     let returnType: Type.Any
 
     if (node.argument) {
+        if (ctx.currFuncType.returnType) {
+            expressions[node.argument.kind](ctx, node.argument, 0, ctx.currFuncType.returnType)
+            return
+        }
+
         returnType = expressions[node.argument.kind](ctx, node.argument, 0)
     } else {
         returnType = Type.coreAliases.void
@@ -1018,6 +1052,19 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
     }
 
     return leftType === rightType
+}
+
+function getObjectSignatureName(membersDict: Record<string, Type.Any>) {
+    let result = ""
+    for (const memberName in membersDict) {
+        const memberType = membersDict[memberName]
+        if (result) {
+            result += `, ${memberName}: ${getTypeName(memberType)}`
+        } else {
+            result = `${memberName}: ${getTypeName(memberType)}`
+        }
+    }
+    return result ? `{ ${result} }` : "{}"
 }
 
 function getTypeName(type: Type.Any): string {
