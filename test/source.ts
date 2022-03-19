@@ -1,1 +1,3 @@
-const TypeKindNamed = Object.keys({})
+export function createType(name: string, kind: string) {
+    return { name, kind }
+}

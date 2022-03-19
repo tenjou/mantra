@@ -224,22 +224,39 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
     }
 
     const members: Type.Reference[] = new Array(properties.length)
+    const membersDict: Record<string, Type.Reference> = {}
 
     for (let n = 0; n < properties.length; n++) {
         const property = properties[n]
-        if (property.op !== "init" || !property.value) {
-            raiseAt(ctx.module, property.start, "Unsupported feature")
-        }
-        if (ctx.scopeCurr.vars[property.id.value]) {
+        if (membersDict[property.id.value]) {
             raiseAt(ctx.module, property.start, `Duplicate identifier '${property.id.value}'`)
         }
 
-        const type = expressions[property.value.kind](ctx, property.value, 0)
+        let type: Type.Any
+        if (property.value) {
+            type = expressions[property.value.kind](ctx, property.value, 0)
+        } else {
+            const ref = getVar(ctx, property.id.value)
+            if (!ref) {
+                raiseAt(
+                    ctx.module,
+                    property.start,
+                    `No value exists in scope for the shorthand property '${property.id.value}'. Either declare one or provide an initializer.`
+                )
+            }
+            type = ref.type
+        }
+
         const ref = Type.createRef(property.id.value, type, flags)
         members[n] = ref
     }
 
-    return Type.createObject("", members)
+    return {
+        kind: Type.Kind.object,
+        name: "",
+        members,
+        membersDict,
+    }
 }
 
 // function handleNewExpression(ctx: Context, node: Node.NewExpression): void {
