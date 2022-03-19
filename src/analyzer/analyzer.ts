@@ -5,7 +5,6 @@ import { Flags } from "../flags"
 import { Module } from "../module"
 import * as Node from "../parser/node"
 import * as TypeNode from "../parser/type-node"
-import { createScope, Scope } from "../scope"
 import * as Type from "../types"
 import { loadExterns } from "./externs"
 
@@ -15,8 +14,8 @@ interface Context {
     modules: Record<string, Module>
     modulesExports: Record<string, Type.Reference[]>
     exports: Type.Reference[]
-    scope: Scope
-    scopeCurr: Scope
+    scope: Type.Scope
+    scopeCurr: Type.Scope
     currFuncType: Type.Function | null
     typeAliases: {}
 }
@@ -471,7 +470,7 @@ function handleReturnStatement(ctx: Context, node: Node.ReturnStatement): void {
 }
 
 function handleIfStatement(ctx: Context, node: Node.IfStatement): void {
-    ctx.scopeCurr = createScope(ctx.scopeCurr)
+    ctx.scopeCurr = Type.createScope(ctx.scopeCurr)
 
     expressions[node.test.kind](ctx, node.test, 0)
 
@@ -628,6 +627,11 @@ function handleImportDeclaration(ctx: Context, node: Node.ImportDeclaration): vo
 
 function declareExport(ctx: Context, node: Node.ExportNamedDeclaration): void {
     switch (node.declaration.kind) {
+        case "FunctionDeclaration":
+            if (node.declaration.id) {
+                declareNamedFunction(ctx, node.declaration, node.declaration.id)
+            }
+            break
         case "InterfaceDeclaration":
             declareInterface(ctx, node.declaration)
             break
@@ -641,7 +645,7 @@ function handleExportNamedDeclaration(ctx: Context, node: Node.ExportNamedDeclar
     statements[node.declaration.kind](ctx, node.declaration, Flags.Exported)
 }
 
-function handleParams(ctx: Context, scope: Scope, params: Node.Parameter[]): void {
+function handleParams(ctx: Context, scope: Type.Scope, params: Node.Parameter[]): void {
     ctx.scopeCurr = scope
 
     for (let nParam = 0; nParam < params.length; nParam++) {
@@ -660,38 +664,43 @@ function handleParams(ctx: Context, scope: Scope, params: Node.Parameter[]): voi
     ctx.scopeCurr = ctx.scopeCurr.parent
 }
 
-function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration, flags: number = 0): Type.Any {
-    const name = node.id ? node.id.value : ""
-    if (node.id && getVar(ctx, name)) {
-        raiseAt(ctx.module, node.id.start, `Duplicate function implementation '${name}'`)
-    }
-
+function declareFunction(ctx: Context, node: Node.FunctionDeclaration, name: string): Type.Reference {
     const returnType = handleType(ctx, node.returnType)
-    const scope = createScope(ctx.scopeCurr)
-    const funcType = Type.createFunction(name, [], returnType)
-    const ref = Type.createRef(name, funcType, flags)
-
-    ctx.scopeCurr.vars[name] = ref
+    const scope = Type.createScope(ctx.scopeCurr)
+    const ref = Type.createFunctionRef(name, [], returnType, scope)
 
     handleParams(ctx, scope, node.params)
 
-    ctx.scopeCurr.funcDecls.push({
-        funcType,
-        scope,
-        node,
-    })
+    return ref
+}
+
+function declareNamedFunction(ctx: Context, node: Node.FunctionDeclaration, id: Node.Identifier): void {
+    if (getVar(ctx, id.value)) {
+        raiseAt(ctx.module, id.start, `Duplicate function implementation '${id.value}'`)
+    }
+
+    const ref = declareFunction(ctx, node, id.value)
+    ctx.scopeCurr.vars[id.value] = ref
+}
+
+function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration, flags: number = 0): Type.Any {
+    const name = node.id ? node.id.value : ""
+    const ref = name ? getVar(ctx, name) : declareFunction(ctx, node, name)
+    if (!ref) {
+        raiseAt(ctx.module, node.start, `Missing function reference: ${name}`)
+    }
 
     if (name && flags & Flags.Exported) {
         ctx.exports.push(ref)
     }
 
-    return returnType
+    return ref.type
 }
 
 function handleEnumDeclaration(ctx: Context, node: Node.EnumDeclaration): void {
     const contentType = getEnumType(ctx, node.members)
 
-    ctx.scopeCurr = createScope(ctx.scopeCurr, node)
+    ctx.scopeCurr = Type.createScope(ctx.scopeCurr)
 
     const members: Record<string, Type.Reference> = {}
     const values: Record<string, boolean> = {}
@@ -745,7 +754,7 @@ function handleEnumDeclaration(ctx: Context, node: Node.EnumDeclaration): void {
 }
 
 function handleBlockStatement(ctx: Context, node: Node.BlockStatement): void {
-    ctx.scopeCurr = createScope(ctx.scopeCurr)
+    ctx.scopeCurr = Type.createScope(ctx.scopeCurr)
 
     handleStatements(ctx, node.body)
 
@@ -757,6 +766,11 @@ function handleStatements(ctx: Context, body: Node.Statement[]): void {
 
     for (const node of body) {
         switch (node.kind) {
+            case "FunctionDeclaration":
+                if (node.id) {
+                    declareNamedFunction(ctx, node, node.id)
+                }
+                break
             case "InterfaceDeclaration":
                 declareInterface(ctx, node)
                 break
@@ -771,23 +785,6 @@ function handleStatements(ctx: Context, body: Node.Statement[]): void {
 
     for (const node of body) {
         statements[node.kind](ctx, node, 0)
-    }
-
-    const funcDecls = ctx.scopeCurr.funcDecls
-    for (const decl of funcDecls) {
-        const prevFuncType = ctx.currFuncType
-        const declBody = decl.node.body
-
-        ctx.scopeCurr = decl.scope
-        ctx.currFuncType = decl.funcType
-
-        if (declBody.kind === "BlockStatement") {
-            handleStatements(ctx, declBody.body)
-        } else {
-            raiseAt(ctx.module, decl.node.start, "Unsupported feature")
-        }
-
-        ctx.currFuncType = prevFuncType
     }
 
     ctx.scopeCurr = scopeCurr
@@ -1135,7 +1132,7 @@ function getEnumValue(ctx: Context, node: Node.Expression): string {
 // }
 
 export function analyze(config: Config, module: Module, modules: Record<string, Module>) {
-    const scope = createScope({} as Scope)
+    const scope = Type.createScope()
     scope.parent = scope
 
     const ctx: Context = {

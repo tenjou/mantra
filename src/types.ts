@@ -82,6 +82,7 @@ export interface Reference {
     name: string
     type: Any
     flags: number
+    scope: Scope | null
 }
 
 export const TypeKindNamed = Object.keys(Kind)
@@ -114,8 +115,9 @@ export function createFunction(name: string, params: Any[], returnType: Any): Fu
     return { name, kind: Kind.function, params, returnType, argsMin: params.length, argsMax: params.length }
 }
 
-export function createFunctionRef(name: string, params: Any[], returnType: Any): Reference {
-    return createRef(name, createFunction(name, params, returnType))
+export function createFunctionRef(name: string, params: Any[], returnType: Any, scope: Scope | null = null): Reference {
+    scope = scope || fakeParent
+    return createRef(name, createFunction(name, params, returnType), 0, scope)
 }
 
 export function createObject(name: string, members: Reference[], kind: ObjectKind = Kind.object): Object {
@@ -128,11 +130,33 @@ export function createObject(name: string, members: Reference[], kind: ObjectKin
 }
 
 export function createObjectRef(name: string, members: Reference[], kind: ObjectKind = Kind.object): Reference {
-    return { name, type: createObject(name, members, kind), flags: 0 }
+    return { name, type: createObject(name, members, kind), flags: 0, scope: null }
 }
 
-export function createRef(name: string, type: Any, flags: number = 0): Reference {
-    return { name, type, flags }
+export function createRef(name: string, type: Any, flags: number = 0, scope: Scope | null = null): Reference {
+    return { name, type, flags, scope }
+}
+
+export interface Scope {
+    parent: Scope
+    vars: Record<string, Reference>
+    types: Record<string, Any>
+    labels: []
+}
+
+const fakeParent = {} as Scope
+
+export function createScope(parent: Scope | null = null): Scope {
+    if (!parent) {
+        parent = fakeParent
+    }
+
+    return {
+        parent,
+        vars: {},
+        types: {},
+        labels: [],
+    }
 }
 
 const numberType = createObject("Number", [], Kind.number)
