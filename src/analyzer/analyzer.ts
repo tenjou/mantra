@@ -645,9 +645,7 @@ function handleExportNamedDeclaration(ctx: Context, node: Node.ExportNamedDeclar
     statements[node.declaration.kind](ctx, node.declaration, Flags.Exported)
 }
 
-function handleParams(ctx: Context, scope: Type.Scope, params: Node.Parameter[]): void {
-    ctx.scopeCurr = scope
-
+function handleParams(ctx: Context, params: Node.Parameter[]): void {
     for (let nParam = 0; nParam < params.length; nParam++) {
         const param = params[nParam]
         const paramRef = declareVar(ctx, param)
@@ -660,16 +658,11 @@ function handleParams(ctx: Context, scope: Type.Scope, params: Node.Parameter[])
             }
         }
     }
-
-    ctx.scopeCurr = ctx.scopeCurr.parent
 }
 
 function declareFunction(ctx: Context, node: Node.FunctionDeclaration, name: string): Type.Reference {
     const returnType = handleType(ctx, node.returnType)
-    const scope = Type.createScope(ctx.scopeCurr)
-    const ref = Type.createFunctionRef(name, [], returnType, scope)
-
-    handleParams(ctx, scope, node.params)
+    const ref = Type.createFunctionRef(name, [], returnType)
 
     return ref
 }
@@ -689,6 +682,23 @@ function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration,
     if (!ref) {
         raiseAt(ctx.module, node.start, `Missing function reference: ${name}`)
     }
+    if (ref.type.kind !== Type.Kind.function) {
+        raiseAt(ctx.module, node.start, `Expected function type: ${name}, but instead got: ${ref.type.kind}`)
+    }
+
+    const scope = Type.createScope(ctx.scopeCurr)
+    ctx.scopeCurr = scope
+    ctx.currFuncType = ref.type
+
+    handleParams(ctx, node.params)
+
+    if (node.body.kind === "BlockStatement") {
+        handleStatements(ctx, node.body.body)
+    } else {
+        raiseAt(ctx.module, node.body.start, "Unsupported feature")
+    }
+
+    ctx.scopeCurr = ctx.scopeCurr.parent
 
     if (name && flags & Flags.Exported) {
         ctx.exports.push(ref)

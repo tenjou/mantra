@@ -82,7 +82,6 @@ export interface Reference {
     name: string
     type: Any
     flags: number
-    scope: Scope | null
 }
 
 export const TypeKindNamed = Object.keys(Kind)
@@ -115,9 +114,8 @@ export function createFunction(name: string, params: Any[], returnType: Any): Fu
     return { name, kind: Kind.function, params, returnType, argsMin: params.length, argsMax: params.length }
 }
 
-export function createFunctionRef(name: string, params: Any[], returnType: Any, scope: Scope | null = null): Reference {
-    scope = scope || fakeParent
-    return createRef(name, createFunction(name, params, returnType), 0, scope)
+export function createFunctionRef(name: string, params: Any[], returnType: Any): Reference {
+    return createRef(name, createFunction(name, params, returnType), 0)
 }
 
 export function createObject(name: string, members: Reference[], kind: ObjectKind = Kind.object): Object {
@@ -130,11 +128,11 @@ export function createObject(name: string, members: Reference[], kind: ObjectKin
 }
 
 export function createObjectRef(name: string, members: Reference[], kind: ObjectKind = Kind.object): Reference {
-    return { name, type: createObject(name, members, kind), flags: 0, scope: null }
+    return { name, type: createObject(name, members, kind), flags: 0 }
 }
 
-export function createRef(name: string, type: Any, flags: number = 0, scope: Scope | null = null): Reference {
-    return { name, type, flags, scope }
+export function createRef(name: string, type: Any, flags: number = 0): Reference {
+    return { name, type, flags }
 }
 
 export interface Scope {
