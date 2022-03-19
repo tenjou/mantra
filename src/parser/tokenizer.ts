@@ -76,8 +76,19 @@ function readText(ctx: ParserContext, quote: number): void {
 }
 
 function readNumber(ctx: ParserContext): void {
+    let hadDot = false
+
     for (; ctx.pos < Infinity; ctx.pos++) {
         const charCode = ctx.input.charCodeAt(ctx.pos)
+
+        if (charCode === 46) {
+            if (hadDot) {
+                raiseAt(ctx, ctx.pos, `Unexpected number`)
+            }
+            hadDot = true
+            continue
+        }
+
         if (charCode < 48 || charCode > 57 || isNaN(charCode)) {
             break
         }
