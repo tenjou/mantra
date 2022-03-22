@@ -43,7 +43,6 @@ export interface Union {
 }
 
 export interface Array {
-    name: string
     kind: Kind.array
     elementType: Any
 }
@@ -55,7 +54,7 @@ export interface Function {
     returnType: Any
     argsMin: number
     argsMax: number
-    flags: 0
+    flags: number
 }
 
 export interface Enum {
@@ -116,8 +115,8 @@ export function createMappedType(name: string, params: Parameter[] | null): Mapp
     return { name, kind: Kind.mapped, params }
 }
 
-export function createArray(elementType: Any, name: string = ""): Array {
-    return { name, kind: Kind.array, elementType }
+export function createArray(elementType: Any): Array {
+    return { kind: Kind.array, elementType }
 }
 
 export function createEnum(name: string, enumType: Kind.number | Kind.string, membersDict: Record<string, Reference>): Enum {

@@ -184,7 +184,7 @@ function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.A
 
 function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number, srcType?: Type.Any): Type.Object {
     if (srcType && srcType.kind !== Type.Kind.object && srcType.kind !== Type.Kind.mapped) {
-        raiseAt(ctx.module, node.start, `Type '{}' is not assignable to type '${srcType.name}'`)
+        raiseAt(ctx.module, node.start, `Type '{}' is not assignable to type '${getTypeName(srcType)}'`)
     }
 
     const properties = node.properties
@@ -215,7 +215,7 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
 
             const srcMemberRef = srcType.membersDict[property.id.value]
             if (!srcMemberRef) {
-                const propertyStr = `{ ${property.id.value}: ${type.name} }`
+                const propertyStr = `{ ${property.id.value}: ${getTypeName(type)} }`
                 raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
             }
             if (!isValidType(ctx, srcMemberRef.type, type)) {
@@ -376,7 +376,7 @@ function handleBinaryExpression(ctx: Context, node: Node.BinaryExpression): Type
         raiseAt(
             ctx.module,
             node.left.start,
-            `Operator '${node.operator}' cannot be applied to types '${leftType.name}' and '${rightType.name}'`
+            `Operator '${node.operator}' cannot be applied to types '${getTypeName(leftType)}' and '${getTypeName(rightType)}'`
         )
     }
 
@@ -397,7 +397,11 @@ function handleLogicalExpression(ctx: Context, node: Node.LogicalExpression): Ty
 function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any {
     const calleeType = expressions[node.callee.kind](ctx, node.callee, 0)
     if (calleeType.kind !== Type.Kind.function) {
-        raiseAt(ctx.module, node.callee.start, `This expression is not callable.\n  Type '${calleeType.name}' has no call signatures`)
+        raiseAt(
+            ctx.module,
+            node.callee.start,
+            `This expression is not callable.\n  Type '${getTypeName(calleeType)}' has no call signatures`
+        )
     }
 
     if (node.args.length < calleeType.argsMin) {
@@ -447,9 +451,9 @@ function handleMemberExpression(ctx: Context, node: Node.MemberExpression): Type
 
     if (typeKind !== Type.Kind.object && typeKind !== Type.Kind.enum && typeKind !== Type.Kind.string && typeKind !== Type.Kind.number) {
         if (type.kind === Type.Kind.unknown) {
-            raiseAt(ctx.module, node.object.start, `'${type.name}' is of type 'unknown'`)
+            raiseAt(ctx.module, node.object.start, `'${getTypeName(type)}' is of type 'unknown'`)
         }
-        raiseAt(ctx.module, node.object.start, `'${type.name}' is not an object`)
+        raiseAt(ctx.module, node.object.start, `'${getTypeName(type)}' is not an object`)
     }
 
     const property = node.property
@@ -761,6 +765,26 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
                 return rightType.enum === leftType
             }
             return false
+        }
+
+        case Type.Kind.union: {
+            if (rightType.kind !== Type.Kind.union) {
+                return false
+            }
+
+            loop: for (const leftParam of leftType.types) {
+                let foundSubstitue = false
+                for (const rightParam of rightType.types) {
+                    if (isValidType(ctx, leftParam, rightParam)) {
+                        foundSubstitue = true
+                        continue loop
+                    }
+                }
+                if (!foundSubstitue) {
+                    return false
+                }
+            }
+            return true
         }
 
         case Type.Kind.mapped: {

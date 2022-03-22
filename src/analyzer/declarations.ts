@@ -129,7 +129,7 @@ function resolveInterface(ctx: Context, node: Node.InterfaceDeclaration, type: T
 
     for (let n = 0; n < nodeMembers.length; n++) {
         const nodeMember = nodeMembers[n]
-        const memberType = handleType(ctx, nodeMember.type)
+        const memberType = handleType(ctx, nodeMember.type, nodeMember.name.value)
         const ref = Type.createRef(nodeMember.name.value, memberType)
         type.members[n] = ref
         type.membersDict[ref.name] = ref
@@ -284,7 +284,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, name 
         case "ArrayType": {
             const elementType = handleType(ctx, type.elementType)
 
-            return Type.createArray(elementType, name)
+            return Type.createArray(elementType)
         }
 
         case "UnionType": {
