@@ -74,7 +74,7 @@ function parseLiteral(ctx: ParserContext): Node.Literal {
 
 function parseIdentifier(ctx: ParserContext): Node.Identifier {
     if (ctx.kind !== kinds.name && !ctx.kind.keyword) {
-        unexpected(ctx)
+        unexpected(ctx, ctx.start)
     }
 
     const node: Node.Identifier = {
@@ -137,7 +137,7 @@ function parseExpressionAtom(ctx: ParserContext): Node.Expression {
             return parseTemplate(ctx)
     }
 
-    unexpected(ctx)
+    unexpected(ctx, ctx.start)
 }
 
 function parseBindingAtom(ctx: ParserContext): Node.BindingAtom {
@@ -615,7 +615,7 @@ function parseSwitchStatement(ctx: ParserContext): Node.SwitchStatement {
         }
 
         if (!currCase) {
-            unexpected(ctx)
+            unexpected(ctx, ctx.start)
         }
 
         const expression = parseStatement(ctx)
@@ -873,7 +873,7 @@ function parseTemplate(ctx: ParserContext): Node.TemplateLiteral {
         expressions.push(expression)
 
         if (ctx.kind !== kinds.braceR) {
-            unexpected(ctx)
+            unexpected(ctx, expression.start)
         }
 
         const span = parseTemplateElement(ctx)
@@ -909,7 +909,7 @@ function parseExport(ctx: ParserContext): Node.ExportNamedDeclaration {
     nextToken(ctx)
 
     if (!canExportStatement(ctx)) {
-        unexpected(ctx)
+        unexpected(ctx, start)
     }
 
     const declaration = parseStatement(ctx)
@@ -980,7 +980,7 @@ function parseImportClause(ctx: ParserContext): Node.NamespaceImport | Node.Name
         }
 
         default:
-            unexpected(ctx)
+            unexpected(ctx, start)
     }
 }
 
@@ -1033,7 +1033,7 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
         return parseFunctionType(ctx)
     }
     if (ctx.kind !== kinds.name && ctx.kind !== kinds.null) {
-        unexpected(ctx)
+        unexpected(ctx, ctx.start)
     }
 
     const left = parseIdentifier(ctx)
@@ -1410,7 +1410,7 @@ function parseParametersExpression(ctx: ParserContext): Node.ParameterExpresion 
             return parseLiteral(ctx)
     }
 
-    unexpected(ctx)
+    unexpected(ctx, ctx.start)
 }
 
 function parseParameters(ctx: ParserContext): Node.Parameter[] {

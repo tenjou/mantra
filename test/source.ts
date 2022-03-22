@@ -16,12 +16,24 @@ export enum Kind {
     mapped,
 }
 
+export enum Flag {
+    None = 0,
+    Resolved = 1,
+}
+
 type DefaultKind = Kind.unknown | Kind.boolean | Kind.null | Kind.void | Kind.args
 type ObjectKind = Kind.object | Kind.string | Kind.number | Kind.boolean
 
 export interface Default {
     name: string
     kind: DefaultKind
+}
+
+export interface Type {
+    name: string
+    kind: Kind.type
+    type: Any
+    flags: number
 }
 
 export interface Union {
@@ -39,57 +51,9 @@ export interface Array {
 export interface Function {
     name: string
     kind: Kind.function
-    params: Any[]
+    params: Parameter[]
     returnType: Any
     argsMin: number
     argsMax: number
-}
-
-export interface Enum {
-    name: string
-    kind: Kind.enum
-    enumType: Kind.number | Kind.string
-    membersDict: Record<string, Reference>
-}
-
-export interface EnumMember {
-    name: string
-    kind: Kind.enumMember
-    enum: Enum
-}
-
-export interface Mapped {
-    kind: Kind.mapped
-    name: string
-    params: Parameter[] | null
-}
-
-export interface Object {
-    kind: ObjectKind
-    name: string
-    members: Reference[]
-    membersDict: Record<string, Reference>
-}
-
-export interface Parameter {
-    name: string
-    type: Any
-}
-
-export type Any = Default | Union | Array | Function | Object | Enum | EnumMember | Mapped
-
-export interface Reference {
-    name: string
-    type: Any
-    flags: number
-}
-
-export const TypeKindNamed = Object.keys(Kind)
-
-export function createType(name: string, kind: DefaultKind): Default {
-    return { name, kind }
-}
-
-export function createUnion(name: string, types: Any[]): Union {
-    return { name, kind: Kind.union, types }
+    flags: 0
 }

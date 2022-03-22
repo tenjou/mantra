@@ -153,7 +153,7 @@ function readEquality(ctx: ParserContext, charCode: number): void {
     }
 
     if (size === 1 && nextCharCode === 33) {
-        unexpected(ctx)
+        unexpected(ctx, ctx.pos)
     }
 
     ctx.kind = size === 1 ? (charCode === 33 ? kinds.prefix : kinds.assign) : kinds.equality
@@ -409,7 +409,7 @@ export function eat(ctx: ParserContext, kind: Token): boolean {
 }
 
 export function expect(ctx: ParserContext, kind: Token): void {
-    eat(ctx, kind) || unexpected(ctx)
+    eat(ctx, kind) || unexpected(ctx, ctx.pos)
 }
 
 function eatContextual(ctx: ParserContext, str: string): boolean {
@@ -422,7 +422,7 @@ function eatContextual(ctx: ParserContext, str: string): boolean {
 }
 
 export function expectContextual(ctx: ParserContext, str: string): void {
-    eatContextual(ctx, str) || unexpected(ctx)
+    eatContextual(ctx, str) || unexpected(ctx, ctx.pos)
 }
 
 export function canInsertSemicolon(ctx: ParserContext): boolean {

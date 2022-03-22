@@ -15,8 +15,8 @@ export function raiseAt(ctx: Context, pos: number, error: string): never {
     throw new SyntaxError(`${error}. ${fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 }
 
-export function unexpected(ctx: Context): never {
-    raiseAt(ctx, 0, "Unexpected token")
+export function unexpected(ctx: Context, pos: number): never {
+    raiseAt(ctx, pos, "Unexpected token")
 }
 
 export function getLineInfo(input: string, offset: number): LineInfo {

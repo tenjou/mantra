@@ -509,7 +509,7 @@ function handleIfStatement(ctx: Context, node: Node.IfStatement): void {
             break
 
         default:
-            unexpected(ctx.module)
+            unexpected(ctx.module, node.consequent.start)
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent
