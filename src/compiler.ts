@@ -3,9 +3,8 @@ import * as path from "path"
 import { Config } from "./config"
 import { getFilePath } from "./file"
 import { Module } from "./module"
-import { Kind } from "./types"
 import * as Node from "./parser/node"
-import { raiseAt } from "./error"
+import { Kind } from "./types"
 
 const mantrLibFileName = "./__mantra__.js"
 
@@ -22,12 +21,18 @@ function parseFunctionParams(ctx: CompilerContext, params: Node.Parameter[]): st
     let result = ""
 
     for (const param of params) {
+        let initializer = ""
+        if (param.initializer) {
+            const output = parse[param.initializer.kind](ctx, param.initializer)
+            initializer = ` = ${output}`
+        }
+
         if (!result) {
-            result = param.id.value
+            result = `${param.id.value}${initializer}`
             continue
         }
 
-        result += `, ${param.id.value}`
+        result += `, ${param.id.value}${initializer}`
     }
 
     return result
@@ -286,6 +291,13 @@ function parseThrowStatement(ctx: CompilerContext, node: Node.ThrowStatement): s
 
 function parseEmptyStatement(_ctx: CompilerContext, _node: Node.EmptyStatement): string {
     return ""
+}
+
+function parsePropertyAccessExpression(ctx: CompilerContext, node: Node.PropertyAccessExpression): string {
+    const expression = parse[node.expression.kind](ctx, node.expression)
+    const name = parse[node.name.kind](ctx, node.name)
+
+    return `${expression}.${name}`
 }
 
 function parseSequenceExpression(ctx: CompilerContext, node: Node.SequenceExpression): string {
@@ -615,6 +627,7 @@ const parse: Record<string, NodeParserFunc> = {
     ThrowStatement: parseThrowStatement,
     BlockStatement: parseBlockStatement,
     EmptyStatement: parseEmptyStatement,
+    PropertyAccessExpression: parsePropertyAccessExpression,
     SequenceExpression: parseSequenceExpression,
     ConditionalExpression: parseConditionalExpression,
     BinaryExpression: parseBinaryExpression,
