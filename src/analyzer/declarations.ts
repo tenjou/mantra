@@ -103,16 +103,27 @@ export function resolveDeclaration(ctx: Context, typeDecl: TypeDeclaration): Typ
 }
 
 export function resolveFunctionParams(ctx: Context, nodeParams: Node.Parameter[], type: Type.Function): void {
-    type.params.length = nodeParams.length
+    let argsMin = 0
+    let argsMax = nodeParams.length
+
+    type.params.length = argsMax
+
     for (let n = 0; n < nodeParams.length; n++) {
         const nodeParam = nodeParams[n]
         const paramType = handleType(ctx, nodeParam.type)
+
+        if (!nodeParam.initializer) {
+            argsMin++
+        }
 
         type.params[n] = {
             name: nodeParam.id.value,
             type: paramType,
         }
     }
+
+    type.argsMin = argsMin
+    type.argsMax = argsMax
 }
 
 function resolveFunction(ctx: Context, node: Node.FunctionDeclaration, type: Type.Function): void {
