@@ -167,6 +167,20 @@ import { loadExterns } from "./externs"
 //     return type
 // }
 
+function handlePropertyAccessExpression(ctx: Context, node: Node.PropertyAccessExpression): Type.Any {
+    const expressionType = expressions[node.expression.kind](ctx, node.expression, 0)
+    if (expressionType.kind !== Type.Kind.enum) {
+        raiseAt(ctx.module, node.expression.start, `Expected enum but instead got: ${getTypeName(expressionType)}`)
+    }
+
+    const member = expressionType.membersDict[node.name.value]
+    if (!member) {
+        raiseAt(ctx.module, node.start, `Cannot find name '${getTypeName(expressionType)}.${node.name.value}'`)
+    }
+
+    return member.type
+}
+
 function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.Array {
     let arrayType = null
 
@@ -611,7 +625,7 @@ function handleParams(ctx: Context, params: Node.Parameter[]): void {
         if (param.initializer) {
             const paramType = expressions[param.initializer.kind](ctx, param.initializer, 0)
 
-            if (paramRef.type.kind !== paramType.kind) {
+            if (!isValidType(ctx, paramRef.type, paramType)) {
                 raiseTypeError(ctx, param.initializer.start, paramRef.type, paramType)
             }
         }
@@ -696,6 +710,9 @@ function handleNoop(_ctx: Context, _node: Node.Statement): void {}
 
 function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos = 0): boolean {
     switch (leftType.kind) {
+        case Type.Kind.type:
+            return isValidType(ctx, leftType.type, rightType)
+
         case Type.Kind.object: {
             if (leftType === rightType) {
                 return true
@@ -765,6 +782,14 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
                 return rightType.enum === leftType
             }
             return false
+        }
+
+        case Type.Kind.enumMember: {
+            if (rightType.kind !== Type.Kind.enumMember) {
+                return false
+            }
+            const isValid = leftType.enum === rightType.enum
+            return isValid
         }
 
         case Type.Kind.union: {
@@ -997,6 +1022,7 @@ const expressions: Record<string, ExpressionFunc> = {
     MemberExpression: handleMemberExpression,
     ObjectExpression: handleObjectExpression,
     ArrayExpression: handleArrayExpression,
+    PropertyAccessExpression: handlePropertyAccessExpression,
 }
 
 type HandleFunc = (ctx: Context, node: any) => void
