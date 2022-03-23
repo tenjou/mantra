@@ -710,8 +710,12 @@ function handleNoop(_ctx: Context, _node: Node.Statement): void {}
 
 function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos = 0): boolean {
     switch (leftType.kind) {
-        case Type.Kind.type:
+        case Type.Kind.type: {
+            if (leftType === rightType) {
+                return true
+            }
             return isValidType(ctx, leftType.type, rightType)
+        }
 
         case Type.Kind.object: {
             if (leftType === rightType) {
