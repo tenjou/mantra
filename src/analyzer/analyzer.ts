@@ -430,28 +430,7 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
         const argType = expressions[arg.kind](ctx, arg, 0)
         const paramType = calleeType.params[n].type
 
-        if (paramType.kind === Type.Kind.enum) {
-            if (argType.kind === Type.Kind.args) {
-                break
-            }
-            if (argType.kind !== Type.Kind.enum) {
-                raiseTypeError(ctx, arg.start, paramType, argType)
-            }
-            if (paramType.enumType !== argType.kind) {
-                raiseTypeError(ctx, arg.start, paramType, argType)
-            }
-
-            const value = getEnumValue(ctx, arg)
-            if (!paramType.membersDict[value]) {
-                raiseAt(ctx.module, arg.start, `Argument '${value}' is not assignable to parameter of type '${paramType.name}'`)
-            }
-        } else if (paramType.kind !== argType.kind) {
-            if (paramType.kind === Type.Kind.args) {
-                break
-            }
-            if (paramType.kind === Type.Kind.object && argType.kind === Type.Kind.enum) {
-                continue
-            }
+        if (!isValidType(ctx, paramType, argType)) {
             raiseTypeError(ctx, arg.start, paramType, argType)
         }
     }

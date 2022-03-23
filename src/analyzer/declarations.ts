@@ -113,7 +113,7 @@ export function resolveFunctionParams(ctx: Context, nodeParams: Node.Parameter[]
         const paramType = handleType(ctx, nodeParam.type)
 
         if (!nodeParam.initializer) {
-            argsMin++
+            argsMin = n + 1
         }
 
         type.params[n] = {
