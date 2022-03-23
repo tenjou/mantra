@@ -1392,10 +1392,35 @@ function parseFunctionDeclaration(ctx: ParserContext): Node.FunctionDeclaration 
     }
 }
 
+function parsePropertyAccessExpression(
+    ctx: ParserContext,
+    expression: Node.Identifier | Node.PropertyAccessExpression
+): Node.PropertyAccessExpression {
+    const name = parseIdentifier(ctx)
+    const node: Node.PropertyAccessExpression = {
+        kind: "PropertyAccessExpression",
+        start: name.start,
+        end: ctx.end,
+        expression,
+        name,
+    }
+
+    if (eat(ctx, kinds.dot)) {
+        return parsePropertyAccessExpression(ctx, node)
+    }
+
+    return node
+}
+
 function parseParametersExpression(ctx: ParserContext): Node.ParameterExpresion {
     switch (ctx.kind) {
-        case kinds.name:
-            return parseIdentifier(ctx)
+        case kinds.name: {
+            const name = parseIdentifier(ctx)
+            if (eat(ctx, kinds.dot)) {
+                return parsePropertyAccessExpression(ctx, name)
+            }
+            return name
+        }
 
         case kinds.num:
             return parseNumericLiteral(ctx)

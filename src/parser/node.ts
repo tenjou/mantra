@@ -65,7 +65,7 @@ export type Statement =
     | LabeledStatement
     | ExpressionStatement
 
-export type ParameterExpresion = NumericLiteral | BooleanLiteral | Literal | Identifier
+export type ParameterExpresion = NumericLiteral | BooleanLiteral | Literal | Identifier | PropertyAccessExpression
 
 export type Expression =
     | (
@@ -128,6 +128,12 @@ export interface ExportNamedDeclaration extends Node {
     declaration: Statement
     specifiers: Statement[]
     source: null
+}
+
+export interface PropertyAccessExpression extends Node {
+    kind: "PropertyAccessExpression"
+    expression: Identifier | PropertyAccessExpression
+    name: Identifier
 }
 
 export interface Parameter extends Node {
