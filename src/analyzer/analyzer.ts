@@ -724,6 +724,9 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
 
                 return leftType.members.length === rightType.members.length
             }
+            if (leftType.members.length === 0) {
+                return rightType.kind === Type.Kind.enum
+            }
 
             return false
         }

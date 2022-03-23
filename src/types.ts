@@ -165,7 +165,7 @@ export interface Scope {
     parent: Scope
     vars: Record<string, Reference>
     types: Record<string, Any>
-    labels: []
+    labels: string[]
 }
 
 const fakeParent = {} as Scope
