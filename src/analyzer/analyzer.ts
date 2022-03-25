@@ -774,6 +774,9 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
             if (rightType.kind !== Type.Kind.array) {
                 return false
             }
+            if (rightType.elementType === Type.coreAliases.unknown) {
+                return true
+            }
 
             return isValidType(ctx, leftType.elementType, rightType.elementType)
         }
