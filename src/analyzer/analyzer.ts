@@ -182,6 +182,13 @@ function handlePropertyAccessExpression(ctx: Context, node: Node.PropertyAccessE
     return member.type
 }
 
+function handleAsExpression(ctx: Context, node: Node.AsExpression): Type.Any {
+    expressions[node.expression.kind](ctx, node.expression, 0)
+
+    const type = handleType(ctx, node.type)
+    return type
+}
+
 function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.Array {
     let arrayType = null
 
@@ -1019,6 +1026,7 @@ const expressions: Record<string, ExpressionFunc> = {
     ObjectExpression: handleObjectExpression,
     ArrayExpression: handleArrayExpression,
     PropertyAccessExpression: handlePropertyAccessExpression,
+    AsExpression: handleAsExpression,
 }
 
 type HandleFunc = (ctx: Context, node: any) => void

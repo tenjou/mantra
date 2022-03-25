@@ -406,6 +406,18 @@ function parseMaybeAssign(ctx: ParserContext): Node.Expression {
         }
     }
 
+    if (eat(ctx, kinds.as)) {
+        const type = parseTypeAnnotation(ctx)
+
+        return {
+            kind: "AsExpression",
+            start: left.start,
+            end: ctx.end,
+            expression: left,
+            type,
+        }
+    }
+
     return left
 }
 

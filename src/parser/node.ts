@@ -83,6 +83,7 @@ export type Expression =
           | BinaryExpression
           | ConditionalExpression
           | AssignmentExpression
+          | AsExpression
       )
     | ParameterExpresion
 
@@ -412,6 +413,12 @@ export interface MemberExpression extends Node {
     object: Expression
     property: Expression
     computed: boolean
+}
+
+export interface AsExpression extends Node {
+    kind: "AsExpression"
+    expression: Expression
+    type: TypeNode.Any
 }
 
 export interface BlockStatement extends Node {

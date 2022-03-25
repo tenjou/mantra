@@ -365,6 +365,12 @@ function parseMemberExpression(ctx: CompilerContext, node: Node.MemberExpression
     return result
 }
 
+function parseAsExpression(ctx: CompilerContext, node: Node.AsExpression): string {
+    const expression = parse[node.expression.kind](ctx, node.expression)
+
+    return expression
+}
+
 function parseCallExpression(ctx: CompilerContext, node: Node.CallExpression): string {
     const callee = parse[node.callee.kind](ctx, node.callee)
     const args = parseArgs(ctx, node.args)
@@ -636,6 +642,7 @@ const parse: Record<string, NodeParserFunc> = {
     UpdateExpression: parseUpdateExpression,
     UnaryExpression: parseUpdateExpression,
     MemberExpression: parseMemberExpression,
+    AsExpression: parseAsExpression,
     CallExpression: parseCallExpression,
     NewExpression: parseCallExpression,
     ConditionExpression: parseConditionExpression,
