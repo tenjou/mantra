@@ -196,7 +196,7 @@ function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.A
         const elementType = expressions[element.kind](ctx, element, 0)
         if (!arrayType) {
             arrayType = elementType
-        } else if (!isValidType(ctx, arrayType, elementType)) {
+        } else if (!isValidType(ctx, arrayType, elementType, element.start)) {
             raiseTypeError(ctx, element.start, arrayType, elementType)
         }
     }
@@ -240,7 +240,7 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
                 const propertyStr = `{ ${property.id.value}: ${getTypeName(type)} }`
                 raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
             }
-            if (!isValidType(ctx, srcMemberRef.type, type)) {
+            if (!isValidType(ctx, srcMemberRef.type, type, property.start)) {
                 raiseTypeError(ctx, property.start, srcMemberRef.type, type, srcMemberRef.name)
             }
         }
@@ -438,7 +438,8 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
         const argType = expressions[arg.kind](ctx, arg, 0)
         const paramType = calleeType.params[n].type
 
-        if (!isValidType(ctx, paramType, argType)) {
+        if (!isValidType(ctx, paramType, argType, arg.start)) {
+            isValidType(ctx, paramType, argType, arg.start)
             raiseTypeError(ctx, arg.start, paramType, argType)
         }
     }
@@ -612,7 +613,7 @@ function handleParams(ctx: Context, params: Node.Parameter[]): void {
         if (param.initializer) {
             const paramType = expressions[param.initializer.kind](ctx, param.initializer, 0)
 
-            if (!isValidType(ctx, paramRef.type, paramType)) {
+            if (!isValidType(ctx, paramRef.type, paramType, param.initializer.start)) {
                 raiseTypeError(ctx, param.initializer.start, paramRef.type, paramType)
             }
         }
@@ -702,20 +703,25 @@ function handleExpressionStatement(ctx: Context, node: Node.ExpressionStatement)
 
 function handleNoop(_ctx: Context, _node: Node.Statement): void {}
 
-function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos = 0): boolean {
+function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos: number, shallowCheck: boolean = false): boolean {
     switch (leftType.kind) {
         case Type.Kind.type: {
             if (leftType === rightType) {
                 return true
             }
-            return isValidType(ctx, leftType.type, rightType)
+            return isValidType(ctx, leftType.type, rightType, pos)
         }
 
         case Type.Kind.object: {
             if (leftType === rightType) {
                 return true
             }
+
             if (rightType.kind === Type.Kind.object) {
+                if (shallowCheck) {
+                    return false
+                }
+
                 const membersLeft = leftType.members
                 const membersRight = rightType.members
 
@@ -728,13 +734,7 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
                         }
                     }
 
-                    raiseAt(
-                        ctx.module,
-                        pos,
-                        `Property '{${memberLeft.name}: ${getTypeName(memberLeft.type)}}' is missing but required in type '${
-                            leftType.name
-                        }'`
-                    )
+                    return false
                 }
 
                 return leftType.members.length === rightType.members.length
@@ -778,7 +778,7 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
                 return true
             }
 
-            return isValidType(ctx, leftType.elementType, rightType.elementType)
+            return isValidType(ctx, leftType.elementType, rightType.elementType, pos)
         }
 
         case Type.Kind.enum: {
@@ -797,23 +797,33 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos 
         }
 
         case Type.Kind.union: {
-            if (rightType.kind !== Type.Kind.union) {
-                return false
-            }
-
-            loop: for (const leftParam of leftType.types) {
-                let foundSubstitue = false
-                for (const rightParam of rightType.types) {
-                    if (isValidType(ctx, leftParam, rightParam)) {
-                        foundSubstitue = true
-                        continue loop
+            if (rightType.kind == Type.Kind.union) {
+                loop: for (const leftParam of leftType.types) {
+                    let foundSubstitue = false
+                    for (const rightParam of rightType.types) {
+                        if (isValidType(ctx, leftParam, rightParam, pos)) {
+                            foundSubstitue = true
+                            continue loop
+                        }
+                    }
+                    if (!foundSubstitue) {
+                        return false
                     }
                 }
-                if (!foundSubstitue) {
-                    return false
+            }
+
+            for (const leftParam of leftType.types) {
+                if (isValidType(ctx, leftParam, rightType, pos, true)) {
+                    return true
                 }
             }
-            return true
+            for (const leftParam of leftType.types) {
+                if (isValidType(ctx, leftParam, rightType, pos)) {
+                    return true
+                }
+            }
+
+            return false
         }
 
         case Type.Kind.mapped: {
