@@ -4,10 +4,10 @@ import { getFilePath } from "../file"
 import { Flags } from "../flags"
 import { Module } from "../module"
 import * as Node from "../parser/node"
-import { createScope, FunctionTypeDeclaration, TypeDeclaration } from "../scope"
+import { createScope, FunctionTypeDeclaration } from "../scope"
 import * as Type from "../types"
 import { Context } from "./context"
-import { handleDeclaration, handleType, resolveDeclaration, resolveFunctionParams } from "./declarations"
+import { handleDeclaration, handleType, resolveDeclaration } from "./declarations"
 import { loadExterns } from "./externs"
 
 // function handleLabeledStatement(ctx: Context, node: Node.LabeledStatement): void {
@@ -631,7 +631,6 @@ function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration,
         ref = refVar
     } else {
         const type = Type.createFunction("", [], Type.coreAliases.unknown)
-        resolveFunctionParams(ctx, node.params, type)
         ref = Type.createRef("", type)
     }
 
@@ -651,7 +650,6 @@ function resolveFunctionDeclaration(ctx: Context, { type, node }: FunctionTypeDe
     ctx.scopeCurr = scope
     ctx.currFuncType = type
 
-    resolveFunctionParams(ctx, node.params, type)
     handleParams(ctx, node.params)
 
     if (node.body.kind === "BlockStatement") {

@@ -102,7 +102,7 @@ export function resolveDeclaration(ctx: Context, typeDecl: TypeDeclaration): Typ
     return typeDecl.type
 }
 
-export function resolveFunctionParams(ctx: Context, nodeParams: Node.Parameter[], type: Type.Function): void {
+function resolveFunctionParams(ctx: Context, nodeParams: Node.Parameter[], type: Type.Function): void {
     let argsMin = 0
     let argsMax = nodeParams.length
 
@@ -128,6 +128,8 @@ export function resolveFunctionParams(ctx: Context, nodeParams: Node.Parameter[]
 
 function resolveFunction(ctx: Context, node: Node.FunctionDeclaration, type: Type.Function): void {
     type.returnType = handleType(ctx, node.returnType)
+
+    resolveFunctionParams(ctx, node.params, type)
 }
 
 function resolveInterface(ctx: Context, node: Node.InterfaceDeclaration, type: Type.Object): void {
