@@ -351,7 +351,7 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
 // }
 
 function handleLiteral(_ctx: Context, node: Node.Literal): Type.Any {
-    if (node.value === "null") {
+    if (node.raw === "null") {
         return Type.coreAliases.null
     }
     return Type.coreAliases.string
@@ -371,6 +371,10 @@ function handleTemplateLiteral(ctx: Context, node: Node.TemplateLiteral): Type.A
     }
 
     return Type.coreAliases.string
+}
+
+function handleNullKeyword(_ctx: Context, _node: Node.NullKeyword): Type.Any {
+    return Type.coreAliases.null
 }
 
 function handleIdentifier(ctx: Context, node: Node.Identifier): Type.Any {
@@ -1029,6 +1033,7 @@ const expressions: Record<string, ExpressionFunc> = {
     NumericLiteral: handleNumericLiteral,
     BooleanLiteral: handleBooleanLiteral,
     TemplateLiteral: handleTemplateLiteral,
+    NullKeyword: handleNullKeyword,
     Identifier: handleIdentifier,
     BinaryExpression: handleBinaryExpression,
     LogicalExpression: handleLogicalExpression,

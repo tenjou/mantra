@@ -65,7 +65,7 @@ export type Statement =
     | LabeledStatement
     | ExpressionStatement
 
-export type ParameterExpresion = NumericLiteral | BooleanLiteral | Literal | Identifier | PropertyAccessExpression
+export type ParameterExpresion = NumericLiteral | BooleanLiteral | Literal | Identifier | PropertyAccessExpression | NullKeyword
 
 export type Expression =
     | (
@@ -111,6 +111,10 @@ export interface NumericLiteral extends Node {
 export interface BooleanLiteral extends Node {
     kind: "BooleanLiteral"
     value: string
+}
+
+export interface NullKeyword extends Node {
+    kind: "NullKeyword"
 }
 
 export interface TemplateLiteral extends Node {

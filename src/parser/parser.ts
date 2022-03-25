@@ -72,6 +72,18 @@ function parseLiteral(ctx: ParserContext): Node.Literal {
     return node
 }
 
+function parseNullKeyword(ctx: ParserContext): Node.NullKeyword {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    return {
+        kind: "NullKeyword",
+        start: start,
+        end: ctx.end,
+    }
+}
+
 function parseIdentifier(ctx: ParserContext): Node.Identifier {
     if (ctx.kind !== kinds.name && !ctx.kind.keyword) {
         unexpected(ctx, ctx.start)
@@ -116,10 +128,12 @@ function parseExpressionAtom(ctx: ParserContext): Node.Expression {
             return parseBooleanLiteral(ctx)
 
         case kinds.text:
-        case kinds.null:
         case kinds.break:
         case kinds._undefined:
             return parseLiteral(ctx)
+
+        case kinds.null:
+            return parseNullKeyword(ctx)
 
         case kinds.bracketL:
             return parseArrayExpression(ctx)

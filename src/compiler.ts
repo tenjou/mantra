@@ -494,6 +494,10 @@ function parseLiteral(_ctx: CompilerContext, node: Node.Literal): string {
     return node.raw
 }
 
+function parseNullKeyword(_ctx: CompilerContext, _node: Node.NullKeyword): string {
+    return "null"
+}
+
 function parseTemplateLiteral(ctx: CompilerContext, node: Node.TemplateLiteral): string {
     let result = ""
 
@@ -648,6 +652,7 @@ const parse: Record<string, NodeParserFunc> = {
     ConditionExpression: parseConditionExpression,
     ArrayExpression: parseArrayExpression,
     ObjectExpression: parseObjectExpression,
+    NullKeyword: parseNullKeyword,
     TemplateLiteral: parseTemplateLiteral,
     BooleanLiteral: parseBooleanLiteral,
     NumericLiteral: parseNumericLiteral,
