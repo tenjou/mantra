@@ -4,6 +4,7 @@ import { getFilePath } from "../file"
 import { Flags } from "../flags"
 import { Module } from "../module"
 import * as Node from "../parser/node"
+import { createScope, FunctionTypeDeclaration, TypeDeclaration } from "../scope"
 import * as Type from "../types"
 import { Context } from "./context"
 import { handleDeclaration, handleType, resolveDeclaration, resolveFunctionParams } from "./declarations"
@@ -492,7 +493,7 @@ function handleReturnStatement(ctx: Context, node: Node.ReturnStatement): void {
 }
 
 function handleIfStatement(ctx: Context, node: Node.IfStatement): void {
-    ctx.scopeCurr = Type.createScope(ctx.scopeCurr)
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
 
     expressions[node.test.kind](ctx, node.test, 0)
 
@@ -631,10 +632,19 @@ function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration,
         raiseAt(ctx.module, node.start, `Expected function type: ${name}, but instead got: ${ref.type.kind}`)
     }
 
-    const scope = Type.createScope(ctx.scopeCurr)
-    ctx.scopeCurr = scope
-    ctx.currFuncType = ref.type
+    if (name && flags & Flags.Exported) {
+        ctx.exports.push(ref)
+    }
 
+    return ref.type
+}
+
+function resolveFunctionDeclaration(ctx: Context, { type, node }: FunctionTypeDeclaration): void {
+    const scope = createScope(ctx.scopeCurr)
+    ctx.scopeCurr = scope
+    ctx.currFuncType = type
+
+    resolveFunctionParams(ctx, node.params, type)
     handleParams(ctx, node.params)
 
     if (node.body.kind === "BlockStatement") {
@@ -644,16 +654,10 @@ function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration,
     }
 
     ctx.scopeCurr = ctx.scopeCurr.parent
-
-    if (name && flags & Flags.Exported) {
-        ctx.exports.push(ref)
-    }
-
-    return ref.type
 }
 
 function handleBlockStatement(ctx: Context, node: Node.BlockStatement): void {
-    ctx.scopeCurr = Type.createScope(ctx.scopeCurr)
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
 
     handleStatements(ctx, node.body)
 
@@ -677,6 +681,12 @@ function handleStatements(ctx: Context, body: Node.Statement[]): void {
     for (const node of body) {
         statements[node.kind](ctx, node, 0)
     }
+
+    for (const func of scopeCurr.funcs) {
+        resolveFunctionDeclaration(ctx, func)
+    }
+
+    scopeCurr.funcs.length = 0
 
     ctx.scopeCurr = scopeCurr
 }
@@ -925,7 +935,7 @@ function getEnumValue(ctx: Context, node: Node.Expression): string {
 // }
 
 export function analyze(config: Config, module: Module, modules: Record<string, Module>) {
-    const scope = Type.createScope()
+    const scope = createScope()
     scope.parent = scope
 
     const ctx: Context = {

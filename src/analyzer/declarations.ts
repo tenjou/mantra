@@ -1,36 +1,32 @@
 import { raiseAt } from "../error"
 import * as Node from "../parser/node"
 import * as TypeNode from "../parser/type-node"
+import { createScope, FunctionTypeDeclaration, TypeDeclaration } from "../scope"
 import * as Type from "../types"
-import { Context, TypeDeclaration } from "./context"
+import { Context } from "./context"
 
-export function handleDeclaration(ctx: Context, node: Node.Statement): boolean {
+export function handleDeclaration(ctx: Context, node: Node.Statement): void {
     switch (node.kind) {
         case "FunctionDeclaration":
-            if (node.id) {
-                declareNamedFunction(ctx, node, node.id)
-                return true
-            }
-            return false
+            declareFunction(ctx, node)
+            break
 
         case "InterfaceDeclaration":
             declareInterface(ctx, node)
-            return true
+            break
 
         case "TypeAliasDeclaration":
             declareTypeAlias(ctx, node)
-            return true
+            break
 
         case "ExportNamedDeclaration":
             declareExport(ctx, node)
-            return true
+            break
 
         case "EnumDeclaration":
             declareEnum(ctx, node)
-            return true
+            break
     }
-
-    return false
 }
 
 function declareExport(ctx: Context, node: Node.ExportNamedDeclaration): void {
@@ -65,19 +61,23 @@ function declareInterface(ctx: Context, node: Node.InterfaceDeclaration): void {
     ctx.scopeCurr.types[type.name] = type
 }
 
-function declareNamedFunction(ctx: Context, node: Node.FunctionDeclaration, id: Node.Identifier): void {
-    if (ctx.scopeCurr.vars[id.value]) {
-        raiseAt(ctx.module, id.start, `Duplicate function implementation '${id.value}'`)
-    }
+function declareFunction(ctx: Context, node: Node.FunctionDeclaration): void {
+    if (node.id) {
+        if (ctx.scopeCurr.vars[node.id.value]) {
+            raiseAt(ctx.module, node.id.start, `Duplicate function implementation '${node.id.value}'`)
+        }
 
-    const type = Type.createFunction(id.value, [], Type.coreAliases.unknown)
+        const type = Type.createFunction(node.id.value, [], Type.coreAliases.unknown)
+        const funcDecl: FunctionTypeDeclaration = {
+            kind: Type.Kind.function,
+            type,
+            node,
+        }
 
-    ctx.resolvingTypes[id.value] = {
-        kind: Type.Kind.function,
-        type,
-        node,
+        ctx.resolvingTypes[node.id.value] = funcDecl
+        ctx.scopeCurr.funcs.push(funcDecl)
+        ctx.scopeCurr.vars[node.id.value] = Type.createRef(node.id.value, type)
     }
-    ctx.scopeCurr.vars[id.value] = Type.createRef(id.value, type)
 }
 
 export function resolveDeclaration(ctx: Context, typeDecl: TypeDeclaration): Type.Any {
@@ -128,8 +128,6 @@ export function resolveFunctionParams(ctx: Context, nodeParams: Node.Parameter[]
 
 function resolveFunction(ctx: Context, node: Node.FunctionDeclaration, type: Type.Function): void {
     type.returnType = handleType(ctx, node.returnType)
-
-    resolveFunctionParams(ctx, node.params, type)
 }
 
 function resolveInterface(ctx: Context, node: Node.InterfaceDeclaration, type: Type.Object): void {
@@ -193,7 +191,7 @@ function getEnumType(ctx: Context, members: Node.EnumMember[]): Type.Kind.number
 function declareEnum(ctx: Context, node: Node.EnumDeclaration): void {
     const contentType = getEnumType(ctx, node.members)
 
-    ctx.scopeCurr = Type.createScope(ctx.scopeCurr)
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
 
     const members: Record<string, Type.Reference> = {}
     const values: Record<string, boolean> = {}

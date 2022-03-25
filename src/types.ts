@@ -161,28 +161,6 @@ export function createRef(name: string, type: Any, flags: number = 0): Reference
     return { name, type, flags }
 }
 
-export interface Scope {
-    parent: Scope
-    vars: Record<string, Reference>
-    types: Record<string, Any>
-    labels: string[]
-}
-
-const fakeParent = {} as Scope
-
-export function createScope(parent: Scope | null = null): Scope {
-    if (!parent) {
-        parent = fakeParent
-    }
-
-    return {
-        parent,
-        vars: {},
-        types: {},
-        labels: [],
-    }
-}
-
 const numberType = createObject("Number", [], Kind.number)
 
 export const coreAliases: Record<string, Any> = {
