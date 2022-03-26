@@ -171,12 +171,12 @@ import { loadExterns } from "./externs"
 function handlePropertyAccessExpression(ctx: Context, node: Node.PropertyAccessExpression): Type.Any {
     const expressionType = expressions[node.expression.kind](ctx, node.expression, 0)
     if (expressionType.kind !== Type.Kind.enum) {
-        raiseAt(ctx.module, node.expression.start, `Expected enum but instead got: ${getTypeName(expressionType)}`)
+        raiseAt(ctx.module, node.expression.start, `Expected enum but instead got: ${Type.getName(expressionType)}`)
     }
 
     const member = expressionType.membersDict[node.name.value]
     if (!member) {
-        raiseAt(ctx.module, node.start, `Cannot find name '${getTypeName(expressionType)}.${node.name.value}'`)
+        raiseAt(ctx.module, node.start, `Cannot find name '${Type.getName(expressionType)}.${node.name.value}'`)
     }
 
     return member.type
@@ -205,61 +205,70 @@ function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.A
 }
 
 function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number, srcType?: Type.Any): Type.Object {
-    if (srcType && srcType.kind !== Type.Kind.object && srcType.kind !== Type.Kind.mapped) {
-        raiseAt(ctx.module, node.start, `Type '{}' is not assignable to type '${getTypeName(srcType)}'`)
-    }
-
     const properties = node.properties
 
-    if (srcType && srcType.kind !== Type.Kind.mapped) {
-        const membersTypesDict: Record<string, Type.Any> = {}
-        let numMembers = 0
-
-        for (const property of properties) {
-            if (membersTypesDict[property.id.value]) {
-                raiseAt(ctx.module, property.start, `Duplicate identifier '${property.id.value}'`)
-            }
-
-            let type: Type.Any
-
-            if (!property.value) {
-                const valueVar = getVar(ctx, property.id.value)
-                if (!valueVar) {
-                    raiseAt(ctx.module, node.start, `Cannot find name '${property.id.value}'`)
-                }
-                type = valueVar.type
-            } else {
-                type = expressions[property.value.kind](ctx, property.value, 0)
-            }
-
-            membersTypesDict[property.id.value] = type
-            numMembers++
-
-            const srcMemberRef = srcType.membersDict[property.id.value]
-            if (!srcMemberRef) {
-                const propertyStr = `{ ${property.id.value}: ${getTypeName(type)} }`
-                raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
-            }
-            if (!isValidType(ctx, srcMemberRef.type, type, property.start)) {
-                raiseTypeError(ctx, property.start, srcMemberRef.type, type, srcMemberRef.name)
-            }
+    if (srcType) {
+        if (srcType.kind === Type.Kind.type) {
+            srcType = srcType.type
         }
 
-        if (srcType.members.length !== numMembers) {
-            for (const srcTypeMember of srcType.members) {
-                if (!membersTypesDict[srcTypeMember.name]) {
-                    raiseAt(
-                        ctx.module,
-                        node.start,
-                        `Property '${srcTypeMember.name}' is missing in type '${getObjectSignatureName(
-                            membersTypesDict
-                        )}' but required in type '${srcType.name}'`
-                    )
+        if (srcType.kind === Type.Kind.object) {
+            const membersTypesDict: Record<string, Type.Any> = {}
+            let numMembers = 0
+
+            for (const property of properties) {
+                if (membersTypesDict[property.id.value]) {
+                    raiseAt(ctx.module, property.start, `Duplicate identifier '${property.id.value}'`)
+                }
+
+                let type: Type.Any
+
+                if (!property.value) {
+                    const valueVar = getVar(ctx, property.id.value)
+                    if (!valueVar) {
+                        raiseAt(ctx.module, node.start, `Cannot find name '${property.id.value}'`)
+                    }
+                    type = valueVar.type
+                } else {
+                    type = expressions[property.value.kind](ctx, property.value, 0)
+                }
+
+                membersTypesDict[property.id.value] = type
+                numMembers++
+
+                const srcMemberRef = srcType.membersDict[property.id.value]
+                if (!srcMemberRef) {
+                    const propertyStr = `{ ${property.id.value}: ${Type.getName(type)} }`
+                    raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
+                }
+                if (!isValidType(ctx, srcMemberRef.type, type, property.start)) {
+                    raiseTypeError(ctx, property.start, srcMemberRef.type, type, srcMemberRef.name)
                 }
             }
+
+            if (srcType.members.length !== numMembers) {
+                for (const srcTypeMember of srcType.members) {
+                    if (!membersTypesDict[srcTypeMember.name]) {
+                        raiseAt(
+                            ctx.module,
+                            node.start,
+                            `Property '${srcTypeMember.name}' is missing in type '${getObjectSignatureName(
+                                membersTypesDict
+                            )}' but required in type '${srcType.name}'`
+                        )
+                    }
+                }
+            }
+
+            return srcType
         }
 
-        return srcType
+        if (srcType.kind === Type.Kind.mapped) {
+            console.log("here")
+            // return srcType
+        }
+
+        raiseAt(ctx.module, node.start, `Type '{}' is not assignable to type '${Type.getName(srcType)}'`)
     }
 
     const members: Type.Reference[] = new Array(properties.length)
@@ -402,7 +411,7 @@ function handleBinaryExpression(ctx: Context, node: Node.BinaryExpression): Type
         raiseAt(
             ctx.module,
             node.left.start,
-            `Operator '${node.operator}' cannot be applied to types '${getTypeName(leftType)}' and '${getTypeName(rightType)}'`
+            `Operator '${node.operator}' cannot be applied to types '${Type.getName(leftType)}' and '${Type.getName(rightType)}'`
         )
     }
 
@@ -426,7 +435,7 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
         raiseAt(
             ctx.module,
             node.callee.start,
-            `This expression is not callable.\n  Type '${getTypeName(calleeType)}' has no call signatures`
+            `This expression is not callable.\n  Type '${Type.getName(calleeType)}' has no call signatures`
         )
     }
 
@@ -457,9 +466,9 @@ function handleMemberExpression(ctx: Context, node: Node.MemberExpression): Type
 
     if (typeKind !== Type.Kind.object && typeKind !== Type.Kind.enum && typeKind !== Type.Kind.string && typeKind !== Type.Kind.number) {
         if (type.kind === Type.Kind.unknown) {
-            raiseAt(ctx.module, node.object.start, `'${getTypeName(type)}' is of type 'unknown'`)
+            raiseAt(ctx.module, node.object.start, `'${Type.getName(type)}' is of type 'unknown'`)
         }
-        raiseAt(ctx.module, node.object.start, `'${getTypeName(type)}' is not an object`)
+        raiseAt(ctx.module, node.object.start, `'${Type.getName(type)}' is not an object`)
     }
 
     const property = node.property
@@ -843,51 +852,12 @@ function getObjectSignatureName(membersDict: Record<string, Type.Any>) {
     for (const memberName in membersDict) {
         const memberType = membersDict[memberName]
         if (result) {
-            result += `, ${memberName}: ${getTypeName(memberType)}`
+            result += `, ${memberName}: ${Type.getName(memberType)}`
         } else {
-            result = `${memberName}: ${getTypeName(memberType)}`
+            result = `${memberName}: ${Type.getName(memberType)}`
         }
     }
     return result ? `{ ${result} }` : "{}"
-}
-
-function getTypeName(type: Type.Any): string {
-    switch (type.kind) {
-        case Type.Kind.array:
-            return `${getTypeName(type.elementType)}[]`
-
-        case Type.Kind.function: {
-            const returnOutput = getTypeName(type.returnType)
-
-            let paramsOutput = ""
-            for (const param of type.params) {
-                if (paramsOutput) {
-                    paramsOutput += `, ${param.name}: ${param.name}`
-                } else {
-                    paramsOutput = `${param.name}: ${param.name}`
-                }
-            }
-
-            return `(${paramsOutput}) => ${returnOutput}`
-        }
-
-        case Type.Kind.enumMember:
-            return `${type.enum.name}.${type.name}`
-
-        case Type.Kind.object: {
-            let result = ""
-            for (const member of type.members) {
-                if (result) {
-                    result += `, ${member.name}: ${getTypeName(member.type)}`
-                } else {
-                    result = `${member.name}: ${getTypeName(member.type)}`
-                }
-            }
-            return result ? `{ ${result} }` : "{}"
-        }
-    }
-
-    return type.name
 }
 
 function raiseTypeError(ctx: Context, start: number, leftType: Type.Any, rightType: Type.Any, name: string = "") {
@@ -895,10 +865,10 @@ function raiseTypeError(ctx: Context, start: number, leftType: Type.Any, rightTy
         raiseAt(
             ctx.module,
             start,
-            `Variable '${name}' with type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`
+            `Variable '${name}' with type '${Type.getName(rightType)}' is not assignable to type '${Type.getName(leftType)}'`
         )
     }
-    raiseAt(ctx.module, start, `Type '${getTypeName(rightType)}' is not assignable to type '${getTypeName(leftType)}'`)
+    raiseAt(ctx.module, start, `Type '${Type.getName(rightType)}' is not assignable to type '${Type.getName(leftType)}'`)
 }
 
 function getVar(ctx: Context, name: string, isObject: boolean = false): Type.Reference | null {

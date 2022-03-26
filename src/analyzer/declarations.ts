@@ -360,20 +360,40 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, name 
             if (!typeFound) {
                 raiseAt(ctx.module, type.start, `Cannot find name '${type.name.value}'`)
             }
-            if (typeFound.kind === Type.Kind.mapped && typeFound.params) {
-                if (type.kind !== "TypeReference" || !type.typeArgs || typeFound.params.length !== type.typeArgs.length) {
-                    raiseAt(
-                        ctx.module,
-                        type.start,
-                        `Generic type '${typeFound.name}' requires ${typeFound.params.length} type argument(s).`
-                    )
-                }
 
-                for (const typeArg of type.typeArgs) {
-                    if (typeArg.kind === "TypeReference") {
-                        const typeArgFound = getType(ctx, typeArg.name.value)
-                        if (!typeArgFound) {
-                            raiseAt(ctx.module, typeArg.start, `Cannot find name '${typeArg.name.value}'`)
+            if (typeFound.kind === Type.Kind.type) {
+                const innerType = typeFound.type
+
+                if (innerType.kind === Type.Kind.mapped && innerType.params) {
+                    if (type.kind !== "TypeReference" || !type.typeArgs || innerType.params.length !== type.typeArgs.length) {
+                        raiseAt(
+                            ctx.module,
+                            type.start,
+                            `Generic type '${typeFound.name}' requires ${innerType.params.length} type argument(s).`
+                        )
+                    }
+
+                    for (let n = 0; n < innerType.params.length; n++) {
+                        const typeParam = innerType.params[n]
+                        const typeArg = type.typeArgs[n]
+
+                        const typeParamType = typeParam.type
+                        const typeArgType = handleType(ctx, typeArg)
+                        if (typeParamType !== typeArgType) {
+                            raiseAt(
+                                ctx.module,
+                                typeArg.start,
+                                `Type '${Type.getName(typeArgType)}' does not satisfy the constraint '${Type.getName(typeParamType)}'`
+                            )
+                        }
+                    }
+
+                    for (const typeArg of type.typeArgs) {
+                        if (typeArg.kind === "TypeReference") {
+                            const typeArgFound = getType(ctx, typeArg.name.value)
+                            if (!typeArgFound) {
+                                raiseAt(ctx.module, typeArg.start, `Cannot find name '${typeArg.name.value}'`)
+                            }
                         }
                     }
                 }

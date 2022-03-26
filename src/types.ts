@@ -182,3 +182,42 @@ export const coreRefs: Record<string, Reference> = {
     void: createRef("void", coreAliases.void, 0),
     args: createRef("args", coreAliases.args, 0),
 }
+
+export function getName(type: Any): string {
+    switch (type.kind) {
+        case Kind.array:
+            return `${getName(type.elementType)}[]`
+
+        case Kind.function: {
+            const returnOutput = getName(type.returnType)
+
+            let paramsOutput = ""
+            for (const param of type.params) {
+                if (paramsOutput) {
+                    paramsOutput += `, ${param.name}: ${param.name}`
+                } else {
+                    paramsOutput = `${param.name}: ${param.name}`
+                }
+            }
+
+            return `(${paramsOutput}) => ${returnOutput}`
+        }
+
+        case Kind.enumMember:
+            return `${type.enum.name}.${type.name}`
+
+        case Kind.object: {
+            let result = ""
+            for (const member of type.members) {
+                if (result) {
+                    result += `, ${member.name}: ${getName(member.type)}`
+                } else {
+                    result = `${member.name}: ${getName(member.type)}`
+                }
+            }
+            return result ? `{ ${result} }` : "{}"
+        }
+    }
+
+    return type.name
+}
