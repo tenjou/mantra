@@ -783,7 +783,7 @@ function parseArrowFunction(ctx: ParserContext): Node.ArrowFunction {
 function parseProperty(ctx: ParserContext): Node.Property {
     const start = ctx.start
 
-    let id: Node.Identifier
+    let id: Node.Identifier | Node.NumericLiteral
     let computed = false
 
     // if (eat(ctx, kinds.bracketL)) {
@@ -793,7 +793,12 @@ function parseProperty(ctx: ParserContext): Node.Property {
     // } else if (ctx.kind === kinds.string || ctx.kind === kinds.number) {
     //     key = parseExpressionAtom(ctx)
     // } else {
-    id = parseIdentifier(ctx)
+    if (ctx.kind === kinds.name) {
+        id = parseIdentifier(ctx)
+    } else {
+        id = parseNumericLiteral(ctx)
+    }
+
     // }
 
     let value: Node.Expression | null = null
