@@ -1,3 +1,4 @@
+import { constants } from "buffer"
 import { raiseAt } from "../error"
 import * as Node from "../parser/node"
 import * as TypeNode from "../parser/type-node"
@@ -140,7 +141,7 @@ function resolveInterface(ctx: Context, node: Node.InterfaceDeclaration, type: T
 
     for (let n = 0; n < nodeMembers.length; n++) {
         const nodeMember = nodeMembers[n]
-        const memberType = handleType(ctx, nodeMember.type, nodeMember.name.value)
+        const memberType = handleType(ctx, nodeMember.type, null, nodeMember.name.value)
         const ref = Type.createRef(nodeMember.name.value, memberType)
         type.members[n] = ref
         type.membersDict[ref.name] = ref
@@ -155,15 +156,16 @@ function resolveTypeAlias(ctx: Context, node: Node.TypeAliasDeclaration, typeAli
 
         for (let n = 0; n < typeParams.length; n++) {
             const typeParam = typeParams[n]
-            const constaint = handleType(ctx, typeParam.constraint)
+            const constraint = handleType(ctx, typeParam.constraint)
             params[n] = {
                 name: typeParam.name.value,
-                type: constaint,
+                type: constraint,
             }
         }
     }
 
-    typeAlias.type = handleType(ctx, node.type, "", params)
+    typeAlias.params = params
+    typeAlias.type = handleType(ctx, node.type, params)
     typeAlias.flags |= Type.Flag.Resolved
 }
 
@@ -271,7 +273,7 @@ function getType(ctx: Context, name: string): Type.Any | null {
     return null
 }
 
-export function handleType(ctx: Context, type: TypeNode.Any | null = null, name = "", params: Type.Parameter[] | null = null): Type.Any {
+export function handleType(ctx: Context, type: TypeNode.Any | null = null, params: Type.Parameter[] | null = null, name = ""): Type.Any {
     if (!type) {
         return Type.coreAliases.unknown
     }
@@ -293,7 +295,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, name 
             return Type.coreAliases.void
 
         case "ArrayType": {
-            const elementType = handleType(ctx, type.elementType)
+            const elementType = handleType(ctx, type.elementType, params)
 
             return Type.createArray(elementType)
         }
@@ -302,7 +304,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, name 
             const types: Type.Any[] = new Array(type.types.length)
             for (let n = 0; n < type.types.length; n++) {
                 const entry = type.types[n]
-                types[n] = handleType(ctx, entry)
+                types[n] = handleType(ctx, entry, params)
             }
 
             return Type.createUnion(name, types)
@@ -325,7 +327,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, name 
             const params: Type.Parameter[] = new Array(type.params.length)
             for (let nParam = 0; nParam < type.params.length; nParam++) {
                 const param = type.params[nParam]
-                const paramType = handleType(ctx, param.type, param.name.value)
+                const paramType = handleType(ctx, param.type, null, param.name.value)
                 if (!paramType) {
                     raiseAt(ctx.module, type.start, `Parameter '${param.name.value}' implicitly has an 'any' type.`)
                 }
@@ -336,7 +338,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, name 
                 }
             }
 
-            const returnType = handleType(ctx, type.type)
+            const returnType = handleType(ctx, type.type, params)
             return Type.createFunction(name, params, returnType)
         }
 
@@ -344,7 +346,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, name 
             const members: Type.Reference[] = new Array(type.members.length)
             for (let n = 0; n < type.members.length; n++) {
                 const entry = type.members[n]
-                const entryType = handleType(ctx, entry.type, "")
+                const entryType = handleType(ctx, entry.type, params)
                 members[n] = Type.createRef(entry.name.value, entryType)
             }
 
@@ -352,7 +354,42 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, name 
         }
 
         case "MappedType": {
-            return Type.createMappedType(name, params)
+            if (!params) {
+                raiseAt(ctx.module, type.start, `Missing parameters`)
+            }
+
+            let mappedTypeParam: Type.Any | null = null
+            let mappedType: Type.Any | null = null
+
+            const constraint = type.typeParam.constraint
+            if (!constraint || constraint.kind !== "TypeReference") {
+                raiseAt(ctx.module, type.start, `TODO`)
+            }
+            if (type.type.kind !== "TypeReference") {
+                raiseAt(ctx.module, type.start, `TODO`)
+            }
+
+            for (const param of params) {
+                if (param.name === constraint.name.value) {
+                    mappedTypeParam = param.type
+                    break
+                }
+            }
+            if (!mappedTypeParam) {
+                raiseAt(ctx.module, constraint.name.start, `Cannot find name '${constraint.name.value}'`)
+            }
+
+            for (const param of params) {
+                if (param.name === type.type.name.value) {
+                    mappedType = param.type
+                    break
+                }
+            }
+            if (!mappedType) {
+                raiseAt(ctx.module, type.type.name.start, `Cannot find name '${type.type.name.value}'`)
+            }
+
+            return Type.createMappedType(mappedTypeParam, mappedType)
         }
 
         default: {
@@ -362,38 +399,27 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, name 
             }
 
             if (typeFound.kind === Type.Kind.type) {
-                const innerType = typeFound.type
-
-                if (innerType.kind === Type.Kind.mapped && innerType.params) {
-                    if (type.kind !== "TypeReference" || !type.typeArgs || innerType.params.length !== type.typeArgs.length) {
+                if (typeFound.params) {
+                    if (type.kind !== "TypeReference" || !type.typeArgs || typeFound.params.length !== type.typeArgs.length) {
                         raiseAt(
                             ctx.module,
                             type.start,
-                            `Generic type '${typeFound.name}' requires ${innerType.params.length} type argument(s).`
+                            `Generic type '${typeFound.name}' requires ${typeFound.params.length} type argument(s)`
                         )
                     }
 
-                    for (let n = 0; n < innerType.params.length; n++) {
-                        const typeParam = innerType.params[n]
+                    for (let n = 0; n < typeFound.params.length; n++) {
+                        const typeParam = typeFound.params[n]
                         const typeArg = type.typeArgs[n]
-
                         const typeParamType = typeParam.type
-                        const typeArgType = handleType(ctx, typeArg)
-                        if (typeParamType !== typeArgType) {
+                        const typeArgType = handleType(ctx, typeArg, params)
+
+                        if (typeParamType !== typeArgType && typeParamType.kind !== Type.Kind.unknown) {
                             raiseAt(
                                 ctx.module,
                                 typeArg.start,
                                 `Type '${Type.getName(typeArgType)}' does not satisfy the constraint '${Type.getName(typeParamType)}'`
                             )
-                        }
-                    }
-
-                    for (const typeArg of type.typeArgs) {
-                        if (typeArg.kind === "TypeReference") {
-                            const typeArgFound = getType(ctx, typeArg.name.value)
-                            if (!typeArgFound) {
-                                raiseAt(ctx.module, typeArg.start, `Cannot find name '${typeArg.name.value}'`)
-                            }
                         }
                     }
                 }

@@ -204,73 +204,19 @@ function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.A
     return Type.createArray(arrayType || Type.coreAliases.unknown)
 }
 
-function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number, srcType?: Type.Any): Type.Object {
+function handleObjectProperties(ctx: Context, properties: Node.Property[], srcType: Type.Any | null) {
+    // const srcMemberRef = srcType.membersDict[property.id.value]
+    // if (!srcMemberRef) {
+    //     const propertyStr = `{ ${property.id.value}: ${Type.getName(type)} }`
+    //     raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
+    // }
+    // if (!isValidType(ctx, srcMemberRef.type, type, property.start)) {
+    //     raiseTypeError(ctx, property.start, srcMemberRef.type, type, srcMemberRef.name)
+    // }
+}
+
+function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number): Type.Object {
     const properties = node.properties
-
-    if (srcType) {
-        if (srcType.kind === Type.Kind.type) {
-            srcType = srcType.type
-        }
-
-        if (srcType.kind === Type.Kind.object) {
-            const membersTypesDict: Record<string, Type.Any> = {}
-            let numMembers = 0
-
-            for (const property of properties) {
-                if (membersTypesDict[property.id.value]) {
-                    raiseAt(ctx.module, property.start, `Duplicate identifier '${property.id.value}'`)
-                }
-
-                let type: Type.Any
-
-                if (!property.value) {
-                    const valueVar = getVar(ctx, property.id.value)
-                    if (!valueVar) {
-                        raiseAt(ctx.module, node.start, `Cannot find name '${property.id.value}'`)
-                    }
-                    type = valueVar.type
-                } else {
-                    type = expressions[property.value.kind](ctx, property.value, 0)
-                }
-
-                membersTypesDict[property.id.value] = type
-                numMembers++
-
-                const srcMemberRef = srcType.membersDict[property.id.value]
-                if (!srcMemberRef) {
-                    const propertyStr = `{ ${property.id.value}: ${Type.getName(type)} }`
-                    raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
-                }
-                if (!isValidType(ctx, srcMemberRef.type, type, property.start)) {
-                    raiseTypeError(ctx, property.start, srcMemberRef.type, type, srcMemberRef.name)
-                }
-            }
-
-            if (srcType.members.length !== numMembers) {
-                for (const srcTypeMember of srcType.members) {
-                    if (!membersTypesDict[srcTypeMember.name]) {
-                        raiseAt(
-                            ctx.module,
-                            node.start,
-                            `Property '${srcTypeMember.name}' is missing in type '${getObjectSignatureName(
-                                membersTypesDict
-                            )}' but required in type '${srcType.name}'`
-                        )
-                    }
-                }
-            }
-
-            return srcType
-        }
-
-        if (srcType.kind === Type.Kind.mapped) {
-            console.log("here")
-            // return srcType
-        }
-
-        raiseAt(ctx.module, node.start, `Type '{}' is not assignable to type '${Type.getName(srcType)}'`)
-    }
-
     const members: Type.Reference[] = new Array(properties.length)
     const membersDict: Record<string, Type.Reference> = {}
 
@@ -545,7 +491,7 @@ function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, f
         const initType = expressions[node.init.kind](ctx, node.init, flags, varRef.type)
         if (varRef.type.kind === Type.Kind.unknown) {
             varRef.type = initType
-        } else if (!isValidType(ctx, varRef.type, initType, node.start)) {
+        } else if (!isValidType(ctx, varRef.type, initType, node.init.start)) {
             raiseTypeError(ctx, node.init.start, varRef.type, initType)
         }
     }
@@ -840,7 +786,22 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
         }
 
         case Type.Kind.mapped: {
-            return rightType.kind === Type.Kind.object
+            if (rightType.kind !== Type.Kind.object) {
+                return false
+            }
+            if (leftType.type.kind !== Type.Kind.unknown) {
+                let typeIsValid = false
+                for (const member of rightType.members) {
+                    if (isValidType(ctx, leftType.type, member.type, pos)) {
+                        typeIsValid = true
+                        break
+                    }
+                }
+                if (!typeIsValid) {
+                    return false
+                }
+            }
+            leftType
         }
     }
 
@@ -903,7 +864,7 @@ function declareVar(ctx: Context, node: Node.VariableDeclarator | Node.Parameter
         raiseAt(ctx.module, node.start, `Duplicate identifier '${name}'`)
     }
 
-    const type = handleType(ctx, node.type, node.id.value)
+    const type = handleType(ctx, node.type, null, node.id.value)
     const ref = Type.createRef(name, type, flags)
 
     ctx.scopeCurr.vars[name] = ref
@@ -964,14 +925,14 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     //     readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),
     // })
 
-    scope.types["Record"] = Type.createMappedType("Record", [
+    scope.types["Record"] = Type.createType("Record", [
         {
             name: "K",
             type: Type.coreAliases.string,
         },
         {
             name: "T",
-            type: Type.coreAliases.string,
+            type: Type.coreAliases.unknown,
         },
     ])
 

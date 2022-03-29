@@ -33,6 +33,7 @@ export interface Type {
     name: string
     kind: Kind.type
     type: Any
+    params: Parameter[] | null
     flags: number
 }
 
@@ -72,8 +73,8 @@ export interface EnumMember {
 
 export interface Mapped {
     kind: Kind.mapped
-    name: string
-    params: Parameter[] | null
+    typeParameter: Any
+    type: Any
 }
 
 export interface Object {
@@ -103,16 +104,16 @@ export function createDefaultType(name: string, kind: DefaultKind): Default {
     return { name, kind }
 }
 
-export function createType(name: string): Type {
-    return { name, kind: Kind.type, type: coreAliases.unknown, flags: 0 }
+export function createType(name: string, params: Parameter[] | null = null, type: Any = coreAliases.unknown): Type {
+    return { name, kind: Kind.type, params, type, flags: 0 }
 }
 
 export function createUnion(name: string, types: Any[]): Union {
     return { name, kind: Kind.union, types }
 }
 
-export function createMappedType(name: string, params: Parameter[] | null): Mapped {
-    return { name, kind: Kind.mapped, params }
+export function createMappedType(typeParameter: Any, type: Any): Mapped {
+    return { kind: Kind.mapped, typeParameter, type }
 }
 
 export function createArray(elementType: Any): Array {
@@ -215,7 +216,41 @@ export function getName(type: Any): string {
                     result = `${member.name}: ${getName(member.type)}`
                 }
             }
+
             return result ? `{ ${result} }` : "{}"
+        }
+
+        case Kind.type: {
+            if (type.params) {
+                let paramOutput = ""
+                for (const param of type.params) {
+                    if (paramOutput) {
+                        paramOutput += `, ${getName(param.type)}`
+                    } else {
+                        paramOutput = getName(param.type)
+                    }
+                }
+                return `${type.name}<${paramOutput}>`
+            }
+
+            return type.name
+        }
+
+        case Kind.union: {
+            let output = ""
+            for (const entry of type.types) {
+                if (output) {
+                    output += ` | ${getName(entry)}`
+                } else {
+                    output = getName(entry)
+                }
+            }
+
+            return output
+        }
+
+        case Kind.mapped: {
+            return ""
         }
     }
 
