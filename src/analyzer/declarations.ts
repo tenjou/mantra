@@ -307,7 +307,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
                 types[n] = handleType(ctx, entry, params)
             }
 
-            return Type.createUnion(name, types)
+            return Type.createUnion(types)
         }
 
         case "QualifiedName": {

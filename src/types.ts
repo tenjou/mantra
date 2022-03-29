@@ -38,7 +38,6 @@ export interface Type {
 }
 
 export interface Union {
-    name: string
     kind: Kind.union
     types: Any[]
 }
@@ -108,8 +107,8 @@ export function createType(name: string, params: Parameter[] | null = null, type
     return { name, kind: Kind.type, params, type, flags: 0 }
 }
 
-export function createUnion(name: string, types: Any[]): Union {
-    return { name, kind: Kind.union, types }
+export function createUnion(types: Any[]): Union {
+    return { kind: Kind.union, types }
 }
 
 export function createMappedType(typeParameter: Any, type: Any): Mapped {

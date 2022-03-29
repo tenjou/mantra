@@ -792,7 +792,7 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
             if (leftType.type.kind !== Type.Kind.unknown) {
                 let typeIsValid = false
                 for (const member of rightType.members) {
-                    if (isValidType(ctx, leftType.type, member.type, pos)) {
+                    if (leftType.type === member.type || isValidType(ctx, leftType.type, member.type, pos)) {
                         typeIsValid = true
                         break
                     }
@@ -801,7 +801,8 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
                     return false
                 }
             }
-            leftType
+
+            return true
         }
     }
 
