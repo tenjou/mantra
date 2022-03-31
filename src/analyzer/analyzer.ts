@@ -204,21 +204,11 @@ function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.A
     return Type.createArray(arrayType || Type.coreAliases.unknown)
 }
 
-function handleObjectProperties(ctx: Context, properties: Node.Property[], srcType: Type.Any | null) {
-    // const srcMemberRef = srcType.membersDict[property.id.value]
-    // if (!srcMemberRef) {
-    //     const propertyStr = `{ ${property.id.value}: ${Type.getName(type)} }`
-    //     raiseAt(ctx.module, property.start, `Type '${propertyStr}' is not assignable to type '${srcType.name}'`)
-    // }
-    // if (!isValidType(ctx, srcMemberRef.type, type, property.start)) {
-    //     raiseTypeError(ctx, property.start, srcMemberRef.type, type, srcMemberRef.name)
-    // }
-}
-
 function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags: number): Type.Object {
     const properties = node.properties
     const members: Type.Reference[] = new Array(properties.length)
     const membersDict: Record<string, Type.Reference> = {}
+    const keyTypes: Type.Any[] = []
 
     for (let n = 0; n < properties.length; n++) {
         const property = properties[n]
@@ -789,6 +779,7 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
             if (rightType.kind !== Type.Kind.object) {
                 return false
             }
+
             if (leftType.type.kind !== Type.Kind.unknown) {
                 let typeIsValid = false
                 for (const member of rightType.members) {
@@ -807,19 +798,6 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
     }
 
     return leftType === rightType
-}
-
-function getObjectSignatureName(membersDict: Record<string, Type.Any>) {
-    let result = ""
-    for (const memberName in membersDict) {
-        const memberType = membersDict[memberName]
-        if (result) {
-            result += `, ${memberName}: ${Type.getName(memberType)}`
-        } else {
-            result = `${memberName}: ${Type.getName(memberType)}`
-        }
-    }
-    return result ? `{ ${result} }` : "{}"
 }
 
 function raiseTypeError(ctx: Context, start: number, leftType: Type.Any, rightType: Type.Any, name: string = "") {
@@ -872,21 +850,6 @@ function declareVar(ctx: Context, node: Node.VariableDeclarator | Node.Parameter
 
     return ref
 }
-
-function getEnumValue(ctx: Context, node: Node.Expression): string {
-    switch (node.kind) {
-        case "Literal":
-        case "NumericLiteral":
-            return node.value
-    }
-
-    raiseAt(ctx.module, node.start, `Unsupported argument value`)
-}
-
-// function declareModule(ctx: Context, alias: string, refs: Object) {
-//     ctx.modules[alias] = createModule(null, "", "", "", alias)
-//     ctx.modulesExports[alias] = refs
-// }
 
 export function analyze(config: Config, module: Module, modules: Record<string, Module>) {
     const scope = createScope()

@@ -162,11 +162,12 @@ export function createRef(name: string, type: Any, flags: number = 0): Reference
 }
 
 const numberType = createObject("Number", [], Kind.number)
+const stringType = createObject("String", [createFunctionRef("charCodeAt", { index: numberType }, numberType)], Kind.string)
 
 export const coreAliases: Record<string, Any> = {
     unknown: createDefaultType("unknown", Kind.unknown),
     number: numberType,
-    string: createObject("String", [createFunctionRef("charCodeAt", { index: numberType }, numberType)], Kind.string),
+    string: stringType,
     boolean: createObject("boolean", [], Kind.boolean),
     null: createDefaultType("null", Kind.null),
     void: createDefaultType("void", Kind.void),
