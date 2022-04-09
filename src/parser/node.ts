@@ -135,12 +135,6 @@ export interface ExportNamedDeclaration extends Node {
     source: null
 }
 
-export interface PropertyAccessExpression extends Node {
-    kind: "PropertyAccessExpression"
-    expression: Identifier | PropertyAccessExpression
-    name: Identifier
-}
-
 export interface Parameter extends Node {
     kind: "Parameter"
     id: Identifier
@@ -172,17 +166,26 @@ export interface VariableDeclarator extends Node {
     type: TypeNode.Any | null
 }
 
-export interface Property extends Node {
-    kind: "Property"
-    id: Identifier | NumericLiteral
-    value: Expression | null
-    computed: boolean
-    op: "init"
+export interface PropertyAssignment extends Node {
+    kind: "PropertyAssignment"
+    name: Identifier | NumericLiteral | ComputedPropertyName
+    initializer: Expression | null
+}
+
+export interface PropertyAccessExpression extends Node {
+    kind: "PropertyAccessExpression"
+    expression: Identifier | PropertyAccessExpression
+    name: Identifier
+}
+
+export interface ComputedPropertyName extends Node {
+    kind: "ComputedPropertyName"
+    expression: Identifier | PropertyAccessExpression
 }
 
 export interface ObjectExpression extends Node {
     kind: "ObjectExpression"
-    properties: Property[]
+    properties: PropertyAssignment[]
     type: TypeNode.Any | null
 }
 

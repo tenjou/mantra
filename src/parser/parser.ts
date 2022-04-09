@@ -151,6 +151,10 @@ function parseExpressionAtom(ctx: ParserContext): Node.Expression {
             return parseTemplate(ctx)
     }
 
+    if (ctx.kind.keyword) {
+        return parseIdentifier(ctx)
+    }
+
     unexpected(ctx, ctx.start)
 }
 
@@ -780,46 +784,53 @@ function parseArrowFunction(ctx: ParserContext): Node.ArrowFunction {
     }
 }
 
-function parseProperty(ctx: ParserContext): Node.Property {
+function parseProperty(ctx: ParserContext): Node.PropertyAssignment {
     const start = ctx.start
 
-    let id: Node.Identifier | Node.NumericLiteral
-    let computed = false
+    let name: Node.Identifier | Node.NumericLiteral | Node.ComputedPropertyName
+    let shouldHaveInitializer = false
 
-    // if (eat(ctx, kinds.bracketL)) {
-    //     key = parseMaybeAssign(ctx)
-    //     computed = true
-    //     expect(ctx, kinds.bracketR)
-    // } else if (ctx.kind === kinds.string || ctx.kind === kinds.number) {
-    //     key = parseExpressionAtom(ctx)
-    // } else {
-    if (ctx.kind === kinds.name) {
-        id = parseIdentifier(ctx)
+    if (eat(ctx, kinds.bracketL)) {
+        const id = parseIdentifier(ctx)
+
+        if (eat(ctx, kinds.dot)) {
+            const expression = parsePropertyAccessExpression(ctx, id)
+
+            shouldHaveInitializer = true
+            name = {
+                kind: "ComputedPropertyName",
+                start,
+                end: ctx.end,
+                expression,
+            }
+        } else {
+            name = id
+        }
+
+        expect(ctx, kinds.bracketR)
+    } else if (ctx.kind === kinds.name) {
+        name = parseIdentifier(ctx)
     } else {
-        id = parseNumericLiteral(ctx)
+        name = parseNumericLiteral(ctx)
     }
 
-    // }
-
-    let value: Node.Expression | null = null
-    if (eat(ctx, kinds.colon)) {
-        value = parseMaybeAssign(ctx)
+    let initializer: Node.Expression | null = null
+    if (shouldHaveInitializer ? expect(ctx, kinds.colon) : eat(ctx, kinds.colon)) {
+        initializer = parseMaybeAssign(ctx)
     }
 
     return {
-        kind: "Property",
+        kind: "PropertyAssignment",
         start,
         end: ctx.end,
-        id,
-        value,
-        computed,
-        op: "init",
+        name,
+        initializer,
     }
 }
 
 function parseObjectExpression(ctx: ParserContext): Node.ObjectExpression {
     const start = ctx.start
-    const properties: Node.Property[] = []
+    const properties: Node.PropertyAssignment[] = []
 
     nextToken(ctx)
 

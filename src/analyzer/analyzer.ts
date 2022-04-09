@@ -170,8 +170,8 @@ import { loadExterns } from "./externs"
 
 function handlePropertyAccessExpression(ctx: Context, node: Node.PropertyAccessExpression): Type.Any {
     const expressionType = expressions[node.expression.kind](ctx, node.expression, 0)
-    if (expressionType.kind !== Type.Kind.enum) {
-        raiseAt(ctx.module, node.expression.start, `Expected enum but instead got: ${Type.getName(expressionType)}`)
+    if (expressionType.kind !== Type.Kind.object && expressionType.kind !== Type.Kind.enum) {
+        raiseAt(ctx.module, node.expression.start, `Expected object but instead got: ${Type.getName(expressionType)}`)
     }
 
     const member = expressionType.membersDict[node.name.value]
@@ -208,32 +208,47 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
     const properties = node.properties
     const members: Type.Reference[] = new Array(properties.length)
     const membersDict: Record<string, Type.Reference> = {}
-    const keyTypes: Type.Any[] = []
 
     for (let n = 0; n < properties.length; n++) {
         const property = properties[n]
-        if (membersDict[property.id.value]) {
-            raiseAt(ctx.module, property.start, `Duplicate identifier '${property.id.value}'`)
-        }
 
-        let type: Type.Any
-        if (property.value) {
-            type = expressions[property.value.kind](ctx, property.value, 0)
-        } else {
-            const ref = getVar(ctx, property.id.value)
-            if (!ref) {
-                raiseAt(
-                    ctx.module,
-                    property.start,
-                    `No value exists in scope for the shorthand property '${property.id.value}'. Either declare one or provide an initializer.`
-                )
+        switch (property.name.kind) {
+            case "Identifier":
+            case "NumericLiteral": {
+                if (membersDict[property.name.value]) {
+                    raiseAt(ctx.module, property.start, `Duplicate identifier '${property.name.value}'`)
+                }
+
+                let type: Type.Any
+                if (property.initializer) {
+                    type = expressions[property.initializer.kind](ctx, property.initializer, 0)
+                } else {
+                    const ref = getVar(ctx, property.name.value)
+                    if (!ref) {
+                        raiseAt(
+                            ctx.module,
+                            property.start,
+                            `No value exists in scope for the shorthand property '${property.name.value}'. Either declare one or provide an initializer.`
+                        )
+                    }
+                    type = ref.type
+                }
+
+                const ref = Type.createRef(property.name.value, type, flags)
+                members[n] = ref
+                membersDict[property.name.value] = ref
+                break
             }
-            type = ref.type
-        }
 
-        const ref = Type.createRef(property.id.value, type, flags)
-        members[n] = ref
-        membersDict[property.id.value] = ref
+            case "ComputedPropertyName": {
+                if (!property.initializer) {
+                    raiseAt(ctx.module, property.start, `Missing initializer`)
+                }
+                const type = expressions[property.name.expression.kind](ctx, property.name.expression, 0)
+                const valueType = expressions[property.initializer.kind](ctx, property.initializer, 0)
+                break
+            }
+        }
     }
 
     return {
@@ -385,7 +400,7 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
     for (let n = 0; n < node.args.length; n++) {
         const arg = node.args[n]
         const argType = expressions[arg.kind](ctx, arg, 0)
-        const paramType = calleeType.params[n].type
+        const paramType = calleeType.params[n].constraint
 
         if (!isValidType(ctx, paramType, argType, arg.start)) {
             isValidType(ctx, paramType, argType, arg.start)
@@ -708,8 +723,8 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
             }
 
             for (let nArg = 0; nArg < leftParams.length; nArg++) {
-                const leftParam = leftParams[nArg].type
-                const rightParam = rightParams[nArg].type
+                const leftParam = leftParams[nArg].constraint
+                const rightParam = rightParams[nArg].constraint
                 if (leftParam.kind !== rightParam.kind) {
                     raiseTypeError(ctx, pos, leftType, rightType)
                 }
@@ -780,10 +795,10 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
                 return false
             }
 
-            if (leftType.type.kind !== Type.Kind.unknown) {
+            if (leftType.type.kind !== Type.Kind.unknown && rightType.members.length > 0) {
                 let typeIsValid = false
                 for (const member of rightType.members) {
-                    if (leftType.type === member.type || isValidType(ctx, leftType.type, member.type, pos)) {
+                    if (leftType.typeParameter === member.type || isValidType(ctx, leftType.typeParameter, member.type, pos)) {
                         typeIsValid = true
                         break
                     }
@@ -892,11 +907,11 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     scope.types["Record"] = Type.createType("Record", [
         {
             name: "K",
-            type: Type.coreAliases.string,
+            constraint: Type.createUnion([Type.coreAliases.string, Type.coreAliases.number]),
         },
         {
             name: "T",
-            type: Type.coreAliases.unknown,
+            constraint: Type.coreAliases.unknown,
         },
     ])
 

@@ -65,9 +65,10 @@ export interface Enum {
 }
 
 export interface EnumMember {
-    name: string
     kind: Kind.enumMember
     enum: Enum
+    name: string
+    value: string | number
 }
 
 export interface Mapped {
@@ -84,9 +85,14 @@ export interface Object {
     flags: number
 }
 
+export interface ObjectMember {
+    key: Reference
+    value: Reference
+}
+
 export interface Parameter {
     name: string
-    type: Any
+    constraint: Any
 }
 
 export type Any = Default | Type | Union | Array | Function | Object | Enum | EnumMember | Mapped
@@ -123,8 +129,8 @@ export function createEnum(name: string, enumType: Kind.number | Kind.string, me
     return { name, kind: Kind.enum, enumType, membersDict }
 }
 
-export function createEnumMember(name: string, srcEnum: Enum): EnumMember {
-    return { name, kind: Kind.enumMember, enum: srcEnum }
+export function createEnumMember(srcEnum: Enum, name: string, value: string | number): EnumMember {
+    return { kind: Kind.enumMember, enum: srcEnum, name, value }
 }
 
 export function createFunction(name: string, params: Parameter[], returnType: Any): Function {
@@ -137,7 +143,7 @@ export function createFunctionRef(name: string, paramsDict: Record<string, Any>,
         const paramType = paramsDict[paramName]
         params.push({
             name: paramName,
-            type: paramType,
+            constraint: paramType,
         })
     }
 
@@ -225,9 +231,9 @@ export function getName(type: Any): string {
                 let paramOutput = ""
                 for (const param of type.params) {
                     if (paramOutput) {
-                        paramOutput += `, ${getName(param.type)}`
+                        paramOutput += `, ${getName(param.constraint)}`
                     } else {
-                        paramOutput = getName(param.type)
+                        paramOutput = getName(param.constraint)
                     }
                 }
                 return `${type.name}<${paramOutput}>`

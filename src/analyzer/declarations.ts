@@ -119,7 +119,7 @@ function resolveFunctionParams(ctx: Context, nodeParams: Node.Parameter[], type:
 
         type.params[n] = {
             name: nodeParam.id.value,
-            type: paramType,
+            constraint: paramType,
         }
     }
 
@@ -159,7 +159,7 @@ function resolveTypeAlias(ctx: Context, node: Node.TypeAliasDeclaration, typeAli
             const constraint = handleType(ctx, typeParam.constraint)
             params[n] = {
                 name: typeParam.name.value,
-                type: constraint,
+                constraint: constraint,
             }
         }
     }
@@ -215,7 +215,8 @@ function declareEnum(ctx: Context, node: Node.EnumDeclaration): void {
                     raiseAt(ctx.module, member.start, `Duplicate identifier '${member.name.value}'`)
                 }
 
-                members[member.name.value] = Type.createRef(member.name.value, Type.createEnumMember(member.name.value, enumDef))
+                const enumMember = Type.createEnumMember(enumDef, member.name.value, member.initializer.value)
+                members[member.name.value] = Type.createRef(member.name.value, enumMember)
                 values[member.initializer.value] = true
             }
             break
@@ -237,7 +238,8 @@ function declareEnum(ctx: Context, node: Node.EnumDeclaration): void {
                     index = parseInt(member.initializer.value)
                 }
 
-                members[member.name.value] = Type.createRef(member.name.value, Type.createEnumMember(member.name.value, enumDef))
+                const enumMember = Type.createEnumMember(enumDef, member.name.value, index)
+                members[member.name.value] = Type.createRef(member.name.value, enumMember)
                 values[index++] = true
             }
             break
@@ -334,7 +336,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
 
                 params[nParam] = {
                     name: param.name.value,
-                    type: paramType,
+                    constraint: paramType,
                 }
             }
 
@@ -371,7 +373,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
 
             for (const param of params) {
                 if (param.name === constraint.name.value) {
-                    mappedTypeParam = param.type
+                    mappedTypeParam = param.constraint
                     break
                 }
             }
@@ -381,7 +383,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
 
             for (const param of params) {
                 if (param.name === type.type.name.value) {
-                    mappedType = param.type
+                    mappedType = param.constraint
                     break
                 }
             }
@@ -411,7 +413,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
                     for (let n = 0; n < typeFound.params.length; n++) {
                         const typeParam = typeFound.params[n]
                         const typeArg = type.typeArgs[n]
-                        const typeParamType = typeParam.type
+                        const typeParamType = typeParam.constraint
                         const typeArgType = handleType(ctx, typeArg, params)
 
                         if (typeParamType !== typeArgType && typeParamType.kind !== Type.Kind.unknown) {

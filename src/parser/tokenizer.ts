@@ -408,8 +408,8 @@ export function eat(ctx: ParserContext, kind: Token): boolean {
     return false
 }
 
-export function expect(ctx: ParserContext, kind: Token): void {
-    eat(ctx, kind) || unexpected(ctx, ctx.pos)
+export function expect(ctx: ParserContext, kind: Token): boolean {
+    return eat(ctx, kind) || unexpected(ctx, ctx.pos, kind.label)
 }
 
 function eatContextual(ctx: ParserContext, str: string): boolean {
