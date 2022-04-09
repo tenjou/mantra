@@ -416,7 +416,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
                         const typeParamType = typeParam.constraint
                         const typeArgType = handleType(ctx, typeArg, params)
 
-                        if (typeParamType !== typeArgType && typeParamType.kind !== Type.Kind.unknown) {
+                        if (!haveMatchingTypes(typeParamType, typeArgType)) {
                             raiseAt(
                                 ctx.module,
                                 typeArg.start,
@@ -430,4 +430,20 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
             return typeFound
         }
     }
+}
+
+function haveMatchingTypes(typeA: Type.Any, typeB: Type.Any) {
+    if (typeA.kind === Type.Kind.unknown || typeA === typeB) {
+        return true
+    }
+
+    if (typeA.kind === Type.Kind.union) {
+        for (const entry of typeA.types) {
+            if (haveMatchingTypes(entry, typeB)) {
+                return true
+            }
+        }
+    }
+
+    return false
 }
