@@ -403,7 +403,6 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
         const paramType = calleeType.params[n].constraint
 
         if (!isValidType(ctx, paramType, argType, arg.start)) {
-            isValidType(ctx, paramType, argType, arg.start)
             raiseTypeError(ctx, arg.start, paramType, argType)
         }
     }
@@ -669,6 +668,9 @@ function handleNoop(_ctx: Context, _node: Node.Statement): void {}
 
 function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos: number, shallowCheck: boolean = false): boolean {
     switch (leftType.kind) {
+        case Type.Kind.unknown:
+            return true
+
         case Type.Kind.type: {
             if (leftType === rightType) {
                 return true
