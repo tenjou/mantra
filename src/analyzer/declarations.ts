@@ -424,6 +424,8 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
                             )
                         }
                     }
+
+                    return Type.createMappedType(Type.coreAliases.string, Type.coreAliases.string)
                 }
             }
 

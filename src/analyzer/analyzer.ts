@@ -403,6 +403,7 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
         const paramType = calleeType.params[n].constraint
 
         if (!isValidType(ctx, paramType, argType, arg.start)) {
+            isValidType(ctx, paramType, argType, arg.start)
             raiseTypeError(ctx, arg.start, paramType, argType)
         }
     }
@@ -428,14 +429,14 @@ function handleMemberExpression(ctx: Context, node: Node.MemberExpression): Type
             case "Identifier": {
                 const propRef = type.membersDict[property.value]
                 if (!propRef) {
-                    raiseAt(ctx.module, node.property.start, `Property '${property.value}' does not exist on type '${type.name}'`)
+                    raiseAt(ctx.module, property.start, `Property '${property.value}' does not exist on type '${type.name}'`)
                 }
                 return propRef.type
             }
         }
     }
 
-    raiseAt(ctx.module, property.start, "TODO")
+    raiseAt(ctx.module, node.start, "TODO")
 }
 
 function handleReturnStatement(ctx: Context, node: Node.ReturnStatement): void {
@@ -492,12 +493,13 @@ function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, f
     const varRef = declareVar(ctx, node, flags)
 
     if (node.init) {
-        const initType = expressions[node.init.kind](ctx, node.init, flags, varRef.type)
-        if (varRef.type.kind === Type.Kind.unknown) {
-            varRef.type = initType
-        } else if (!isValidType(ctx, varRef.type, initType, node.init.start)) {
-            raiseTypeError(ctx, node.init.start, varRef.type, initType)
+        const initType = expressions[node.init.kind](ctx, node.init, flags)
+
+        if (varRef.type.kind !== Type.Kind.unknown && !isValidType(ctx, varRef.type, initType, node.init.start)) {
+            raiseTypeError(ctx, node.start, varRef.type, initType)
         }
+
+        varRef.type = initType
     }
 
     if (flags & Flags.Exported) {
@@ -798,10 +800,10 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
             }
 
             if (leftType.type.kind !== Type.Kind.unknown && rightType.members.length > 0) {
-                let typeIsValid = false
+                let typeIsValid = true
                 for (const member of rightType.members) {
-                    if (leftType.typeParameter === member.type || isValidType(ctx, leftType.typeParameter, member.type, pos)) {
-                        typeIsValid = true
+                    if (leftType.typeParameter !== member.type && !isValidType(ctx, leftType.typeParameter, member.type, pos)) {
+                        typeIsValid = false
                         break
                     }
                 }
@@ -906,16 +908,20 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     //     readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),
     // })
 
-    scope.types["Record"] = Type.createType("Record", [
-        {
-            name: "K",
-            constraint: Type.createUnion([Type.coreAliases.string, Type.coreAliases.number]),
-        },
-        {
-            name: "T",
-            constraint: Type.coreAliases.unknown,
-        },
-    ])
+    scope.types["Record"] = Type.createType(
+        "Record",
+        [
+            {
+                name: "K",
+                constraint: Type.createUnion([Type.coreAliases.string, Type.coreAliases.number]),
+            },
+            {
+                name: "T",
+                constraint: Type.coreAliases.unknown,
+            },
+        ],
+        Type.createMappedType(Type.createUnion([Type.coreAliases.string, Type.coreAliases.number]), Type.coreAliases.unknown)
+    )
 
     handleStatements(ctx, module.program.body)
 
