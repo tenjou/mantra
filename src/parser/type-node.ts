@@ -41,7 +41,7 @@ export interface Parameter extends TypeNode {
 export interface TypeParameter extends TypeNode {
     kind: "TypeParameter"
     name: Identifier
-    constraint: Any | null
+    constraint: Any
 }
 
 export interface Function extends TypeNode {

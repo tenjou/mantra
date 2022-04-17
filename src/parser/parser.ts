@@ -1201,6 +1201,10 @@ function parseTypeParameter(ctx: ParserContext): TypeNode.TypeParameter {
         constraint = parseTypeAnnotation(ctx)
     }
 
+    if (!constraint) {
+        raiseAt(ctx, start, "TODO")
+    }
+
     return {
         kind: "TypeParameter",
         name,

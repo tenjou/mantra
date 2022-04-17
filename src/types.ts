@@ -27,6 +27,7 @@ type ObjectKind = Kind.object | Kind.string | Kind.number | Kind.boolean
 export interface Default {
     name: string
     kind: DefaultKind
+    param: string | null
 }
 
 export interface Type {
@@ -34,17 +35,20 @@ export interface Type {
     kind: Kind.type
     type: Any
     params: Parameter[] | null
+    param: string | null
     flags: number
 }
 
 export interface Union {
     kind: Kind.union
     types: Any[]
+    param: string | null
 }
 
 export interface Array {
     kind: Kind.array
     elementType: Any
+    param: string | null
 }
 
 export interface Function {
@@ -54,6 +58,7 @@ export interface Function {
     returnType: Any
     argsMin: number
     argsMax: number
+    param: string | null
     flags: number
 }
 
@@ -62,6 +67,7 @@ export interface Enum {
     kind: Kind.enum
     enumType: Kind.number | Kind.string
     membersDict: Record<string, Reference>
+    param: string | null
 }
 
 export interface EnumMember {
@@ -69,12 +75,14 @@ export interface EnumMember {
     enum: Enum
     name: string
     value: string | number
+    param: string | null
 }
 
 export interface Mapped {
     kind: Kind.mapped
     typeParameter: Any
     type: Any
+    param: string | null
 }
 
 export interface Object {
@@ -82,12 +90,14 @@ export interface Object {
     name: string
     members: Reference[]
     membersDict: Record<string, Reference>
+    param: string | null
     flags: number
 }
 
 export interface ObjectMember {
     key: Reference
     value: Reference
+    param: string | null
 }
 
 export interface Parameter {
@@ -106,35 +116,35 @@ export interface Reference {
 export const TypeKindNamed = Object.keys(Kind)
 
 export function createDefaultType(name: string, kind: DefaultKind): Default {
-    return { name, kind }
+    return { name, kind, param: null }
 }
 
 export function createType(name: string, params: Parameter[] | null = null, type: Any = coreAliases.unknown): Type {
-    return { name, kind: Kind.type, params, type, flags: 0 }
+    return { name, kind: Kind.type, params, type, param: null, flags: 0 }
 }
 
 export function createUnion(types: Any[]): Union {
-    return { kind: Kind.union, types }
+    return { kind: Kind.union, types, param: null }
 }
 
 export function createMappedType(typeParameter: Any, type: Any): Mapped {
-    return { kind: Kind.mapped, typeParameter, type }
+    return { kind: Kind.mapped, typeParameter, type, param: null }
 }
 
 export function createArray(elementType: Any): Array {
-    return { kind: Kind.array, elementType }
+    return { kind: Kind.array, elementType, param: null }
 }
 
 export function createEnum(name: string, enumType: Kind.number | Kind.string, membersDict: Record<string, Reference>): Enum {
-    return { name, kind: Kind.enum, enumType, membersDict }
+    return { name, kind: Kind.enum, enumType, membersDict, param: null }
 }
 
 export function createEnumMember(srcEnum: Enum, name: string, value: string | number): EnumMember {
-    return { kind: Kind.enumMember, enum: srcEnum, name, value }
+    return { kind: Kind.enumMember, enum: srcEnum, name, value, param: null }
 }
 
 export function createFunction(name: string, params: Parameter[], returnType: Any): Function {
-    return { name, kind: Kind.function, params, returnType, argsMin: params.length, argsMax: params.length, flags: 0 }
+    return { name, kind: Kind.function, params, returnType, argsMin: params.length, argsMax: params.length, param: null, flags: 0 }
 }
 
 export function createFunctionRef(name: string, paramsDict: Record<string, Any>, returnType: Any): Reference {
@@ -156,7 +166,7 @@ export function createObject(name: string, members: Reference[], kind: ObjectKin
         membersDict[member.name] = member
     }
 
-    return { kind, name, members, membersDict, flags: 0 }
+    return { kind, name, members, membersDict, param: null, flags: 0 }
 }
 
 export function createObjectRef(name: string, members: Reference[], kind: ObjectKind = Kind.object): Reference {
@@ -256,7 +266,7 @@ export function getName(type: Any): string {
         }
 
         case Kind.mapped: {
-            return ""
+            return `<${getName(type.typeParameter)}, ${getName(type.type)}>`
         }
     }
 

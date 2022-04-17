@@ -1,4 +1,3 @@
-import { constants } from "buffer"
 import { raiseAt } from "../error"
 import * as Node from "../parser/node"
 import * as TypeNode from "../parser/type-node"
@@ -356,40 +355,8 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
         }
 
         case "MappedType": {
-            if (!params) {
-                raiseAt(ctx.module, type.start, `Missing parameters`)
-            }
-
-            let mappedTypeParam: Type.Any | null = null
-            let mappedType: Type.Any | null = null
-
-            const constraint = type.typeParam.constraint
-            if (!constraint || constraint.kind !== "TypeReference") {
-                raiseAt(ctx.module, type.start, `TODO`)
-            }
-            if (type.type.kind !== "TypeReference") {
-                raiseAt(ctx.module, type.start, `TODO`)
-            }
-
-            for (const param of params) {
-                if (param.name === constraint.name.value) {
-                    mappedTypeParam = param.constraint
-                    break
-                }
-            }
-            if (!mappedTypeParam) {
-                raiseAt(ctx.module, constraint.name.start, `Cannot find name '${constraint.name.value}'`)
-            }
-
-            for (const param of params) {
-                if (param.name === type.type.name.value) {
-                    mappedType = param.constraint
-                    break
-                }
-            }
-            if (!mappedType) {
-                raiseAt(ctx.module, type.type.name.start, `Cannot find name '${type.type.name.value}'`)
-            }
+            const mappedTypeParam = handleType(ctx, type.typeParam.constraint, params)
+            const mappedType = handleType(ctx, type.type, params)
 
             return Type.createMappedType(mappedTypeParam, mappedType)
         }
@@ -401,37 +368,44 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
             }
 
             if (typeFound.kind === Type.Kind.type) {
-                if (typeFound.params) {
-                    if (type.kind !== "TypeReference" || !type.typeArgs || typeFound.params.length !== type.typeArgs.length) {
-                        raiseAt(
-                            ctx.module,
-                            type.start,
-                            `Generic type '${typeFound.name}' requires ${typeFound.params.length} type argument(s)`
-                        )
-                    }
-
-                    for (let n = 0; n < typeFound.params.length; n++) {
-                        const typeParam = typeFound.params[n]
-                        const typeArg = type.typeArgs[n]
-                        const typeParamType = typeParam.constraint
-                        const typeArgType = handleType(ctx, typeArg, params)
-
-                        if (!haveMatchingTypes(typeParamType, typeArgType)) {
-                            raiseAt(
-                                ctx.module,
-                                typeArg.start,
-                                `Type '${Type.getName(typeArgType)}' does not satisfy the constraint '${Type.getName(typeParamType)}'`
-                            )
-                        }
-                    }
-
-                    return Type.createMappedType(Type.coreAliases.string, Type.coreAliases.string)
-                }
+                return applyTypeParams(ctx, type, typeFound)
             }
 
             return typeFound
         }
     }
+}
+
+function applyTypeParams(ctx: Context, type: TypeNode.Any, typeFound: Type.Type) {
+    if (!typeFound.params) {
+        if (type.kind === "TypeReference") {
+            if (type.typeArgs) {
+                raiseAt(ctx.module, type.start, `Type '${type.name.value}' is not generic`)
+            }
+        }
+        return typeFound.type
+    }
+
+    if (type.kind !== "TypeReference" || !type.typeArgs || typeFound.params.length !== type.typeArgs.length) {
+        raiseAt(ctx.module, type.start, `Generic type '${typeFound.name}' requires ${typeFound.params.length} type argument(s)`)
+    }
+
+    for (let n = 0; n < typeFound.params.length; n++) {
+        const typeParam = typeFound.params[n]
+        const typeArg = type.typeArgs[n]
+        const typeParamType = typeParam.constraint
+        const typeArgType = handleType(ctx, typeArg)
+
+        if (!haveMatchingTypes(typeParamType, typeArgType)) {
+            raiseAt(
+                ctx.module,
+                typeArg.start,
+                `Type '${Type.getName(typeArgType)}' does not satisfy the constraint '${Type.getName(typeParamType)}'`
+            )
+        }
+    }
+
+    return Type.createMappedType(Type.coreAliases.string, Type.coreAliases.string)
 }
 
 function haveMatchingTypes(typeA: Type.Any, typeB: Type.Any) {

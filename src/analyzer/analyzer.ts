@@ -256,6 +256,7 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
         name: "",
         members,
         membersDict,
+        param: null,
         flags: 0,
     }
 }
@@ -802,7 +803,7 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
             if (leftType.type.kind !== Type.Kind.unknown && rightType.members.length > 0) {
                 let typeIsValid = true
                 for (const member of rightType.members) {
-                    if (leftType.typeParameter !== member.type && !isValidType(ctx, leftType.typeParameter, member.type, pos)) {
+                    if (leftType.typeParameter !== member.type && !isValidType(ctx, leftType.type, member.type, pos)) {
                         typeIsValid = false
                         break
                     }
