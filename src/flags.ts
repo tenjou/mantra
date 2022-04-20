@@ -3,4 +3,5 @@ export const Flags = {
     Checked: 1,
     Const: 2,
     Exported: 4,
+    Mutating: 8,
 }

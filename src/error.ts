@@ -43,6 +43,6 @@ export function getLineInfo(input: string, offset: number): LineInfo {
 
     return {
         line,
-        pos: pos,
+        pos,
     }
 }

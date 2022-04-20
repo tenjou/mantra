@@ -176,7 +176,7 @@ function handleAsExpression(ctx: Context, node: Node.AsExpression): Type.Any {
 }
 
 function handleUpdateExpression(ctx: Context, node: Node.UpdateExpression): Type.Any {
-    const argType = expressions[node.argument.kind](ctx, node.argument, 0)
+    const argType = expressions[node.argument.kind](ctx, node.argument, Flags.Mutating)
     if (argType.kind !== Type.Kind.number) {
         raiseAt(ctx.module, node.start, `An arithmetic operand must be of type 'number'.`)
     }
@@ -185,11 +185,7 @@ function handleUpdateExpression(ctx: Context, node: Node.UpdateExpression): Type
 }
 
 function handleAssignmentExpression(ctx: Context, node: Node.AssignmentExpression): Type.Any {
-    const leftType = expressions[node.left.kind](ctx, node.left, 0)
-    // if (leftType.flags & Flags.Const) {
-    //     raiseAt(ctx.module, node.left.start, `Cannot assign to '${Type.getName(leftType)}' because it is a constant`)
-    // }
-
+    const leftType = expressions[node.left.kind](ctx, node.left, Flags.Mutating)
     const rightType = expressions[node.right.kind](ctx, node.right, 0)
     if (leftType.kind !== rightType.kind) {
         raiseTypeError(ctx, node.right.start, leftType, rightType)
@@ -347,10 +343,13 @@ function handleNullKeyword(_ctx: Context, _node: Node.NullKeyword): Type.Any {
     return Type.coreAliases.null
 }
 
-function handleIdentifier(ctx: Context, node: Node.Identifier): Type.Any {
+function handleIdentifier(ctx: Context, node: Node.Identifier, flags: number): Type.Any {
     const identifier = getVar(ctx, node.value)
     if (!identifier) {
         raiseAt(ctx.module, node.start, `Cannot find name '${node.value}'`)
+    }
+    if (flags & Flags.Mutating && identifier.flags & Flags.Const) {
+        raiseAt(ctx.module, node.start, `Cannot assign to '${node.value}' because it is a constant`)
     }
 
     return identifier.type
