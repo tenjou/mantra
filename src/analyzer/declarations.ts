@@ -297,6 +297,9 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
         case "VoidKeyword":
             return Type.coreAliases.void
 
+        case "NeverKeyword":
+            return Type.coreAliases.never
+
         case "ArrayType": {
             const elementType = handleType(ctx, type.elementType, params)
 

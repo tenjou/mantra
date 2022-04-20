@@ -552,4 +552,5 @@ export const kinds: Record<string, Token> = {
     interface: createKeyword("interface"),
     enum: createKeyword("enum"),
     as: createKeyword("as"),
+    never: createKeyword("never"),
 }

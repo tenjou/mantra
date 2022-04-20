@@ -6,6 +6,7 @@ export type Any =
     | BooleanKeyword
     | NullKeyword
     | VoidKeyword
+    | NeverKeyword
     | TypeReference
     | TypeParameter
     | Literal
@@ -93,6 +94,10 @@ export interface NullKeyword extends TypeNode {
 
 export interface VoidKeyword extends TypeNode {
     kind: "VoidKeyword"
+}
+
+export interface NeverKeyword extends TypeNode {
+    kind: "NeverKeyword"
 }
 
 export interface TypeNode {

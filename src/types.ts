@@ -10,6 +10,7 @@ export enum Kind {
     union,
     null,
     void,
+    never,
     args,
     enum,
     enumMember,
@@ -22,7 +23,7 @@ export enum Flag {
     Resolved = 1,
 }
 
-type DefaultKind = Kind.unknown | Kind.boolean | Kind.null | Kind.void | Kind.args
+type DefaultKind = Kind.unknown | Kind.boolean | Kind.null | Kind.void | Kind.never | Kind.args
 type ObjectKind = Kind.object | Kind.string | Kind.number | Kind.boolean
 
 export interface Default {
@@ -192,6 +193,7 @@ export const coreAliases: Record<string, Any> = {
     void: createDefaultType("void", Kind.void),
     args: createDefaultType("args", Kind.args),
     object: createObject("object", []),
+    never: createDefaultType("never", Kind.never),
 }
 
 export const coreRefs: Record<string, Reference> = {
