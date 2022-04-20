@@ -63,10 +63,6 @@ import { loadExterns } from "./externs"
 //     handle[node.body.kind](ctx, node.body)
 // }
 
-// function handleThrowStatement(ctx: Context, node: Node.ThrowStatement): void {
-//     handle[node.argument.kind](ctx, node.argument)
-// }
-
 // function handleTryStatement(ctx: Context, node: Node.TryStatement): void {
 //     handle[node.block.kind](ctx, node.block)
 
@@ -135,6 +131,10 @@ import { loadExterns } from "./externs"
 
 //     return type
 // }
+
+function handleThrowStatement(ctx: Context, node: Node.ThrowStatement): void {
+    expressions[node.argument.kind](ctx, node.argument, 0)
+}
 
 function handleForStatement(ctx: Context, node: Node.ForStatement) {
     ctx.scopeCurr = createScope(ctx.scopeCurr)
@@ -942,6 +942,7 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
 type StatementFunc = (ctx: Context, node: any, flags: number) => void
 
 const statements: Record<string, StatementFunc> = {
+    ThrowStatement: handleThrowStatement,
     ForStatement: handleForStatement,
     ReturnStatement: handleReturnStatement,
     IfStatement: handleIfStatement,
@@ -990,7 +991,6 @@ const handle: Record<string, HandleFunc> = {
     // WhileStatement: handleWhileStatement,
     // ForInStatement: handleForInStatement,
     // ForOfStatement: handleForOfStatement,
-    // ThrowStatement: handleThrowStatement,
     // TryStatement: handleTryStatement,
     // BlockStatement: handleBlockStatement,
     // EmptyStatement: handleEmptyStatement,
