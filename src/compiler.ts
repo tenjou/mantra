@@ -411,41 +411,41 @@ function parseArrayExpression(ctx: CompilerContext, node: Node.ArrayExpression):
 }
 
 function parseObjectExpression(ctx: CompilerContext, node: Node.ObjectExpression): string {
-    return ""
-    // if (node.properties.length === 0) {
-    //     return "{}"
-    // }
+    if (node.properties.length === 0) {
+        return "{}"
+    }
 
-    // let result = `{`
+    let result = `{`
 
-    // enterBlock(ctx)
+    enterBlock(ctx)
 
-    // for (const property of node.properties) {
-    //     const nodeResult = parseProperty(ctx, property)
-    //     result += `\n${ctx.spaces}${nodeResult}`
-    // }
+    for (const property of node.properties) {
+        const nodeResult = parse[property.kind](ctx, property)
+        result += `\n${ctx.spaces}${nodeResult}`
+    }
 
-    // exitBlock(ctx)
+    exitBlock(ctx)
 
-    // result += `\n${ctx.spaces}}`
+    result += `\n${ctx.spaces}}`
 
-    // return result
+    return result
 }
 
 function parsePropertyAssignment(ctx: CompilerContext, node: Node.PropertyAssignment): string {
-    return ""
-    // const id = parse[node.id.kind](ctx, node.id)
-    // const key = id
-    // // const key = node.computed ? `[${id}]` : id
+    const id = parse[node.name.kind](ctx, node.name)
+    const key = id
 
-    // if (node.value) {
-    //     const value = parse[node.value.kind](ctx, node.value)
-    //     const result = `${key}: ${value},`
-    //     return result
-    // }
+    if (node.initializer) {
+        const value = parse[node.initializer.kind](ctx, node.initializer)
+        if (key === value) {
+            return `${key},`
+        }
+        const result = `${key}: ${value},`
+        return result
+    }
 
-    // const result = `${key},`
-    // return result
+    const result = `${key},`
+    return result
 }
 
 function parseArgs(ctx: CompilerContext, args: Node.Expression[]) {
@@ -641,6 +641,7 @@ const parse: Record<string, NodeParserFunc> = {
     BlockStatement: parseBlockStatement,
     EmptyStatement: parseEmptyStatement,
     PropertyAccessExpression: parsePropertyAccessExpression,
+    PropertyAssignment: parsePropertyAssignment,
     SequenceExpression: parseSequenceExpression,
     ConditionalExpression: parseConditionalExpression,
     BinaryExpression: parseBinaryExpression,
