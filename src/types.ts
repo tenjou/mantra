@@ -14,6 +14,7 @@ export enum Kind {
     enum,
     enumMember,
     mapped,
+    parameter,
 }
 
 export enum Flag {
@@ -101,11 +102,12 @@ export interface ObjectMember {
 }
 
 export interface Parameter {
+    kind: Kind.parameter
     name: string
     constraint: Any
 }
 
-export type Any = Default | Type | Union | Array | Function | Object | Enum | EnumMember | Mapped
+export type Any = Default | Type | Union | Array | Function | Object | Enum | EnumMember | Mapped | Parameter
 
 export interface Reference {
     name: string
@@ -152,6 +154,7 @@ export function createFunctionRef(name: string, paramsDict: Record<string, Any>,
     for (const paramName in paramsDict) {
         const paramType = paramsDict[paramName]
         params.push({
+            kind: Kind.parameter,
             name: paramName,
             constraint: paramType,
         })

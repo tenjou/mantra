@@ -913,10 +913,12 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         "Record",
         [
             {
+                kind: Type.Kind.parameter,
                 name: "K",
                 constraint: Type.createUnion([Type.coreAliases.string, Type.coreAliases.number]),
             },
             {
+                kind: Type.Kind.parameter,
                 name: "T",
                 constraint: Type.coreAliases.unknown,
             },

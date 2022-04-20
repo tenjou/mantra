@@ -117,6 +117,7 @@ function resolveFunctionParams(ctx: Context, nodeParams: Node.Parameter[], type:
         }
 
         type.params[n] = {
+            kind: Type.Kind.parameter,
             name: nodeParam.id.value,
             constraint: paramType,
         }
@@ -157,6 +158,7 @@ function resolveTypeAlias(ctx: Context, node: Node.TypeAliasDeclaration, typeAli
             const typeParam = typeParams[n]
             const constraint = handleType(ctx, typeParam.constraint)
             params[n] = {
+                kind: Type.Kind.parameter,
                 name: typeParam.name.value,
                 constraint: constraint,
             }
@@ -334,6 +336,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
                 }
 
                 params[nParam] = {
+                    kind: Type.Kind.parameter,
                     name: param.name.value,
                     constraint: paramType,
                 }
@@ -354,21 +357,32 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
             return Type.createObject(name, members)
         }
 
+        case "TypeParameter": {
+            return handleType(ctx, type.constraint, params)
+        }
+
         case "MappedType": {
-            const mappedTypeParam = handleType(ctx, type.typeParam.constraint, params)
+            const mappedTypeParam = handleType(ctx, type.typeParam, params)
             const mappedType = handleType(ctx, type.type, params)
 
             return Type.createMappedType(mappedTypeParam, mappedType)
         }
 
         default: {
+            if (params) {
+                for (const param of params) {
+                    if (param.name === type.name.value) {
+                        return param
+                    }
+                }
+            }
+
             const typeFound = getType(ctx, type.name.value)
             if (!typeFound) {
                 raiseAt(ctx.module, type.start, `Cannot find name '${type.name.value}'`)
             }
-
             if (typeFound.kind === Type.Kind.type) {
-                return applyTypeParams(ctx, type, typeFound)
+                return resolveTypeParams(ctx, type, typeFound)
             }
 
             return typeFound
@@ -376,7 +390,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
     }
 }
 
-function applyTypeParams(ctx: Context, type: TypeNode.Any, typeFound: Type.Type) {
+function resolveTypeParams(ctx: Context, type: TypeNode.Any, typeFound: Type.Type) {
     if (!typeFound.params) {
         if (type.kind === "TypeReference") {
             if (type.typeArgs) {
@@ -390,36 +404,40 @@ function applyTypeParams(ctx: Context, type: TypeNode.Any, typeFound: Type.Type)
         raiseAt(ctx.module, type.start, `Generic type '${typeFound.name}' requires ${typeFound.params.length} type argument(s)`)
     }
 
-    for (let n = 0; n < typeFound.params.length; n++) {
+    const params: Type.Parameter[] = new Array(typeFound.params.length)
+    for (let n = 0; n < params.length; n++) {
         const typeParam = typeFound.params[n]
         const typeArg = type.typeArgs[n]
-        const typeParamType = typeParam.constraint
-        const typeArgType = handleType(ctx, typeArg)
-
-        if (!haveMatchingTypes(typeParamType, typeArgType)) {
-            raiseAt(
-                ctx.module,
-                typeArg.start,
-                `Type '${Type.getName(typeArgType)}' does not satisfy the constraint '${Type.getName(typeParamType)}'`
-            )
+        params[n] = {
+            kind: Type.Kind.parameter,
+            name: typeParam.name,
+            constraint: handleType(ctx, typeArg),
         }
     }
 
-    return Type.createMappedType(Type.coreAliases.string, Type.coreAliases.string)
+    return recreateType(typeFound.type, params)
 }
 
-function haveMatchingTypes(typeA: Type.Any, typeB: Type.Any) {
-    if (typeA.kind === Type.Kind.unknown || typeA === typeB) {
-        return true
+function recreateType(srcType: Type.Any, params: Type.Parameter[]) {
+    switch (srcType.kind) {
+        case Type.Kind.mapped: {
+            const typeParameter = resolveParam(srcType.typeParameter, params)
+            const type = resolveParam(srcType.type, params)
+            return Type.createMappedType(typeParameter, type)
+        }
     }
 
-    if (typeA.kind === Type.Kind.union) {
-        for (const entry of typeA.types) {
-            if (haveMatchingTypes(entry, typeB)) {
-                return true
+    return srcType
+}
+
+function resolveParam(type: Type.Any, params: Type.Parameter[]) {
+    if (type.kind === Type.Kind.parameter) {
+        for (const param of params) {
+            if (param.name === type.name) {
+                return param.constraint
             }
         }
     }
 
-    return false
+    return type
 }
