@@ -51,20 +51,6 @@ import { loadExterns } from "./externs"
 //     handleBlockStatement(ctx, node.body)
 // }
 
-// function handleForStatement(ctx, node) {
-//     if (node.init) {
-//         handle[node.init.kind](ctx, node.init)
-//     }
-//     if (node.test) {
-//         handle[node.test.kind](ctx, node.test)
-//     }
-//     if (node.update) {
-//         handle[node.update.kind](ctx, node.update)
-//     }
-
-//     handle[node.body.kind](ctx, node.body)
-// }
-
 // function handleForInStatement(ctx, node) {
 //     handle[node.left.kind](ctx, node.left)
 //     handle[node.right.kind](ctx, node.right)
@@ -115,24 +101,6 @@ import { loadExterns } from "./externs"
 //     return ref
 // }
 
-// function handleAssignmentExpression(ctx, node) {
-//     const leftType = handle[node.left.kind](ctx, node.left)
-//     if (leftType.flags & Flags.Const) {
-//         raiseAt(ctx, node.left.start, `Cannot assign to '${node.left.value}' because it is a constant`)
-//     }
-
-//     const rightType = handle[node.right.kind](ctx, node.right)
-
-//     if (leftType.kind !== rightType.kind) {
-//         raiseTypeError(ctx, node.right.start, leftType, rightType)
-//     }
-// }
-
-// function handleUpdateExpression(ctx, node) {
-//     // TODO: Check if argument is a number.
-//     handle[node.argument.kind](ctx, node.argument)
-// }
-
 // function handleUnaryExpression(ctx, node) {
 //     handle[node.argument.kind](ctx, node.argument)
 // }
@@ -168,6 +136,24 @@ import { loadExterns } from "./externs"
 //     return type
 // }
 
+function handleForStatement(ctx: Context, node: Node.ForStatement) {
+    ctx.scopeCurr = createScope(ctx.scopeCurr)
+
+    if (node.init) {
+        statements[node.init.kind](ctx, node.init, 0)
+    }
+    if (node.test) {
+        expressions[node.test.kind](ctx, node.test, 0)
+    }
+    if (node.update) {
+        expressions[node.update.kind](ctx, node.update, 0)
+    }
+
+    statements[node.body.kind](ctx, node.body, 0)
+
+    ctx.scopeCurr = ctx.scopeCurr.parent
+}
+
 function handlePropertyAccessExpression(ctx: Context, node: Node.PropertyAccessExpression): Type.Any {
     const expressionType = expressions[node.expression.kind](ctx, node.expression, 0)
     if (expressionType.kind !== Type.Kind.object && expressionType.kind !== Type.Kind.enum) {
@@ -187,6 +173,29 @@ function handleAsExpression(ctx: Context, node: Node.AsExpression): Type.Any {
 
     const type = handleType(ctx, node.type)
     return type
+}
+
+function handleUpdateExpression(ctx: Context, node: Node.UpdateExpression): Type.Any {
+    const argType = expressions[node.argument.kind](ctx, node.argument, 0)
+    if (argType.kind !== Type.Kind.number) {
+        raiseAt(ctx.module, node.start, `An arithmetic operand must be of type 'number'.`)
+    }
+
+    return argType
+}
+
+function handleAssignmentExpression(ctx: Context, node: Node.AssignmentExpression): Type.Any {
+    const leftType = expressions[node.left.kind](ctx, node.left, 0)
+    // if (leftType.flags & Flags.Const) {
+    //     raiseAt(ctx.module, node.left.start, `Cannot assign to '${Type.getName(leftType)}' because it is a constant`)
+    // }
+
+    const rightType = expressions[node.right.kind](ctx, node.right, 0)
+    if (leftType.kind !== rightType.kind) {
+        raiseTypeError(ctx, node.right.start, leftType, rightType)
+    }
+
+    return leftType
 }
 
 function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.Array {
@@ -486,7 +495,7 @@ function handleIfStatement(ctx: Context, node: Node.IfStatement): void {
     ctx.scopeCurr = ctx.scopeCurr.parent
 
     if (node.alternate) {
-        expressions[node.alternate.kind](ctx, node.alternate, 0)
+        statements[node.alternate.kind](ctx, node.alternate, 0)
     }
 }
 
@@ -934,6 +943,7 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
 type StatementFunc = (ctx: Context, node: any, flags: number) => void
 
 const statements: Record<string, StatementFunc> = {
+    ForStatement: handleForStatement,
     ReturnStatement: handleReturnStatement,
     IfStatement: handleIfStatement,
     InterfaceDeclaration: handleNoop,
@@ -964,6 +974,8 @@ const expressions: Record<string, ExpressionFunc> = {
     ArrayExpression: handleArrayExpression,
     PropertyAccessExpression: handlePropertyAccessExpression,
     AsExpression: handleAsExpression,
+    UpdateExpression: handleUpdateExpression,
+    AssignmentExpression: handleAssignmentExpression,
 }
 
 type HandleFunc = (ctx: Context, node: any) => void
@@ -977,7 +989,6 @@ const handle: Record<string, HandleFunc> = {
     // ContinueStatement: handleBreakContinueStatement,
     // SwitchStatement: handleSwitchStatement,
     // WhileStatement: handleWhileStatement,
-    // ForStatement: handleForStatement,
     // ForInStatement: handleForInStatement,
     // ForOfStatement: handleForOfStatement,
     // ThrowStatement: handleThrowStatement,
@@ -985,8 +996,6 @@ const handle: Record<string, HandleFunc> = {
     // BlockStatement: handleBlockStatement,
     // EmptyStatement: handleEmptyStatement,
     // ArrowFunction: handleArrowFunction,
-    // AssignmentExpression: handleAssignmentExpression,
-    // UpdateExpression: handleUpdateExpression,
     // UnaryExpression: handleUnaryExpression,
     // LogicalExpression: handleLogicalExpression,
     //
