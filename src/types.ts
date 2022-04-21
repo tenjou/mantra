@@ -1,5 +1,6 @@
 export enum Kind {
     unknown,
+    undef,
     number,
     string,
     boolean,
@@ -24,7 +25,7 @@ export enum Flag {
     Resolved = 1,
 }
 
-type DefaultKind = Kind.unknown | Kind.boolean | Kind.null | Kind.void | Kind.never | Kind.args
+type DefaultKind = Kind.unknown | Kind.undef | Kind.boolean | Kind.null | Kind.void | Kind.never | Kind.args
 type ObjectKind = Kind.object | Kind.string | Kind.number | Kind.boolean
 
 export interface Default {
@@ -213,6 +214,7 @@ const stringType = createObject("String", [createFunctionRef("charCodeAt", { ind
 
 export const coreAliases: Record<string, Any> = {
     unknown: createDefaultType("unknown", Kind.unknown),
+    undef: createDefaultType("undefined", Kind.undef),
     number: numberType,
     string: stringType,
     boolean: createObject("boolean", [], Kind.boolean),

@@ -323,7 +323,10 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
 function handleLiteral(_ctx: Context, node: Node.Literal): Type.Any {
     if (node.raw === "null") {
         return Type.coreAliases.null
+    } else if (node.raw === "undefined") {
+        return Type.coreAliases.undef
     }
+
     return Type.coreAliases.string
 }
 

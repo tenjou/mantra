@@ -129,7 +129,7 @@ function parseExpressionAtom(ctx: ParserContext): Node.Expression {
 
         case kinds.text:
         case kinds.break:
-        case kinds._undefined:
+        case kinds.undef:
             return parseLiteral(ctx)
 
         case kinds.null:
@@ -1074,7 +1074,7 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
     if (ctx.kind === kinds.parenthesisL) {
         return parseFunctionType(ctx)
     }
-    if (ctx.kind !== kinds.name && ctx.kind !== kinds.null && ctx.kind !== kinds.never) {
+    if (ctx.kind !== kinds.name && ctx.kind !== kinds.null && ctx.kind !== kinds.undef && ctx.kind !== kinds.never) {
         unexpected(ctx, ctx.start)
     }
 
@@ -1112,6 +1112,13 @@ function parseTypeAnnotationEntry(ctx: ParserContext): TypeNode.Any {
         case "void":
             return {
                 kind: "VoidKeyword",
+                start: left.start,
+                end: ctx.end,
+            }
+
+        case "undefined":
+            return {
+                kind: "UndefinedKeyword",
                 start: left.start,
                 end: ctx.end,
             }
@@ -1340,7 +1347,7 @@ function parseEnumInitializer(ctx: ParserContext): Node.Literal | Node.NumericLi
         case kinds.false:
         case kinds.null:
         case kinds.break:
-        case kinds._undefined:
+        case kinds.undef:
             return parseLiteral(ctx)
     }
 
@@ -1480,7 +1487,7 @@ function parseParametersExpression(ctx: ParserContext): Node.ParameterExpresion 
 
         case kinds.text:
         case kinds.null:
-        case kinds._undefined:
+        case kinds.undef:
             return parseLiteral(ctx)
     }
 
@@ -1498,6 +1505,9 @@ function parseParameters(ctx: ParserContext): Node.Parameter[] {
 
         const start = ctx.start
         const id = parseIdentifier(ctx)
+
+        if (eat(ctx, kinds.question)) {
+        }
 
         let type: TypeNode.Any | null = null
         if (eat(ctx, kinds.colon)) {

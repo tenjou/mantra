@@ -534,7 +534,7 @@ export const kinds: Record<string, Token> = {
     break: createKeyword("break"),
     true: createKeyword("true"),
     false: createKeyword("false"),
-    _undefined: createKeyword("undefined"),
+    undef: createKeyword("undefined"),
     null: createKeyword("null"),
     return: createKeyword("return"),
     while: createKeyword("while"),

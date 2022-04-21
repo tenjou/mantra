@@ -297,6 +297,9 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
         case "VoidKeyword":
             return Type.coreAliases.void
 
+        case "UndefinedKeyword":
+            return Type.coreAliases.undef
+
         case "NeverKeyword":
             return Type.coreAliases.never
 
