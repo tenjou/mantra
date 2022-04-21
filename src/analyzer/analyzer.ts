@@ -933,16 +933,8 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
     scope.types["Record"] = Type.createType(
         "Record",
         [
-            {
-                kind: Type.Kind.parameter,
-                name: "K",
-                constraint: Type.createUnion([Type.coreAliases.string, Type.coreAliases.number]),
-            },
-            {
-                kind: Type.Kind.parameter,
-                name: "T",
-                constraint: Type.coreAliases.unknown,
-            },
+            Type.createParameter("K", Type.createUnion([Type.coreAliases.string, Type.coreAliases.number])),
+            Type.createParameter("K", Type.coreAliases.unknown),
         ],
         Type.createMappedType(Type.createUnion([Type.coreAliases.string, Type.coreAliases.number]), Type.coreAliases.unknown)
     )

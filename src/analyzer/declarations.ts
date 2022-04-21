@@ -4,6 +4,7 @@ import * as TypeNode from "../parser/type-node"
 import { createScope, FunctionTypeDeclaration, TypeDeclaration } from "../scope"
 import * as Type from "../types"
 import { Context } from "./context"
+import { Flags } from "./../flags"
 
 export function handleDeclaration(ctx: Context, node: Node.Statement): void {
     switch (node.kind) {
@@ -81,7 +82,7 @@ function declareFunction(ctx: Context, node: Node.FunctionDeclaration): void {
 }
 
 export function resolveDeclaration(ctx: Context, typeDecl: TypeDeclaration): Type.Any {
-    if (typeDecl.type.flags & Type.Flag.Resolved) {
+    if (typeDecl.type.flags & Flags.Resolved) {
         return typeDecl.type
     }
 
@@ -120,6 +121,7 @@ function resolveFunctionParams(ctx: Context, nodeParams: Node.Parameter[], type:
             kind: Type.Kind.parameter,
             name: nodeParam.id.value,
             constraint: paramType,
+            flags: 0,
         }
     }
 
@@ -134,7 +136,7 @@ function resolveFunction(ctx: Context, node: Node.FunctionDeclaration, type: Typ
 }
 
 function resolveInterface(ctx: Context, node: Node.InterfaceDeclaration, type: Type.Object): void {
-    type.flags |= Type.Flag.Resolved
+    type.flags |= Flags.Resolved
 
     const nodeMembers = node.members
     type.members.length = nodeMembers.length
@@ -161,13 +163,14 @@ function resolveTypeAlias(ctx: Context, node: Node.TypeAliasDeclaration, typeAli
                 kind: Type.Kind.parameter,
                 name: typeParam.name.value,
                 constraint: constraint,
+                flags: 0,
             }
         }
     }
 
     typeAlias.params = params
     typeAlias.type = handleType(ctx, node.type, params)
-    typeAlias.flags |= Type.Flag.Resolved
+    typeAlias.flags |= Flags.Resolved
 }
 
 function getEnumType(ctx: Context, members: Node.EnumMember[]): Type.Kind.number | Type.Kind.string {
@@ -254,7 +257,7 @@ function declareEnum(ctx: Context, node: Node.EnumDeclaration): void {
 function getType(ctx: Context, name: string): Type.Any | null {
     const typeDecl = ctx.resolvingTypes[name]
     if (typeDecl) {
-        if (!(typeDecl.type.flags & Type.Flag.Resolved)) {
+        if (!(typeDecl.type.flags & Flags.Resolved)) {
             return resolveDeclaration(ctx, typeDecl)
         }
     }
@@ -345,6 +348,7 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
                     kind: Type.Kind.parameter,
                     name: param.name.value,
                     constraint: paramType,
+                    flags: 0,
                 }
             }
 
@@ -418,6 +422,7 @@ function resolveTypeParams(ctx: Context, type: TypeNode.Any, typeFound: Type.Typ
             kind: Type.Kind.parameter,
             name: typeParam.name,
             constraint: handleType(ctx, typeArg),
+            flags: 0,
         }
     }
 

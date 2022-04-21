@@ -20,11 +20,6 @@ export enum Kind {
     parameter,
 }
 
-export enum Flag {
-    None = 0,
-    Resolved = 1,
-}
-
 type DefaultKind = Kind.unknown | Kind.undef | Kind.boolean | Kind.null | Kind.void | Kind.never | Kind.args
 type ObjectKind = Kind.object | Kind.string | Kind.number | Kind.boolean
 
@@ -114,6 +109,7 @@ export interface Parameter {
     kind: Kind.parameter
     name: string
     constraint: Any
+    flags: number
 }
 
 export type Any = Default | Type | Union | Array | Function | Object | Class | Enum | EnumMember | Mapped | Parameter
@@ -132,6 +128,15 @@ export function createDefaultType(name: string, kind: DefaultKind): Default {
 
 export function createType(name: string, params: Parameter[] | null = null, type: Any = coreAliases.unknown): Type {
     return { name, kind: Kind.type, params, type, param: null, flags: 0 }
+}
+
+export function createParameter(name: string, constraint: Any): Parameter {
+    return {
+        kind: Kind.parameter,
+        name,
+        constraint,
+        flags: 0,
+    }
 }
 
 export function createUnion(types: Any[]): Union {
@@ -166,6 +171,7 @@ export function createFunctionRef(name: string, paramsDict: Record<string, Any>,
             kind: Kind.parameter,
             name: paramName,
             constraint: paramType,
+            flags: 0,
         })
     }
 
