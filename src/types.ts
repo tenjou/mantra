@@ -6,6 +6,7 @@ export enum Kind {
     function,
     array,
     object,
+    class,
     type,
     union,
     null,
@@ -96,6 +97,12 @@ export interface Object {
     flags: number
 }
 
+export interface Class {
+    kind: Kind.class
+    name: string
+    constructorFunc: Function
+}
+
 export interface ObjectMember {
     key: Reference
     value: Reference
@@ -108,7 +115,7 @@ export interface Parameter {
     constraint: Any
 }
 
-export type Any = Default | Type | Union | Array | Function | Object | Enum | EnumMember | Mapped | Parameter
+export type Any = Default | Type | Union | Array | Function | Object | Class | Enum | EnumMember | Mapped | Parameter
 
 export interface Reference {
     name: string
@@ -175,6 +182,26 @@ export function createObject(name: string, members: Reference[], kind: ObjectKin
 
 export function createObjectRef(name: string, members: Reference[], kind: ObjectKind = Kind.object): Reference {
     return { name, type: createObject(name, members, kind), flags: 0 }
+}
+
+export function createClass(name: string, constructorFunc: Function): Class {
+    return {
+        kind: Kind.class,
+        name,
+        constructorFunc,
+    }
+}
+
+export function createClassRef(name: string, constructorFunc: Function): Reference {
+    return {
+        name,
+        type: createClass(name, constructorFunc),
+        flags: 0,
+    }
+}
+
+export function createConstructor(params: Parameter[]): Function {
+    return createFunction("constructor", params, coreAliases.void)
 }
 
 export function createRef(name: string, type: Any, flags: number = 0): Reference {

@@ -133,10 +133,14 @@ import { loadExterns } from "./externs"
 // }
 
 function handleThrowStatement(ctx: Context, node: Node.ThrowStatement): void {
+    if (ctx.currFuncType) {
+        ctx.currFuncType.flags |= Flags.Throwing
+    }
+
     expressions[node.argument.kind](ctx, node.argument, 0)
 }
 
-function handleForStatement(ctx: Context, node: Node.ForStatement) {
+function handleForStatement(ctx: Context, node: Node.ForStatement): void {
     ctx.scopeCurr = createScope(ctx.scopeCurr)
 
     if (node.init) {
@@ -192,6 +196,16 @@ function handleAssignmentExpression(ctx: Context, node: Node.AssignmentExpressio
     }
 
     return leftType
+}
+
+function handleNewExpression(ctx: Context, node: Node.NewExpression): Type.Any {
+    const callee = expressions[node.callee.kind](ctx, node.callee, 0)
+    if (callee.kind !== Type.Kind.class) {
+        raiseAt(ctx.module, node.callee.start, `Type '${Type.getName(callee)}' has no construct signatures.`)
+    }
+    console.log("here")
+
+    return Type.coreAliases.unknown
 }
 
 function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.Array {
@@ -266,10 +280,6 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
     }
 }
 
-// function handleNewExpression(ctx: Context, node: Node.NewExpression): void {
-//     // TODO
-// }
-
 // function handleSequenceExpression(ctx: Context, node: Node.SequenceExpression): void {
 //     for (const expression of node.expressions) {
 //         handle[expression.kind](ctx, expression)
@@ -308,12 +318,6 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
 //     ctx.scopeCurr.vars[varRef.name] = newVarRef
 
 //     return newVarRef
-// }
-
-// function raise(ctx, node, error) {
-//     const lineInfo = getLineInfo(ctx, node.start)
-//     const fileName = path.relative("./", ctx.filePath)
-//     throw new SyntaxError(`${error}. ${fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 // }
 
 function handleLiteral(_ctx: Context, node: Node.Literal): Type.Any {
@@ -633,6 +637,10 @@ function resolveFunctionDeclaration(ctx: Context, { type, node }: FunctionTypeDe
         raiseAt(ctx.module, node.body.start, "Unsupported feature")
     }
 
+    if (type.flags & Flags.Throwing) {
+        type.returnType = Type.coreAliases.never
+    }
+
     ctx.scopeCurr = ctx.scopeCurr.parent
 }
 
@@ -913,6 +921,8 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         Type.createFunctionRef("keys", { o: Type.coreAliases.object }, Type.createArray(Type.coreAliases.string)),
     ])
 
+    scope.vars["Error"] = Type.createClassRef("Error", Type.createConstructor([]))
+
     // declareModule(ctx, "fs", {
     //     readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),
     // })
@@ -976,6 +986,7 @@ const expressions: Record<string, ExpressionFunc> = {
     AsExpression: handleAsExpression,
     UpdateExpression: handleUpdateExpression,
     AssignmentExpression: handleAssignmentExpression,
+    NewExpression: handleNewExpression,
 }
 
 type HandleFunc = (ctx: Context, node: any) => void
@@ -999,7 +1010,6 @@ const handle: Record<string, HandleFunc> = {
     // LogicalExpression: handleLogicalExpression,
     //
     // CallExpression: handleCallExpression,
-    // NewExpression: handleNewExpression,
     // SequenceExpression: handleSequenceExpression,
     // AssignPattern: handleAssignPattern,
 }
