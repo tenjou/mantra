@@ -1,2 +1,3 @@
 # mantra
-Custom JavaScript compiler made for learning purposes.
+
+Custom TypeScript compiler made for learning purposes.
