@@ -320,7 +320,7 @@ function parseSubscript(ctx: ParserContext, base: Node.Expression): Node.Express
         start,
         end: ctx.end,
         callee: base,
-        args: args,
+        args,
         optional: false,
     }
 }
@@ -886,7 +886,7 @@ function parseNew(ctx: ParserContext): Node.NewExpression {
         start,
         end: ctx.end,
         callee,
-        arguments: args,
+        args: args,
     }
 }
 

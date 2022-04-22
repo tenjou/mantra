@@ -193,7 +193,7 @@ export interface ObjectExpression extends Node {
 export interface NewExpression extends Node {
     kind: "NewExpression"
     callee: Expression
-    arguments: Expression[]
+    args: Expression[]
 }
 
 export interface ArrayExpression extends Node {

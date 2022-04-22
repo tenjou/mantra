@@ -10,128 +10,6 @@ import { Context } from "./context"
 import { handleDeclaration, handleType, resolveDeclaration } from "./declarations"
 import { loadExterns } from "./externs"
 
-// function handleLabeledStatement(ctx: Context, node: Node.LabeledStatement): void {
-//     ctx.scopeCurr.labels.push(node.label.value)
-
-//     handle[node.body.kind](ctx, node.body)
-
-//     ctx.scopeCurr.labels.pop()
-// }
-
-// function handleConditionalExpression(ctx: Context, node: Node.ConditionalExpression): void {
-//     handle[node.test.kind](ctx, node.test)
-//     handle[node.consequent.kind](ctx, node.consequent)
-//     handle[node.alternate.kind](ctx, node.alternate)
-// }
-
-// function handleBreakContinueStatement(ctx, node) {
-//     if (!node.label) {
-//         return
-//     }
-
-//     if (!haveLabel(ctx, node.label.value)) {
-//         const statementName = node.kind === "BreakStatement" ? "break" : "continue"
-//         raiseAt(ctx, node.label.start, `A '${statementName}' statement can only jump to a label of an enclosing statement`)
-//     }
-// }
-
-// function handleSwitchStatement(ctx, node) {
-//     handle[node.discriminant.kind](ctx, node.discriminant)
-
-//     for (const entry of node.cases) {
-//         if (entry.test) {
-//             handle[entry.test.kind](ctx, entry.test)
-//         }
-//         handleStatements(ctx, entry.consequent)
-//     }
-// }
-
-// function handleWhileStatement(ctx, node) {
-//     handle[node.test.kind](ctx, node.test)
-//     handleBlockStatement(ctx, node.body)
-// }
-
-// function handleForInStatement(ctx, node) {
-//     handle[node.left.kind](ctx, node.left)
-//     handle[node.right.kind](ctx, node.right)
-//     handle[node.body.kind](ctx, node.body)
-// }
-
-// function handleForOfStatement(ctx, node) {
-//     handle[node.left.kind](ctx, node.left)
-//     handle[node.right.kind](ctx, node.right)
-//     handle[node.body.kind](ctx, node.body)
-// }
-
-// function handleTryStatement(ctx: Context, node: Node.TryStatement): void {
-//     handle[node.block.kind](ctx, node.block)
-
-//     if (node.handler) {
-//         const param = node.handler.param
-//         declareVar(ctx, param.value, param, 0)
-//         handle[node.handler.body.kind](ctx, node.handler.body)
-//     }
-//     if (node.finalizer) {
-//         handle[node.finalizer.kind](ctx, node.finalizer)
-//     }
-// }
-
-// function handleEmptyStatement(_ctx: Context, _node: Node.EmptyStatement): void {}
-
-// function handleArrowFunction(ctx, node) {
-//     const returnType = node.returnType ? handleType(ctx, node.returnType) : ctx.typeAliases.void
-//     const prevFuncType = ctx.currFuncType
-//     const scope = createScope(ctx.scopeCurr)
-//     const params = handleParams(ctx, scope, node.params)
-//     const funcType = createFunction("", params, returnType)
-
-//     ctx.currFuncType = funcType
-//     ctx.scopeCurr = scope
-
-//     handleStatements(ctx, node.body.body)
-
-//     ctx.scopeCurr = scope.parent
-//     ctx.currFuncType = prevFuncType
-
-//     const ref = { name: "", flags: 0, type: funcType }
-//     return ref
-// }
-
-// function handleUnaryExpression(ctx, node) {
-//     handle[node.argument.kind](ctx, node.argument)
-// }
-
-// function handleObjectType(ctx, name, node, type) {
-//     if (type.kind !== TypeKind.object) {
-//         return null
-//     }
-
-//     for (const member of type.members) {
-//         const memberVar = ctx.scopeCurr.vars[member.name]
-//         if (!memberVar) {
-//             return null
-//             // raiseAt(ctx, node.start, `Property '${member.name}' is missing in type '{}' but required in type '${type.name}'`)
-//         }
-//         if (memberVar.ref.type !== member.type) {
-//             raiseTypeError(ctx, memberVar.node.start, member.type, memberVar.ref.type)
-//         }
-//     }
-
-//     if (node.properties.length > type.members.length) {
-//         loop: for (const property of node.properties) {
-//             for (const member of type.members) {
-//                 if (member.name === property.key.value) {
-//                     continue loop
-//                 }
-//             }
-
-//             raiseAt(ctx, property.start, `'${property.key.value}' does not exist in type '${name}'`)
-//         }
-//     }
-
-//     return type
-// }
-
 function handleThrowStatement(ctx: Context, node: Node.ThrowStatement): void {
     if (ctx.currFuncType) {
         ctx.currFuncType.flags |= Flags.Throwing
@@ -199,13 +77,14 @@ function handleAssignmentExpression(ctx: Context, node: Node.AssignmentExpressio
 }
 
 function handleNewExpression(ctx: Context, node: Node.NewExpression): Type.Any {
-    const callee = expressions[node.callee.kind](ctx, node.callee, 0)
-    if (callee.kind !== Type.Kind.class) {
-        raiseAt(ctx.module, node.callee.start, `Type '${Type.getName(callee)}' has no construct signatures.`)
+    const calleeType = expressions[node.callee.kind](ctx, node.callee, 0)
+    if (calleeType.kind !== Type.Kind.class) {
+        raiseAt(ctx.module, node.callee.start, `Type '${Type.getName(calleeType)}' has no construct signatures.`)
     }
-    console.log("here")
 
-    return Type.coreAliases.unknown
+    handleFunctionCall(ctx, node.start, calleeType.constructorFunc, node.args)
+
+    return calleeType
 }
 
 function handleArrayExpression(ctx: Context, node: Node.ArrayExpression): Type.Array {
@@ -279,46 +158,6 @@ function handleObjectExpression(ctx: Context, node: Node.ObjectExpression, flags
         flags: 0,
     }
 }
-
-// function handleSequenceExpression(ctx: Context, node: Node.SequenceExpression): void {
-//     for (const expression of node.expressions) {
-//         handle[expression.kind](ctx, expression)
-//     }
-// }
-
-// function handleAssignPattern(_ctx: Context, _node: Node.AssignPattern): void {}
-
-// function haveLabel(ctx: Context, label: Node.LabeledStatement): boolean {
-//     let scope = ctx.scopeCurr
-
-//     while (scope) {
-//         for (const scopeLabel of scope.labels) {
-//             if (scopeLabel === label) {
-//                 return true
-//             }
-//         }
-
-//         scope = scope.parent
-//     }
-
-//     return false
-// }
-
-// function importVar(ctx: Context, name: string, ref) {
-// const prevVar = getVar(ctx, name, false)
-// if (prevVar) {
-//     raise(ctx, node, `Duplicate identifier '${name}'`)
-// }
-
-// ctx.scopeCurr.vars[name] = ref
-// }
-
-// function redeclareVar(ctx, varRef, newType) {
-//     const newVarRef = { type: newType, flags: varRef.flags }
-//     ctx.scopeCurr.vars[varRef.name] = newVarRef
-
-//     return newVarRef
-// }
 
 function handleLiteral(_ctx: Context, node: Node.Literal): Type.Any {
     if (node.raw === "null") {
@@ -396,6 +235,26 @@ function handleLogicalExpression(ctx: Context, node: Node.LogicalExpression): Ty
     return Type.coreAliases.boolean
 }
 
+function handleFunctionCall(ctx: Context, pos: number, funcType: Type.Function, args: Node.Expression[]): void {
+    if (args.length < funcType.argsMin) {
+        raiseAt(ctx.module, pos, `Expected ${funcType.argsMin} arguments, but got ${args.length}`)
+    }
+    if (args.length > funcType.argsMax) {
+        raiseAt(ctx.module, pos, `Expected ${funcType.argsMax} arguments, but got ${args.length}`)
+    }
+
+    for (let n = 0; n < args.length; n++) {
+        const arg = args[n]
+        const argType = expressions[arg.kind](ctx, arg, 0)
+        const paramType = funcType.params[n].constraint
+
+        if (!isValidType(ctx, paramType, argType, arg.start)) {
+            isValidType(ctx, paramType, argType, arg.start)
+            raiseTypeError(ctx, arg.start, paramType, argType)
+        }
+    }
+}
+
 function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any {
     const calleeType = expressions[node.callee.kind](ctx, node.callee, 0)
     if (calleeType.kind !== Type.Kind.function) {
@@ -406,23 +265,7 @@ function handleCallExpression(ctx: Context, node: Node.CallExpression): Type.Any
         )
     }
 
-    if (node.args.length < calleeType.argsMin) {
-        raiseAt(ctx.module, node.callee.start, `Expected ${calleeType.argsMin} arguments, but got ${node.args.length}`)
-    }
-    if (node.args.length > calleeType.argsMax) {
-        raiseAt(ctx.module, node.callee.start, `Expected ${calleeType.argsMax} arguments, but got ${node.args.length}`)
-    }
-
-    for (let n = 0; n < node.args.length; n++) {
-        const arg = node.args[n]
-        const argType = expressions[arg.kind](ctx, arg, 0)
-        const paramType = calleeType.params[n].constraint
-
-        if (!isValidType(ctx, paramType, argType, arg.start)) {
-            isValidType(ctx, paramType, argType, arg.start)
-            raiseTypeError(ctx, arg.start, paramType, argType)
-        }
-    }
+    handleFunctionCall(ctx, node.start, calleeType, node.args)
 
     return calleeType.returnType
 }
@@ -1011,3 +854,165 @@ const handle: Record<string, HandleFunc> = {
     // SequenceExpression: handleSequenceExpression,
     // AssignPattern: handleAssignPattern,
 }
+
+// function handleLabeledStatement(ctx: Context, node: Node.LabeledStatement): void {
+//     ctx.scopeCurr.labels.push(node.label.value)
+
+//     handle[node.body.kind](ctx, node.body)
+
+//     ctx.scopeCurr.labels.pop()
+// }
+
+// function handleConditionalExpression(ctx: Context, node: Node.ConditionalExpression): void {
+//     handle[node.test.kind](ctx, node.test)
+//     handle[node.consequent.kind](ctx, node.consequent)
+//     handle[node.alternate.kind](ctx, node.alternate)
+// }
+
+// function handleBreakContinueStatement(ctx, node) {
+//     if (!node.label) {
+//         return
+//     }
+
+//     if (!haveLabel(ctx, node.label.value)) {
+//         const statementName = node.kind === "BreakStatement" ? "break" : "continue"
+//         raiseAt(ctx, node.label.start, `A '${statementName}' statement can only jump to a label of an enclosing statement`)
+//     }
+// }
+
+// function handleSwitchStatement(ctx, node) {
+//     handle[node.discriminant.kind](ctx, node.discriminant)
+
+//     for (const entry of node.cases) {
+//         if (entry.test) {
+//             handle[entry.test.kind](ctx, entry.test)
+//         }
+//         handleStatements(ctx, entry.consequent)
+//     }
+// }
+
+// function handleWhileStatement(ctx, node) {
+//     handle[node.test.kind](ctx, node.test)
+//     handleBlockStatement(ctx, node.body)
+// }
+
+// function handleForInStatement(ctx, node) {
+//     handle[node.left.kind](ctx, node.left)
+//     handle[node.right.kind](ctx, node.right)
+//     handle[node.body.kind](ctx, node.body)
+// }
+
+// function handleForOfStatement(ctx, node) {
+//     handle[node.left.kind](ctx, node.left)
+//     handle[node.right.kind](ctx, node.right)
+//     handle[node.body.kind](ctx, node.body)
+// }
+
+// function handleTryStatement(ctx: Context, node: Node.TryStatement): void {
+//     handle[node.block.kind](ctx, node.block)
+
+//     if (node.handler) {
+//         const param = node.handler.param
+//         declareVar(ctx, param.value, param, 0)
+//         handle[node.handler.body.kind](ctx, node.handler.body)
+//     }
+//     if (node.finalizer) {
+//         handle[node.finalizer.kind](ctx, node.finalizer)
+//     }
+// }
+
+// function handleEmptyStatement(_ctx: Context, _node: Node.EmptyStatement): void {}
+
+// function handleArrowFunction(ctx, node) {
+//     const returnType = node.returnType ? handleType(ctx, node.returnType) : ctx.typeAliases.void
+//     const prevFuncType = ctx.currFuncType
+//     const scope = createScope(ctx.scopeCurr)
+//     const params = handleParams(ctx, scope, node.params)
+//     const funcType = createFunction("", params, returnType)
+
+//     ctx.currFuncType = funcType
+//     ctx.scopeCurr = scope
+
+//     handleStatements(ctx, node.body.body)
+
+//     ctx.scopeCurr = scope.parent
+//     ctx.currFuncType = prevFuncType
+
+//     const ref = { name: "", flags: 0, type: funcType }
+//     return ref
+// }
+
+// function handleUnaryExpression(ctx, node) {
+//     handle[node.argument.kind](ctx, node.argument)
+// }
+
+// function handleObjectType(ctx, name, node, type) {
+//     if (type.kind !== TypeKind.object) {
+//         return null
+//     }
+
+//     for (const member of type.members) {
+//         const memberVar = ctx.scopeCurr.vars[member.name]
+//         if (!memberVar) {
+//             return null
+//             // raiseAt(ctx, node.start, `Property '${member.name}' is missing in type '{}' but required in type '${type.name}'`)
+//         }
+//         if (memberVar.ref.type !== member.type) {
+//             raiseTypeError(ctx, memberVar.node.start, member.type, memberVar.ref.type)
+//         }
+//     }
+
+//     if (node.properties.length > type.members.length) {
+//         loop: for (const property of node.properties) {
+//             for (const member of type.members) {
+//                 if (member.name === property.key.value) {
+//                     continue loop
+//                 }
+//             }
+
+//             raiseAt(ctx, property.start, `'${property.key.value}' does not exist in type '${name}'`)
+//         }
+//     }
+
+//     return type
+// }
+
+// function handleSequenceExpression(ctx: Context, node: Node.SequenceExpression): void {
+//     for (const expression of node.expressions) {
+//         handle[expression.kind](ctx, expression)
+//     }
+// }
+
+// function handleAssignPattern(_ctx: Context, _node: Node.AssignPattern): void {}
+
+// function haveLabel(ctx: Context, label: Node.LabeledStatement): boolean {
+//     let scope = ctx.scopeCurr
+
+//     while (scope) {
+//         for (const scopeLabel of scope.labels) {
+//             if (scopeLabel === label) {
+//                 return true
+//             }
+//         }
+
+//         scope = scope.parent
+//     }
+
+//     return false
+// }
+
+// function importVar(ctx: Context, name: string, ref) {
+// const prevVar = getVar(ctx, name, false)
+// if (prevVar) {
+//     raise(ctx, node, `Duplicate identifier '${name}'`)
+// }
+
+// ctx.scopeCurr.vars[name] = ref
+// }
+
+// function redeclareVar(ctx, varRef, newType) {
+//     const newVarRef = { type: newType, flags: varRef.flags }
+//     ctx.scopeCurr.vars[varRef.name] = newVarRef
+
+//     return newVarRef
+// }
