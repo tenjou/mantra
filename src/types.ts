@@ -130,12 +130,12 @@ export function createType(name: string, params: Parameter[] | null = null, type
     return { name, kind: Kind.type, params, type, param: null, flags: 0 }
 }
 
-export function createParameter(name: string, constraint: Any): Parameter {
+export function createParameter(name: string, constraint: Any, flags: number = 0): Parameter {
     return {
         kind: Kind.parameter,
         name,
         constraint,
-        flags: 0,
+        flags,
     }
 }
 
@@ -159,8 +159,8 @@ export function createEnumMember(srcEnum: Enum, name: string, value: string | nu
     return { kind: Kind.enumMember, enum: srcEnum, name, value, param: null }
 }
 
-export function createFunction(name: string, params: Parameter[], returnType: Any): Function {
-    return { name, kind: Kind.function, params, returnType, argsMin: params.length, argsMax: params.length, param: null, flags: 0 }
+export function createFunction(name: string, params: Parameter[], returnType: Any, argsMin: number = params.length): Function {
+    return { name, kind: Kind.function, params, returnType, argsMin, argsMax: params.length, param: null, flags: 0 }
 }
 
 export function createFunctionRef(name: string, paramsDict: Record<string, Any>, returnType: Any): Reference {
@@ -207,8 +207,8 @@ export function createClassRef(name: string, constructorFunc: Function): Referen
     }
 }
 
-export function createConstructor(params: Parameter[]): Function {
-    return createFunction("constructor", params, coreAliases.void)
+export function createConstructor(params: Parameter[], argsMin: number = params.length): Function {
+    return createFunction("constructor", params, coreAliases.void, argsMin)
 }
 
 export function createRef(name: string, type: Any, flags: number = 0): Reference {

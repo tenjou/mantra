@@ -6,4 +6,5 @@ export const Flags = {
     Mutating: 8,
     Throwing: 16,
     Resolved: 32,
+    Optional: 64,
 }

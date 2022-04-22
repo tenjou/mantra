@@ -924,7 +924,10 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         Type.createFunctionRef("keys", { o: Type.coreAliases.object }, Type.createArray(Type.coreAliases.string)),
     ])
 
-    scope.vars["Error"] = Type.createClassRef("Error", Type.createConstructor([]))
+    scope.vars["Error"] = Type.createClassRef(
+        "Error",
+        Type.createConstructor([Type.createParameter("message", Type.coreAliases.string, Flags.Optional)], 0)
+    )
 
     // declareModule(ctx, "fs", {
     //     readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),
@@ -934,7 +937,7 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         "Record",
         [
             Type.createParameter("K", Type.createUnion([Type.coreAliases.string, Type.coreAliases.number])),
-            Type.createParameter("K", Type.coreAliases.unknown),
+            Type.createParameter("T", Type.coreAliases.unknown),
         ],
         Type.createMappedType(Type.createUnion([Type.coreAliases.string, Type.coreAliases.number]), Type.coreAliases.unknown)
     )

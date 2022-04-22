@@ -140,6 +140,7 @@ export interface Parameter extends Node {
     id: Identifier
     initializer: ParameterExpresion | null
     type: TypeNode.Any | null
+    isOptional: boolean
 }
 
 export interface FunctionDeclaration extends Node {

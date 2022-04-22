@@ -113,16 +113,19 @@ function resolveFunctionParams(ctx: Context, nodeParams: Node.Parameter[], type:
         const nodeParam = nodeParams[n]
         const paramType = handleType(ctx, nodeParam.type)
 
-        if (!nodeParam.initializer) {
-            argsMin = n + 1
+        let flags = 0
+        if (nodeParam.isOptional || nodeParam.initializer) {
+            flags |= Flags.Optional
         }
 
-        type.params[n] = {
-            kind: Type.Kind.parameter,
-            name: nodeParam.id.value,
-            constraint: paramType,
-            flags: 0,
+        if (!(flags & Flags.Optional)) {
+            argsMin++
+            if (argsMin === n) {
+                raiseAt(ctx.module, nodeParam.start, `A required parameter '${nodeParam.id.value}' cannot follow an optional parameter.`)
+            }
         }
+
+        type.params[n] = Type.createParameter(nodeParam.id.value, paramType, flags)
     }
 
     type.argsMin = argsMin

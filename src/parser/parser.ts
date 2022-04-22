@@ -1506,7 +1506,9 @@ function parseParameters(ctx: ParserContext): Node.Parameter[] {
         const start = ctx.start
         const id = parseIdentifier(ctx)
 
+        let isOptional = false
         if (eat(ctx, kinds.question)) {
+            isOptional = true
         }
 
         let type: TypeNode.Any | null = null
@@ -1526,6 +1528,7 @@ function parseParameters(ctx: ParserContext): Node.Parameter[] {
             id,
             initializer,
             type,
+            isOptional,
         })
     }
 
