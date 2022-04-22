@@ -771,6 +771,10 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         "Error",
         Type.createConstructor([Type.createParameter("message", Type.coreAliases.string, Flags.Optional)], 0)
     )
+    scope.vars["SyntaxError"] = Type.createClassRef(
+        "SyntaxError",
+        Type.createConstructor([Type.createParameter("message", Type.coreAliases.string, Flags.Optional)], 0)
+    )
 
     // declareModule(ctx, "fs", {
     //     readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),
