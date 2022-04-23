@@ -1,9 +1,8 @@
 import { raiseAt, unexpected } from "../error"
-import { ParserContext } from "./parser"
-import { Token } from "./tokenizer-types"
-import { isIdentifierChar, isIdentifierStart, isNewLine } from "./utils"
+import { Token, Tokenizer } from "./tokenizer-types"
+import { isIdentifierChar, isIdentifierStart, isNewLine } from "./tokenizer-utils"
 
-function skipSpace(ctx: ParserContext): void {
+function skipSpace(ctx: Tokenizer): void {
     while (ctx.pos < ctx.input.length) {
         const charCode = ctx.input.charCodeAt(ctx.pos)
         switch (charCode) {
@@ -23,7 +22,7 @@ function skipSpace(ctx: ParserContext): void {
     }
 }
 
-function skipLineComment(ctx: ParserContext): void {
+function skipLineComment(ctx: Tokenizer): void {
     ctx.pos += 2
 
     let charCode = ctx.input.charCodeAt(ctx.pos)
@@ -33,7 +32,7 @@ function skipLineComment(ctx: ParserContext): void {
     }
 }
 
-function readWord(ctx: ParserContext): void {
+function readWord(ctx: Tokenizer): void {
     while (ctx.pos < ctx.input.length) {
         const charCode = ctx.input.charCodeAt(ctx.pos)
         if (!isIdentifierChar(charCode)) {
@@ -54,7 +53,7 @@ function readWord(ctx: ParserContext): void {
     }
 }
 
-function readText(ctx: ParserContext, quote: number): void {
+function readText(ctx: Tokenizer, quote: number): void {
     const start = ctx.pos++
 
     for (;;) {
@@ -75,7 +74,7 @@ function readText(ctx: ParserContext, quote: number): void {
     ctx.value = ctx.input.slice(start + 1, ctx.pos - 1)
 }
 
-function readNumber(ctx: ParserContext): void {
+function readNumber(ctx: Tokenizer): void {
     let hadDot = false
 
     for (; ctx.pos < Infinity; ctx.pos++) {
@@ -98,7 +97,7 @@ function readNumber(ctx: ParserContext): void {
     ctx.value = ctx.input.slice(ctx.start, ctx.pos)
 }
 
-function readPlusMinus(ctx: ParserContext, charCode: number): void {
+function readPlusMinus(ctx: Tokenizer, charCode: number): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === charCode) {
         ctx.kind = kinds.incrementDecrement
@@ -119,7 +118,7 @@ function readPlusMinus(ctx: ParserContext, charCode: number): void {
     ctx.pos++
 }
 
-function finishTokenAssign(ctx: ParserContext, kind: Token): void {
+function finishTokenAssign(ctx: Tokenizer, kind: Token): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
         ctx.kind = kinds.assign
@@ -133,7 +132,7 @@ function finishTokenAssign(ctx: ParserContext, kind: Token): void {
     ctx.pos++
 }
 
-function readEquality(ctx: ParserContext, charCode: number): void {
+function readEquality(ctx: Tokenizer, charCode: number): void {
     let size = 1
 
     let nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
@@ -161,7 +160,7 @@ function readEquality(ctx: ParserContext, charCode: number): void {
     ctx.pos += size
 }
 
-function readGreaterThan(ctx: ParserContext): void {
+function readGreaterThan(ctx: Tokenizer): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
@@ -175,7 +174,7 @@ function readGreaterThan(ctx: ParserContext): void {
     ctx.pos++
 }
 
-function readLessThan(ctx: ParserContext): void {
+function readLessThan(ctx: Tokenizer): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 61) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
@@ -189,7 +188,7 @@ function readLessThan(ctx: ParserContext): void {
     ctx.pos++
 }
 
-function readLogicalOr(ctx: ParserContext): void {
+function readLogicalOr(ctx: Tokenizer): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 124) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
@@ -203,7 +202,7 @@ function readLogicalOr(ctx: ParserContext): void {
     ctx.pos += 1
 }
 
-function readLogicalAnd(ctx: ParserContext): void {
+function readLogicalAnd(ctx: Tokenizer): void {
     const nextCharCode = ctx.input.charCodeAt(ctx.pos + 1)
     if (nextCharCode === 38) {
         ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 2)
@@ -217,13 +216,13 @@ function readLogicalAnd(ctx: ParserContext): void {
     ctx.pos += 1
 }
 
-function finishToken(ctx: ParserContext, kind: Token): void {
+function finishToken(ctx: Tokenizer, kind: Token): void {
     ctx.kind = kind
     ctx.value = ctx.input.slice(ctx.pos, ctx.pos + 1)
     ctx.pos++
 }
 
-function getTokenFromCode(ctx: ParserContext, charCode: number): void {
+function getTokenFromCode(ctx: Tokenizer, charCode: number): void {
     switch (charCode) {
         case 33:
         case 61: // '! ='
@@ -320,7 +319,7 @@ function getTokenFromCode(ctx: ParserContext, charCode: number): void {
     raiseAt(ctx, ctx.pos, "Unsupported feature")
 }
 
-function readTemplateToken(ctx: ParserContext): void {
+function readTemplateToken(ctx: Tokenizer): void {
     let output = ""
     let chunkStart = ctx.pos
 
@@ -366,7 +365,7 @@ function readTemplateToken(ctx: ParserContext): void {
     }
 }
 
-export function nextToken(ctx: ParserContext): void {
+export function nextToken(ctx: Tokenizer): void {
     skipSpace(ctx)
 
     if (ctx.pos >= ctx.input.length) {
@@ -389,7 +388,7 @@ export function nextToken(ctx: ParserContext): void {
     ctx.end = ctx.pos
 }
 
-export function nextTemplateToken(ctx: ParserContext): void {
+export function nextTemplateToken(ctx: Tokenizer): void {
     ctx.startLast = ctx.start
     ctx.start = ctx.pos
 
@@ -399,7 +398,7 @@ export function nextTemplateToken(ctx: ParserContext): void {
     ctx.end = ctx.pos
 }
 
-export function eat(ctx: ParserContext, kind: Token): boolean {
+export function eat(ctx: Tokenizer, kind: Token): boolean {
     if (ctx.kind === kind) {
         nextToken(ctx)
         return true
@@ -408,11 +407,11 @@ export function eat(ctx: ParserContext, kind: Token): boolean {
     return false
 }
 
-export function expect(ctx: ParserContext, kind: Token): boolean {
+export function expect(ctx: Tokenizer, kind: Token): boolean {
     return eat(ctx, kind) || unexpected(ctx, ctx.pos, kind.label)
 }
 
-function eatContextual(ctx: ParserContext, str: string): boolean {
+function eatContextual(ctx: Tokenizer, str: string): boolean {
     if (ctx.kind === kinds.name && ctx.value === str) {
         nextToken(ctx)
         return true
@@ -421,11 +420,11 @@ function eatContextual(ctx: ParserContext, str: string): boolean {
     return false
 }
 
-export function expectContextual(ctx: ParserContext, str: string): void {
+export function expectContextual(ctx: Tokenizer, str: string): void {
     eatContextual(ctx, str) || unexpected(ctx, ctx.pos)
 }
 
-export function canInsertSemicolon(ctx: ParserContext): boolean {
+export function canInsertSemicolon(ctx: Tokenizer): boolean {
     for (let n = ctx.endLast; n < ctx.pos; n++) {
         const charCode = ctx.input.charCodeAt(n)
         if (charCode === 10) {
@@ -436,7 +435,7 @@ export function canInsertSemicolon(ctx: ParserContext): boolean {
     return false
 }
 
-export function possibleArrowFunction(ctx: ParserContext): boolean {
+export function possibleArrowFunction(ctx: Tokenizer): boolean {
     for (let n = ctx.endLast; n < ctx.pos; n++) {
         const charCode = ctx.input.charCodeAt(n)
         if (isNewLine(charCode)) {

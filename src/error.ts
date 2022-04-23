@@ -1,23 +1,19 @@
-interface Context {
-    input: string
-    fileDir: string
-    fileName: string
-}
+import { FileInput } from "./tokenizer/tokenizer-types"
 
 interface LineInfo {
     line: number
     pos: number
 }
 
-export function raiseAt(ctx: Context, pos: number, error: string): never {
+export function raiseAt(ctx: FileInput, pos: number, error: string): never {
     const lineInfo = getLineInfo(ctx.input, pos)
     const fileName = `./test/${ctx.fileDir}${ctx.fileName}`
     throw new SyntaxError(`${error}. ${fileName}:${lineInfo.line}:${lineInfo.pos + 1}`)
 }
 
-export function unexpected(ctx: Context, pos: number, label: string = ""): never {
+export function unexpected(ctx: FileInput, pos: number, label: string = ""): never {
     if (label) {
-        raiseAt(ctx, pos, `'${label}' expected.`)
+        raiseAt(ctx, pos, `'${label}' expected`)
     } else {
         raiseAt(ctx, pos, "Unexpected token")
     }

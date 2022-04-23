@@ -1,10 +1,8 @@
 import * as Node from "./parser/node"
+import { FileInput } from "./tokenizer/tokenizer-types"
 
-export interface Module {
+export interface Module extends FileInput {
     program: Node.Program
-    fileDir: string
-    fileName: string
-    input: string
     alias: number
     order: number
 }
