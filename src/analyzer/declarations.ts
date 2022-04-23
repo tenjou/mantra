@@ -141,14 +141,38 @@ function resolveFunction(ctx: Context, node: Node.FunctionDeclaration, type: Typ
 function resolveInterface(ctx: Context, node: Node.InterfaceDeclaration, type: Type.Object): void {
     type.flags |= Flags.Resolved
 
+    if (node.heritageClauses) {
+        for (const heritage of node.heritageClauses) {
+            const heritageType = getType(ctx, heritage.name.value)
+            if (!heritageType) {
+                raiseAt(ctx.module, heritage.start, `Cannot find name '${heritage.name.value}'`)
+            }
+            if (heritageType.kind !== Type.Kind.object) {
+                raiseAt(
+                    ctx.module,
+                    heritage.start,
+                    `An interface can only extend an object type or intersection of object types with statically known members`
+                )
+            }
+
+            type.members = [...type.members, ...heritageType.members]
+            type.membersDict = {
+                ...type.membersDict,
+                ...heritageType.membersDict,
+            }
+        }
+    }
+
     const nodeMembers = node.members
-    type.members.length = nodeMembers.length
+
+    let offset = type.members.length
+    type.members.length += nodeMembers.length
 
     for (let n = 0; n < nodeMembers.length; n++) {
         const nodeMember = nodeMembers[n]
         const memberType = handleType(ctx, nodeMember.type, null, nodeMember.name.value)
         const ref = Type.createRef(nodeMember.name.value, memberType)
-        type.members[n] = ref
+        type.members[offset++] = ref
         type.membersDict[ref.name] = ref
     }
 }
