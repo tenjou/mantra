@@ -228,10 +228,16 @@ export interface TypeAliasDeclaration extends Node {
     typeParams: TypeNode.TypeParameter[] | null
 }
 
+export interface HeritageClause extends Node {
+    kind: "HeritageClause"
+    name: Identifier
+}
+
 export interface InterfaceDeclaration extends Node {
     kind: "InterfaceDeclaration"
     name: Identifier
     members: TypeNode.PropertySignature[]
+    heritageClauses: HeritageClause[] | null
 }
 
 export interface ImportSpecifier extends Node {

@@ -1,5 +1,6 @@
 import fs from "fs"
 import * as path from "path"
+import { HeritageClause } from "typescript"
 import { Config } from "../config"
 import { raiseAt, unexpected } from "../error"
 import { createModule, Module } from "../module"
@@ -1255,6 +1256,20 @@ function parseInterface(ctx: Context): Node.InterfaceDeclaration {
     nextToken(ctx)
     const name = parseIdentifier(ctx)
 
+    let heritageClauses: Node.HeritageClause[] | null = null
+    if (eat(ctx, kinds.extends)) {
+        const heritageName = parseIdentifier(ctx)
+
+        heritageClauses = [
+            {
+                kind: "HeritageClause",
+                start: heritageName.start,
+                end: ctx.end,
+                name: heritageName,
+            },
+        ]
+    }
+
     expect(ctx, kinds.braceL)
 
     const members: TypeNode.PropertySignature[] = []
@@ -1280,6 +1295,7 @@ function parseInterface(ctx: Context): Node.InterfaceDeclaration {
         end: ctx.end,
         name,
         members,
+        heritageClauses,
     }
 }
 
