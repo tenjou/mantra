@@ -15,9 +15,6 @@ export interface FileInput {
 }
 
 export interface Tokenizer extends FileInput {
-    fileDir: string
-    fileName: string
-    input: string
     pos: number
     start: number
     end: number

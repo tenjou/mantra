@@ -553,22 +553,7 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
                     return false
                 }
 
-                const membersLeft = leftType.members
-                const membersRight = rightType.members
-
-                loop: for (let n = 0; n < membersLeft.length; n++) {
-                    const memberLeft = membersLeft[n]
-                    for (let m = 0; m < membersRight.length; m++) {
-                        const memberRight = membersRight[m]
-                        if (memberLeft.type === memberRight.type && memberLeft.name === memberRight.name) {
-                            continue loop
-                        }
-                    }
-
-                    return false
-                }
-
-                return leftType.members.length === rightType.members.length
+                return compareMembers(ctx, leftType, rightType)
             }
             if (leftType.members.length === 0) {
                 return rightType.kind === Type.Kind.enum
@@ -680,6 +665,30 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
     }
 
     return leftType === rightType
+}
+
+function compareMembers(ctx: Context, leftType: Type.Object, rightType: Type.Object) {
+    const membersLeft = leftType.members
+    const membersRight = rightType.members
+
+    loop: for (let n = 0; n < membersLeft.length; n++) {
+        const memberLeft = membersLeft[n]
+        for (let m = 0; m < membersRight.length; m++) {
+            const memberRight = membersRight[m]
+            if (memberLeft.type === memberRight.type && memberLeft.name === memberRight.name) {
+                continue loop
+            }
+            if (memberLeft.type.kind === Type.Kind.object && memberRight.type.kind === Type.Kind.object) {
+                if (compareMembers(ctx, memberLeft.type, memberRight.type)) {
+                    continue loop
+                }
+            }
+        }
+
+        return false
+    }
+
+    return membersLeft.length === membersRight.length
 }
 
 function raiseTypeError(ctx: Context, start: number, leftType: Type.Any, rightType: Type.Any, name: string = "") {
