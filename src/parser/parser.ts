@@ -982,6 +982,7 @@ function parseImportSpecifiers(ctx: Context): Node.ImportSpecifier[] {
             end: ctx.end,
             imported,
             local: null,
+            isType: false,
         })
     }
 

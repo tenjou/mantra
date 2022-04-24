@@ -244,6 +244,7 @@ export interface ImportSpecifier extends Node {
     kind: "ImportSpecifier"
     imported: Identifier
     local: Identifier | null
+    isType: boolean
 }
 
 export interface NamespaceImport extends Node {

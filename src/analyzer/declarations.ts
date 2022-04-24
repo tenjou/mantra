@@ -76,7 +76,9 @@ function declareImport(ctx: Context, node: Node.ImportDeclaration): void {
                         if (!importedType) {
                             raiseAt(ctx.module, specifier.start, `Module '"${filePath}"' has no exported member '${name}'`)
                         }
+
                         ctx.scopeCurr.types[name] = importedType
+                        specifier.isType = true
                     } else {
                         ctx.scopeCurr.vars[name] = importedVar
                     }

@@ -128,6 +128,10 @@ function parseImportClause(_ctx: CompilerContext, importClause: Node.NamespaceIm
             let result = ""
 
             for (const specifier of importClause.specifiers) {
+                if (specifier.isType) {
+                    continue
+                }
+
                 const specifierResult = specifier.local ? `${specifier.imported.value}: ${specifier.local.value}` : specifier.imported.value
                 if (result) {
                     result += `, ${specifierResult}`
@@ -136,7 +140,7 @@ function parseImportClause(_ctx: CompilerContext, importClause: Node.NamespaceIm
                 }
             }
 
-            return `{ ${result} }`
+            return result ? `{ ${result} }` : result
         }
 
         case "NamespaceImport": {
@@ -147,10 +151,14 @@ function parseImportClause(_ctx: CompilerContext, importClause: Node.NamespaceIm
 
 function parseImportDeclaration(ctx: CompilerContext, node: Node.ImportDeclaration): string {
     const importClause = parseImportClause(ctx, node.importClause)
+    if (!importClause) {
+        return ""
+    }
+
     const filePath = getFilePath(ctx.module.fileDir, node.source.value)
     const module = ctx.modules[filePath]
     const importPath = module ? `${node.source.value}.js` : filePath
-    const result = `import ${importClause} from "${importPath}"\n`
+    const result = `import ${importClause} from "${importPath}"`
 
     return result
 }
@@ -213,7 +221,7 @@ function parseForStatement(ctx: CompilerContext, node: Node.ForStatement): strin
     const test = node.test ? parse[node.test.kind](ctx, node.test) : ""
     const update = node.update ? parse[node.update.kind](ctx, node.update) : ""
     const body = parse[node.body.kind](ctx, node.body)
-    const result = `for(${init};${test};${update}) ${body}`
+    const result = `for(${init}; ${test}; ${update}) ${body}`
 
     return result
 }

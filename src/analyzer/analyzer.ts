@@ -376,23 +376,6 @@ function handleVariableDeclaration(ctx: Context, node: Node.VariableDeclaration,
     }
 }
 
-function handleImportDeclaration(ctx: Context, node: Node.ImportDeclaration): void {
-    const filePath = getFilePath(ctx.module.fileDir, node.source.value)
-    const importedModule = ctx.modules[filePath]
-
-    // let moduleExports =
-    // if (!moduleExports) {
-    //     const module = ctx.modules[filePath]
-    //     if (!module) {
-    //         raiseAt(ctx.module, node.source.start, `Cannot find module '${filePath}' or its corresponding type declarations.`)
-    //     }
-
-    //     module.order = ctx.module.order + 1
-    //     moduleExports = analyze(ctx.config, module, ctx.modules)
-    //     ctx.modulesExports[filePath] = moduleExports
-    // }
-}
-
 function handleExportNamedDeclaration(ctx: Context, node: Node.ExportNamedDeclaration): void {
     statements[node.declaration.kind](ctx, node.declaration, Flags.Exported)
 }
@@ -751,7 +734,7 @@ const statements: Record<string, StatementFunc> = {
     TypeAliasDeclaration: handleNoop,
     EnumDeclaration: handleNoop,
     VariableDeclaration: handleVariableDeclaration,
-    ImportDeclaration: handleImportDeclaration,
+    ImportDeclaration: handleNoop,
     ExportNamedDeclaration: handleExportNamedDeclaration,
     FunctionDeclaration: handleFunctionDeclaration,
     BlockStatement: handleBlockStatement,
