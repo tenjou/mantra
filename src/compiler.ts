@@ -566,14 +566,20 @@ function compile(config: Config, module: Module, modules: Record<string, Module>
         spaces: "",
     }
 
-    let result = indexModule ? `"use strict"\n\nimport "${mantrLibFileName}"\n\n` : `"use strict"\n\n`
-
+    let result = ""
     for (const node of module.program.body) {
         const statementResult = parse[node.kind](ctx, node)
         if (statementResult) {
             result += `${ctx.spaces}${statementResult}\n`
         }
     }
+
+    if (!result) {
+        return
+    }
+
+    const topResult = indexModule ? `"use strict"\n\nimport "${mantrLibFileName}"\n\n` : `"use strict"\n\n`
+    result = topResult + result
 
     const fileName = path.parse(module.fileName).name
     const targetPath = path.resolve(config.outDir, `${fileName}.js`)
