@@ -65,7 +65,14 @@ export type Statement =
     | LabeledStatement
     | ExpressionStatement
 
-export type ParameterExpresion = NumericLiteral | BooleanLiteral | Literal | Identifier | PropertyAccessExpression | NullKeyword
+export type ParameterExpresion =
+    | NumericLiteral
+    | BooleanLiteral
+    | Literal
+    | Identifier
+    | PropertyAccessExpression
+    | NullKeyword
+    | ObjectExpression
 
 export type Expression =
     | (

@@ -264,17 +264,20 @@ export function getName(type: Any): string {
             return `${type.enum.name}.${type.name}`
 
         case Kind.object: {
-            return type.name ? type.name : "{}"
-            // let result = ""
-            // for (const member of type.members) {
-            //     if (result) {
-            //         result += `, ${member.name}: ${getName(member.type)}`
-            //     } else {
-            //         result = `${member.name}: ${getName(member.type)}`
-            //     }
-            // }
+            if (type.name) {
+                return type.name
+            }
 
-            // return result ? `{ ${result} }` : "{}"
+            let result = ""
+            for (const member of type.members) {
+                if (result) {
+                    result += `, ${member.name}: ${getName(member.type)}`
+                } else {
+                    result = `${member.name}: ${getName(member.type)}`
+                }
+            }
+
+            return result ? `{ ${result} }` : "{}"
         }
 
         case Kind.type: {

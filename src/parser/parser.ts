@@ -1500,6 +1500,9 @@ function parseParametersExpression(ctx: Context): Node.ParameterExpresion {
         case kinds.null:
         case kinds.undef:
             return parseLiteral(ctx)
+
+        case kinds.braceL:
+            return parseObjectExpression(ctx)
     }
 
     unexpected(ctx, ctx.start)
