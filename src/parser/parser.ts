@@ -1,6 +1,5 @@
 import fs from "fs"
 import * as path from "path"
-import { HeritageClause } from "typescript"
 import { Config } from "../config"
 import { raiseAt, unexpected } from "../error"
 import { createModule, Module } from "../module"

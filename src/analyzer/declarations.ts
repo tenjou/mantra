@@ -3,21 +3,28 @@ import * as Node from "../parser/node"
 import * as TypeNode from "../parser/type-node"
 import { createScope, FunctionTypeDeclaration, TypeDeclaration } from "../scope"
 import * as Type from "../types"
-import { Context } from "./context"
+import { getFilePath } from "./../file"
 import { Flags } from "./../flags"
+import { analyzeModule } from "./analyzer"
+import { getVar } from "./analyzer-utils"
+import { Context } from "./context"
 
-export function handleDeclaration(ctx: Context, node: Node.Statement): void {
+export function handleDeclaration(ctx: Context, node: Node.Statement, isExported: boolean): void {
     switch (node.kind) {
         case "FunctionDeclaration":
             declareFunction(ctx, node)
             break
 
         case "InterfaceDeclaration":
-            declareInterface(ctx, node)
+            declareInterface(ctx, node, isExported)
             break
 
         case "TypeAliasDeclaration":
             declareTypeAlias(ctx, node)
+            break
+
+        case "ImportDeclaration":
+            declareImport(ctx, node)
             break
 
         case "ExportNamedDeclaration":
@@ -30,8 +37,70 @@ export function handleDeclaration(ctx: Context, node: Node.Statement): void {
     }
 }
 
+function declareImport(ctx: Context, node: Node.ImportDeclaration): void {
+    const filePath = getFilePath(ctx.module.fileDir, node.source.value)
+    const module = ctx.modules[filePath]
+    if (!module) {
+        raiseAt(ctx.module, node.source.start, `Cannot find module '${filePath}' or its corresponding type declarations`)
+    }
+
+    if (!module.scope) {
+        module.order = ctx.module.order + 1
+        analyzeModule(ctx, module)
+    }
+    if (!module.scope) {
+        raiseAt(ctx.module, node.source.start, `Module scope has not been initialized '${filePath}'`)
+    }
+
+    if (node.name) {
+        const defaultVar = module.exportedVars.find((entry) => entry.name === "default")
+        if (!defaultVar) {
+            raiseAt(ctx.module, node.start, `Module '"${filePath}"' has no default export`)
+        }
+    }
+
+    const importClause = node.importClause
+    if (importClause) {
+        switch (importClause.kind) {
+            case "NamedImports": {
+                for (const specifier of importClause.specifiers) {
+                    const name = specifier.imported.value
+                    const prevVar = getVar(ctx, name)
+                    if (prevVar) {
+                        raiseAt(ctx.module, specifier.start, `Duplicate identifier '${name}'`)
+                    }
+
+                    const importedVar = module.exportedVars.find((entry) => entry.name === name)
+                    if (!importedVar) {
+                        const importedType = module.exportedTypes.find((entry) => entry.name === name)
+                        if (!importedType) {
+                            raiseAt(ctx.module, specifier.start, `Module '"${filePath}"' has no exported member '${name}'`)
+                        }
+                        ctx.scopeCurr.types[name] = importedType
+                    } else {
+                        ctx.scopeCurr.vars[name] = importedVar
+                    }
+                }
+                break
+            }
+
+            case "NamespaceImport": {
+                const name = importClause.name.value
+                const prevVar = getVar(ctx, name)
+                if (prevVar) {
+                    raiseAt(ctx.module, importClause.start, `Duplicate identifier '${name}'`)
+                }
+
+                const importedObjRef = Type.createRef(name, Type.createObject(name, module.exportedVars))
+                ctx.scopeCurr.vars[name] = importedObjRef
+                break
+            }
+        }
+    }
+}
+
 function declareExport(ctx: Context, node: Node.ExportNamedDeclaration): void {
-    handleDeclaration(ctx, node.declaration)
+    handleDeclaration(ctx, node.declaration, true)
 }
 
 function declareTypeAlias(ctx: Context, node: Node.TypeAliasDeclaration): void {
@@ -48,7 +117,7 @@ function declareTypeAlias(ctx: Context, node: Node.TypeAliasDeclaration): void {
     ctx.scopeCurr.types[node.id.value] = type
 }
 
-function declareInterface(ctx: Context, node: Node.InterfaceDeclaration): void {
+function declareInterface(ctx: Context, node: Node.InterfaceDeclaration, isExported: boolean): void {
     if (ctx.scope.types[node.name.value]) {
         raiseAt(ctx.module, node.start, `Duplicate identifier '${node.name.value}'`)
     }
@@ -60,6 +129,10 @@ function declareInterface(ctx: Context, node: Node.InterfaceDeclaration): void {
         node,
     }
     ctx.scopeCurr.types[type.name] = type
+
+    if (isExported) {
+        ctx.module.exportedTypes.push(type)
+    }
 }
 
 function declareFunction(ctx: Context, node: Node.FunctionDeclaration): void {

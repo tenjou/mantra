@@ -6,9 +6,9 @@ import { Module } from "../module"
 import * as Node from "../parser/node"
 import { createScope, FunctionTypeDeclaration } from "../scope"
 import * as Type from "../types"
+import { getVar } from "./analyzer-utils"
 import { Context } from "./context"
 import { handleDeclaration, handleType, resolveDeclaration } from "./declarations"
-import { loadExterns } from "./externs"
 
 function handleThrowStatement(ctx: Context, node: Node.ThrowStatement): void {
     if (ctx.currFuncType) {
@@ -362,7 +362,7 @@ function handleVariableDeclarator(ctx: Context, node: Node.VariableDeclarator, f
     }
 
     if (flags & Flags.Exported) {
-        ctx.exports.push(varRef)
+        ctx.module.exportedVars.push(varRef)
     }
 }
 
@@ -378,51 +378,19 @@ function handleVariableDeclaration(ctx: Context, node: Node.VariableDeclaration,
 
 function handleImportDeclaration(ctx: Context, node: Node.ImportDeclaration): void {
     const filePath = getFilePath(ctx.module.fileDir, node.source.value)
+    const importedModule = ctx.modules[filePath]
 
-    let moduleExports = ctx.modulesExports[filePath]
-    if (!moduleExports) {
-        const module = ctx.modules[filePath]
-        if (!module) {
-            raiseAt(ctx.module, node.source.start, `Cannot find module '${filePath}' or its corresponding type declarations.`)
-        }
+    // let moduleExports =
+    // if (!moduleExports) {
+    //     const module = ctx.modules[filePath]
+    //     if (!module) {
+    //         raiseAt(ctx.module, node.source.start, `Cannot find module '${filePath}' or its corresponding type declarations.`)
+    //     }
 
-        module.order = ctx.module.order + 1
-        moduleExports = analyze(ctx.config, module, ctx.modules)
-        ctx.modulesExports[filePath] = moduleExports
-    }
-
-    if (node.name) {
-        let haveDefault = false
-        for (const entry of moduleExports) {
-            if (entry.name === "default") {
-                haveDefault = true
-                break
-            }
-        }
-        if (!haveDefault) {
-            raiseAt(ctx.module, node.start, `Module '"${filePath}"' has no default export.`)
-        }
-    }
-
-    const importClause = node.importClause
-    if (importClause) {
-        switch (importClause.kind) {
-            case "NamedImports":
-                break
-
-            case "NamespaceImport": {
-                const name = importClause.name.value
-                const prevVar = getVar(ctx, name, false)
-                if (prevVar) {
-                    raiseAt(ctx.module, importClause.start, `Duplicate identifier '${name}'`)
-                }
-
-                const importedObjRef = Type.createRef(name, Type.createObject(name, moduleExports))
-                ctx.scopeCurr.vars[name] = importedObjRef
-                break
-            }
-        }
-    }
+    //     module.order = ctx.module.order + 1
+    //     moduleExports = analyze(ctx.config, module, ctx.modules)
+    //     ctx.modulesExports[filePath] = moduleExports
+    // }
 }
 
 function handleExportNamedDeclaration(ctx: Context, node: Node.ExportNamedDeclaration): void {
@@ -464,7 +432,7 @@ function handleFunctionDeclaration(ctx: Context, node: Node.FunctionDeclaration,
     }
 
     if (name && flags & Flags.Exported) {
-        ctx.exports.push(ref)
+        ctx.module.exportedVars.push(ref)
     }
 
     return ref.type
@@ -504,7 +472,7 @@ function handleStatements(ctx: Context, body: Node.Statement[]): void {
     ctx.resolvingTypes = {}
 
     for (const node of body) {
-        handleDeclaration(ctx, node)
+        handleDeclaration(ctx, node, false)
     }
 
     for (const key in ctx.resolvingTypes) {
@@ -702,34 +670,9 @@ function raiseTypeError(ctx: Context, start: number, leftType: Type.Any, rightTy
     raiseAt(ctx.module, start, `Type '${Type.getName(rightType)}' is not assignable to type '${Type.getName(leftType)}'`)
 }
 
-function getVar(ctx: Context, name: string, isObject: boolean = false): Type.Reference | null {
-    if (isObject) {
-        const item = ctx.scopeCurr.vars[name]
-        if (item) {
-            return item
-        }
-    } else {
-        let scope = ctx.scopeCurr
-        let item = scope.vars[name]
-        if (item) {
-            return item
-        }
-
-        do {
-            scope = scope.parent
-            item = scope.vars[name]
-            if (item) {
-                return item
-            }
-        } while (scope !== ctx.scope)
-    }
-
-    return null
-}
-
 function declareVar(ctx: Context, node: Node.VariableDeclarator | Node.Parameter, flags = 0): Type.Reference {
     const name = node.id.value
-    const prevVar = getVar(ctx, name, false)
+    const prevVar = getVar(ctx, name)
     if (prevVar) {
         raiseAt(ctx.module, node.start, `Duplicate identifier '${name}'`)
     }
@@ -742,6 +685,19 @@ function declareVar(ctx: Context, node: Node.VariableDeclarator | Node.Parameter
     return ref
 }
 
+export function analyzeModule(ctx: Context, module: Module) {
+    module.scope = createScope(ctx.scope)
+
+    const prevModule = ctx.module
+    ctx.module = module
+    ctx.scopeCurr = module.scope
+
+    handleStatements(ctx, module.program.body)
+
+    ctx.module = prevModule
+    ctx.scopeCurr = prevModule.scope || ctx.scope
+}
+
 export function analyze(config: Config, module: Module, modules: Record<string, Module>) {
     const scope = createScope()
     scope.parent = scope
@@ -750,32 +706,19 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         config,
         module,
         modules,
-        modulesExports: {},
-        exports: [],
         scope,
         scopeCurr: scope,
         currFuncType: null,
         resolvingTypes: {},
     }
 
-    // loadCoreTypes(ctx)
-    loadExterns(ctx.modulesExports)
-
-    // declareModule(ctx, "path", {})
-
-    // scope.vars["Infinity"] = coreTypeRefs.number
-    // scope.vars["NaN"] = coreTypeRefs.number
-    // scope.vars["console"] = createObject("Console", {
-    //     log: createFunction("console", [createArg("msg", coreTypeAliases.args)]),
-    // })
-    // scope.vars["Error"] = createObject("Error", {
-    //     message: createVar(coreTypeAliases.string),
-    // })
-
+    scope.vars["path"] = Type.createObjectRef("Object", [
+        Type.createFunctionRef("extname", { path: Type.coreAliases.string }, Type.coreAliases.string),
+        Type.createFunctionRef("relative", { from: Type.coreAliases.string, to: Type.coreAliases.string }, Type.coreAliases.string),
+    ])
     scope.vars["Object"] = Type.createObjectRef("Object", [
         Type.createFunctionRef("keys", { o: Type.coreAliases.object }, Type.createArray(Type.coreAliases.string)),
     ])
-
     scope.vars["Error"] = Type.createClassRef(
         "Error",
         Type.createConstructor([Type.createParameter("message", Type.coreAliases.string, Flags.Optional)], 0)
@@ -784,10 +727,6 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         "SyntaxError",
         Type.createConstructor([Type.createParameter("message", Type.coreAliases.string, Flags.Optional)], 0)
     )
-
-    // declareModule(ctx, "fs", {
-    //     readFileSync: createFunction("readFileSync", [createArg("path", TypeKind.string), createArg("encoding", TypeKind.string)]),
-    // })
 
     scope.types["Record"] = Type.createType(
         "Record",
@@ -798,9 +737,7 @@ export function analyze(config: Config, module: Module, modules: Record<string, 
         Type.createMappedType(Type.createUnion([Type.coreAliases.string, Type.coreAliases.number]), Type.coreAliases.unknown)
     )
 
-    handleStatements(ctx, module.program.body)
-
-    return ctx.exports
+    return analyzeModule(ctx, module)
 }
 
 type StatementFunc = (ctx: Context, node: any, flags: number) => void
@@ -1015,7 +952,7 @@ const handle: Record<string, HandleFunc> = {
 // }
 
 // function importVar(ctx: Context, name: string, ref) {
-// const prevVar = getVar(ctx, name, false)
+// const preimport { getVar } from './analyzer-utils';
 // if (prevVar) {
 //     raise(ctx, node, `Duplicate identifier '${name}'`)
 // }
