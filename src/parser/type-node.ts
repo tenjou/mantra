@@ -58,6 +58,7 @@ export interface PropertySignature extends TypeNode {
     kind: "PropertySignature"
     name: Identifier
     type: Any
+    isOptional: boolean
 }
 
 export interface MappedType extends TypeNode {

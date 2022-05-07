@@ -3,6 +3,8 @@ import { compiler } from "./compiler"
 import { Config } from "./config"
 import { parser } from "./parser/parser"
 
+const { performance } = require("perf_hooks")
+
 function compile(fileName: string, config: Config) {
     try {
         const modules = {}
@@ -17,9 +19,14 @@ function compile(fileName: string, config: Config) {
     }
 }
 
+const startTime = performance.now()
+
 compile("./source.ts", {
     rootDir: "./test",
     outDir: "./dist",
 })
 
-console.log("Compiled")
+const endTime = performance.now()
+const totalTime = endTime - startTime
+
+console.log(`Compiled: ${totalTime}ms`)

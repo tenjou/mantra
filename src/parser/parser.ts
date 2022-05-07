@@ -189,6 +189,7 @@ function parseTypeLiteral(ctx: Context): TypeNode.Literal | TypeNode.MappedType 
 
     while (!eat(ctx, kinds.braceR)) {
         const name = parseIdentifier(ctx)
+        const isOptional = eat(ctx, kinds.question)
 
         expect(ctx, kinds.colon)
 
@@ -202,6 +203,7 @@ function parseTypeLiteral(ctx: Context): TypeNode.Literal | TypeNode.MappedType 
             end: ctx.end,
             name,
             type,
+            isOptional,
         })
     }
 
@@ -1070,7 +1072,13 @@ function parseTypeAnnotationEntry(ctx: Context): TypeNode.Any {
     if (ctx.kind === kinds.parenthesisL) {
         return parseFunctionType(ctx)
     }
-    if (ctx.kind !== kinds.name && ctx.kind !== kinds.null && ctx.kind !== kinds.undef && ctx.kind !== kinds.never) {
+    if (
+        ctx.kind !== kinds.name &&
+        ctx.kind !== kinds.null &&
+        ctx.kind !== kinds.undef &&
+        ctx.kind !== kinds.keyof &&
+        ctx.kind !== kinds.never
+    ) {
         unexpected(ctx, ctx.start)
     }
 
@@ -1275,6 +1283,7 @@ function parseInterface(ctx: Context): Node.InterfaceDeclaration {
     const members: TypeNode.PropertySignature[] = []
     while (!eat(ctx, kinds.braceR)) {
         const name = parseIdentifier(ctx)
+        const isOptional = eat(ctx, kinds.question)
 
         expect(ctx, kinds.colon)
 
@@ -1286,6 +1295,7 @@ function parseInterface(ctx: Context): Node.InterfaceDeclaration {
             end: ctx.end,
             name,
             type,
+            isOptional,
         })
     }
 
@@ -1519,11 +1529,7 @@ function parseParameters(ctx: Context): Node.Parameter[] {
 
         const start = ctx.start
         const id = parseIdentifier(ctx)
-
-        let isOptional = false
-        if (eat(ctx, kinds.question)) {
-            isOptional = true
-        }
+        const isOptional = eat(ctx, kinds.question)
 
         let type: TypeNode.Any | null = null
         if (eat(ctx, kinds.colon)) {

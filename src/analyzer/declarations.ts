@@ -247,6 +247,10 @@ function resolveInterface(ctx: Context, node: Node.InterfaceDeclaration, type: T
         const nodeMember = nodeMembers[n]
         const memberType = handleType(ctx, nodeMember.type, null, nodeMember.name.value)
         const ref = Type.createRef(nodeMember.name.value, memberType)
+        if (nodeMember.isOptional) {
+            ref.flags |= Flags.Optional
+        }
+
         type.members[offset++] = ref
         type.membersDict[ref.name] = ref
     }

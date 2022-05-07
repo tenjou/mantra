@@ -498,7 +498,6 @@ function isValidType(ctx: Context, leftType: Type.Any, rightType: Type.Any, pos:
             if (leftType === rightType) {
                 return true
             }
-
             if (rightType.kind === Type.Kind.object) {
                 if (shallowCheck) {
                     return false
@@ -626,17 +625,28 @@ function compareMembers(ctx: Context, leftType: Type.Object, rightType: Type.Obj
         const memberLeft = membersLeft[n]
         for (let m = 0; m < membersRight.length; m++) {
             const memberRight = membersRight[m]
-            if (memberLeft.type === memberRight.type && memberLeft.name === memberRight.name) {
+            if (memberLeft.name !== memberRight.name) {
+                continue
+            }
+
+            if (memberLeft.type === memberRight.type) {
                 continue loop
             }
-            if (memberLeft.type.kind === Type.Kind.object && memberRight.type.kind === Type.Kind.object) {
-                if (compareMembers(ctx, memberLeft.type, memberRight.type)) {
-                    continue loop
+
+            if (memberLeft.type.kind === Type.Kind.object) {
+                if (memberRight.type.kind === Type.Kind.object) {
+                    if (compareMembers(ctx, memberLeft.type, memberRight.type)) {
+                        continue loop
+                    }
+                } else {
+                    return false
                 }
+            } else {
+                return false
             }
         }
 
-        return false
+        return (memberLeft.flags & Flags.Optional) !== 0
     }
 
     return membersLeft.length === membersRight.length
