@@ -10,6 +10,8 @@ export type Any =
     | NeverKeyword
     | TypeReference
     | TypeParameter
+    | TypeOperator
+    | IndexedAccessType
     | Literal
     | PropertySignature
     | Function
@@ -48,6 +50,11 @@ export interface TypeParameter extends TypeNode {
     constraint: Any | null
 }
 
+export interface TypeOperator extends TypeNode {
+    kind: "TypeOperator"
+    type: Any
+}
+
 export interface Function extends TypeNode {
     kind: "FunctionType"
     type: Any
@@ -65,6 +72,7 @@ export interface MappedType extends TypeNode {
     kind: "MappedType"
     typeParam: TypeParameter
     type: Any
+    isOptional: boolean
 }
 
 export interface Literal extends TypeNode {
@@ -76,6 +84,12 @@ export interface TypeReference extends TypeNode {
     kind: "TypeReference"
     name: Identifier
     typeArgs: Any[] | null
+}
+
+export interface IndexedAccessType extends TypeNode {
+    kind: "IndexedAccessType"
+    objectType: Identifier
+    indexType: Any
 }
 
 export interface StringKeyword extends TypeNode {

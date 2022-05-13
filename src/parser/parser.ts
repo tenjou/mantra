@@ -170,6 +170,9 @@ function parseTypeLiteral(ctx: Context): TypeNode.Literal | TypeNode.MappedType 
         const typeParam = parseTypeParameter(ctx)
 
         expect(ctx, kinds.bracketR)
+
+        const isOptional = eat(ctx, kinds.question)
+
         expect(ctx, kinds.colon)
 
         const type = parseTypeAnnotationEntry(ctx)
@@ -182,6 +185,7 @@ function parseTypeLiteral(ctx: Context): TypeNode.Literal | TypeNode.MappedType 
             end: ctx.end,
             type,
             typeParam,
+            isOptional,
         }
     }
 
@@ -1065,13 +1069,31 @@ function parseImport(ctx: Context): Node.ImportDeclaration {
     }
 }
 
+function parseTypeOperator(ctx: Context): TypeNode.TypeOperator {
+    const start = ctx.start
+
+    nextToken(ctx)
+
+    const type = parseTypeAnnotationEntry(ctx)
+
+    return {
+        kind: "TypeOperator",
+        start,
+        end: ctx.start,
+        type,
+    }
+}
+
 function parseTypeAnnotationEntry(ctx: Context): TypeNode.Any {
-    if (ctx.kind === kinds.braceL) {
-        return parseTypeLiteral(ctx)
+    switch (ctx.kind) {
+        case kinds.braceL:
+            return parseTypeLiteral(ctx)
+        case kinds.parenthesisL:
+            return parseFunctionType(ctx)
+        case kinds.keyof:
+            return parseTypeOperator(ctx)
     }
-    if (ctx.kind === kinds.parenthesisL) {
-        return parseFunctionType(ctx)
-    }
+
     if (
         ctx.kind !== kinds.name &&
         ctx.kind !== kinds.null &&
@@ -1159,6 +1181,20 @@ function parseTypeAnnotationEntry(ctx: Context): TypeNode.Any {
 
                     const typeArg = parseTypeAnnotation(ctx)
                     typeArgs.push(typeArg)
+                }
+            } else if (ctx.kind === kinds.bracketL) {
+                nextToken(ctx)
+
+                const indexType = parseTypeAnnotationEntry(ctx)
+
+                expect(ctx, kinds.bracketR)
+
+                return {
+                    kind: "IndexedAccessType",
+                    start: left.start,
+                    end: ctx.pos,
+                    objectType: left,
+                    indexType,
                 }
             }
 

@@ -1,3 +1,6 @@
-import { raiseAt, unexpected } from "./error"
-import { Token, Tokenizer } from "./tokenizer-types"
-import { isIdentifierChar, isIdentifierStart, isNewLine } from "./tokenizer-utils"
+type Partialz<T> = { [P in keyof T]?: T[P] }
+// // type Recordz<K extends string | number, T> = { [P in K]: T; }
+
+interface Foo {}
+
+const x: Partialz<Foo> = {}

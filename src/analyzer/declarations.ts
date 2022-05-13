@@ -477,11 +477,18 @@ export function handleType(ctx: Context, type: TypeNode.Any | null = null, param
             return handleType(ctx, type.constraint, params)
         }
 
+        case "TypeOperator":
+            return Type.coreAliases.unknown
+
         case "MappedType": {
             const mappedTypeParam = handleType(ctx, type.typeParam, params)
             const mappedType = handleType(ctx, type.type, params)
 
             return Type.createMappedType(mappedTypeParam, mappedType)
+        }
+
+        case "IndexedAccessType": {
+            return Type.coreAliases.unknown
         }
 
         default: {
